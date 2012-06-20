@@ -47,6 +47,9 @@ public:
   // set buildTable==false to get only size estimate (table will not be computed)
   Function* eliminate(bool buildTable=true);
 
+  // Joins the MB functions without elimination
+  Function* join(bool buildTable=true);
+
 public:
   MiniBucket(int var, int bound, Problem* p);
 

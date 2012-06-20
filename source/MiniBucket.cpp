@@ -172,5 +172,116 @@ Function* MiniBucket::eliminate(bool buildTable) {
   return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
 }
 
+/* joins the functions in the MB
+ * resulting function is returned */
+Function* MiniBucket::join(bool buildTable) {
+
+#ifdef DEBUG
+  cout << "  Joining together:";
+  for (vector<Function*>::iterator it=m_functions.begin();it!=m_functions.end();++it)
+    cout << ' ' << (**it);
+  cout << endl;
+#endif
+
+  set<int> scope;
+  int i=0; size_t j=0; // loop variables
+
+  vector<Function*>::const_iterator fit;
+  set<int>::const_iterator sit;
+
+  for (fit = m_functions.begin(); fit != m_functions.end(); ++fit) {
+    scope.insert( (*fit)->getScopeVec().begin() , (*fit)->getScopeVec().end() );
+  }
+
+#ifdef DEBUG
+  cout << "   Joint scope: " << scope << endl;
+#endif
+
+//  scope.erase(m_bucketVar);
+  int n = scope.size(); // new function arity
+
+#ifdef DEBUG
+  cout << "   Target scope: " << scope << endl;
+#endif
+
+  // compute new table size and collect domain sizes
+  vector<val_t> domains;
+  domains.reserve(n);
+  size_t tablesize = 1;
+  for (sit = scope.begin(); sit!=scope.end(); ++sit) {
+//    if (*it != elimVar)
+    tablesize *= m_problem->getDomainSize(*sit);
+    domains.push_back(m_problem->getDomainSize(*sit));
+  }
+
+  double* newTable = NULL;
+  if (buildTable) {
+    newTable = new double[tablesize];
+    for (j=0; j<tablesize; ++j) newTable[j] = ELEM_ZERO;
+
+    // this keeps track of the tuple assignment
+    val_t* tuple = new val_t[n];
+    for (i=0; i<n; ++i) tuple[i] = 0; // i trough n index target variables
+//    val_t* elimVal = &tuple[n]; // n+1 is elimVar
+
+    // maps each function scope assignment to the full tuple
+    vector<vector<val_t*> > idxMap(m_functions.size());
+
+    // holds iterators .begin() and .end() for all function scopes
+    vector< pair< set<int>::const_iterator , set<int>::const_iterator > > iterators;
+    iterators.reserve(m_functions.size());
+    for (fit = m_functions.begin(); fit != m_functions.end(); ++fit) {
+      // store begin() and end() for each function scope
+      iterators.push_back( make_pair( (*fit)->getScopeSet().begin(), (*fit)->getScopeSet().end() ) );
+    }
+
+    // collect pointers to tuple values
+//    bool bucketVarPassed = false;
+    for (i=0, sit=scope.begin(); i<n; ++i, ++sit) {
+    	/*
+      if (!bucketVarPassed && *sit > m_bucketVar) { // just went past bucketVar
+        for (j=0; j<m_functions.size(); ++j) {
+          idxMap[j].push_back(elimVal);
+          ++(iterators[j].first); // skip bucketVar in the original function scope
+        }
+        bucketVarPassed = true;
+      }
+      */
+      for (j=0; j<m_functions.size(); ++j) {
+        //      cout << "  f" << funs[j]->getId() << ' ' << *sit << " == " << *(iterators[j].first) << endl;
+        if (iterators[j].first != iterators[j].second // scope iterator != end()
+            && *sit == *(iterators[j].first)) { // value found
+          idxMap[j].push_back(&tuple[i]);
+          ++(iterators[j].first);
+        }
+      }
+    }
+
+    /*
+    if (!bucketVarPassed) { // bucketVar has highest index
+      for (j=0; j<m_functions.size(); ++j) {
+        idxMap[j].push_back(elimVal);
+      }
+    }
+    */
+
+    // actual computation
+    size_t idx; double z;
+    // iterate over all values of elimVar
+    idx=0; // go over the full new table
+    do {
+    	z = ELEM_ONE;
+    	for (j=0; j<m_functions.size(); ++j)
+    		z OP_TIMESEQ m_functions[j]->getValuePtr(idxMap[j]);
+    	newTable[idx] = z;
+    } while ( increaseTuple(idx,tuple,domains) );
+
+    // clean up
+    delete[] tuple;
+  }
+
+  return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
+}
+
 
 
