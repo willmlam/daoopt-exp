@@ -108,6 +108,8 @@ static boost::mutex mtx_io;
 //#define OP_PLUS(X,Y) ( (X==Y) ? (X+log10(2.0)) : ( ( X > Y ) ? ( X + log10(1.0 + pow(10.0, Y-X ))) : ( Y + log10(1.0 +pow(10.0, X-Y ) )) ) )
 #define OP_PLUS(X,Y) ( ( X > Y ) ? ( X + log10(1.0 + pow(10.0, Y-X ))) : ( Y + log10(1.0 +pow(10.0, X-Y ) )) )
 //#define OP_PLUS(X,Y) ( log10( pow(10.0, X ) + pow(10.0, Y ) ) )
+#define OP_MINUS(X,Y) ( ( X > Y ) ? ( X + log10(1.0 - pow(10.0, Y-X ))) : ( Y + log10(pow(10.0, X-Y ) - 1.0 )) )
+
 
 #define ELEM_ENCODE(X) log10( X )
 #define ELEM_DECODE(X) pow(10.0, X )
@@ -125,6 +127,7 @@ static boost::mutex mtx_io;
 #define ELEM_ONE 1.0
 
 #define OP_PLUS(X,Y) (X+Y)
+#define OP_MINUS(X,Y) (X-Y)
 
 #define ELEM_ENCODE(X) ( X )
 #define ELEM_DECODE(X) ( X )

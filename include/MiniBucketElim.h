@@ -15,7 +15,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with DAOOPT.  If not, see http://www.gnu.org/licenses/>.
  *  
  *  Created on: Nov 8, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
@@ -35,6 +35,7 @@
 
 
 /* The overall minibucket elimination */
+
 class MiniBucketElim : public Heuristic {
 
   friend class MiniBucket;
@@ -50,9 +51,13 @@ protected:
   // (points to the same function objects as m_augmented)
   vector<vector<Function*> > m_intermediate;
 
+  bool m_momentMatching;
+  bool m_dynamic;
+
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
   void findDfsOrder(vector<int>&) const;
+  void findDfsOrder(vector<int>&, int var) const;
 
   // Compares the size of the scope of two functions
 //  bool scopeIsLarger(Function*, Function*) const;
@@ -70,13 +75,16 @@ public:
   // if computeTables=false, only returns size estimate (no tables computed)
   size_t build(const vector<val_t>* assignment = NULL, bool computeTables = true);
 
+  // builds the heuristic, restricted to the subtree rooted by the current assignment
+  size_t buildSubproblem(int var, const vector<val_t> &assignment, bool computeTables = true);
+
   // returns the global upper bound
   double getGlobalUB() const { return m_globalUB; }
 
   // computes the heuristic for variable var given a (partial) assignment
-  double getHeur(int var, const vector<val_t>& assignment) const;
+  double getHeur(int var, const vector<val_t>& assignment);
   // computes heuristic values for all instantiations of var, given context assignment
-  void getHeurAll(int var, const vector<val_t>& assignment, vector<double>& out) const;
+  void getHeurAll(int var, const vector<val_t>& assignment, vector<double>& out);
 
   // reset the i-bound
   void setIbound(int ibound) { m_ibound = ibound; }
@@ -106,7 +114,7 @@ inline bool MiniBucketElim::isAccurate() {
 
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
-    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE)
+    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic)
 // , m_augmented(p->getN()), m_intermediate(p->getN())
   { }
 

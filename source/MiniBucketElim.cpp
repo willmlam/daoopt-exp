@@ -39,13 +39,27 @@ ostream& operator <<(ostream& os, const list<Function*>& l) {
   os << ']';
   return os;
 }
+
+ostream& operator <<(ostream& os, const vector<Function*>& l) {
+  vector<Function*>::const_iterator it = l.begin();
+  os << '[';
+  while (it!=l.end()) {
+    os << (**it);
+    if (++it != l.end()) os << ',';
+  }
+  os << ']';
+  return os;
+}
 #endif
 
 
 /* computes the augmented part of the heuristic estimate */
-double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) const {
+double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
 
   assert( var >= 0 && var < m_problem->getN());
+
+  // Rebuild heuristic with conditioning if dynamic
+  if (m_dynamic) buildSubproblem(var, assignment);
 
   double h = ELEM_ONE;
 
@@ -64,7 +78,11 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) const {
 }
 
 
-void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector<double>& out) const {
+void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector<double>& out) {
+
+  // Rebuild heuristic with conditioning if dynamic
+  if (m_dynamic) buildSubproblem(var, assignment);
+
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
   vector<double> funVals;
@@ -167,12 +185,91 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       //funs.erase(itF);
     }
 
+
     // minibuckets for current bucket are now ready, process each
     // and place resulting function
+
+
+    // Compute max-marginals for each bucket
+
+    vector<Function*> maxMarginals;
+    double *avgMMTable;
+    Function *avgMaxMarginal;
+    
+    if (m_momentMatching && minibuckets.size() > 1) {
+        // Find intersection of scopes (the scope of all max-marginals)
+        vector<MiniBucket>::iterator itB=minibuckets.begin();
+        set<int> intersectScope(itB->getJointScope());
+        itB++;
+        for (; itB!=minibuckets.end(); ++itB)
+        {
+            set<int> newInter = intersection(intersectScope, itB->getJointScope());
+            intersectScope = newInter;
+        }
+        for (vector<MiniBucket>::iterator itB=minibuckets.begin();
+                itB!=minibuckets.end(); ++itB)
+        {
+            set<int> elimVars = setminus(itB->getJointScope(), intersectScope);
+#ifdef DEBUG
+            Function *eF = itB->eliminate(computeTables, elimVars);
+            cout << "Max-marginal values: " << endl;
+            for (int i=0; i < eF->getTableSize(); ++i) {
+                cout << ' ' << ELEM_DECODE(eF->getTable()[i]) << endl;
+            }
+            cout << endl;
+            //        cin.get();
+#endif
+            maxMarginals.push_back(itB->eliminate(computeTables, elimVars));
+        }
+
+        // Find average max-marginal (geometric mean)
+        size_t tablesize = 1;
+        for (set<int>::iterator sit=intersectScope.begin(); 
+                sit!=intersectScope.end(); ++sit) {
+            tablesize *= m_problem->getDomainSize(*sit);
+        }
+
+        avgMMTable = new double[tablesize];
+#ifdef DEBUG
+        cout << "Tablesize: " << tablesize << ", buckets: " << minibuckets.size() << endl;
+#endif
+        for (unsigned int i = 0; i < tablesize; ++i) avgMMTable[i] = 0;
+        for (vector<Function*>::iterator itMM=maxMarginals.begin();
+                itMM!=maxMarginals.end(); ++itMM) {
+            for (unsigned int i = 0; i < tablesize; ++i) {
+                avgMMTable[i] += (*itMM)->getTable()[i];
+            }
+        }
+        for (unsigned int i = 0; i < tablesize; ++i) {
+            avgMMTable[i] *= 1.0/minibuckets.size();
+        }
+#ifdef DEBUG
+        cout << "Avg max-marginal: " << endl;
+        for (unsigned int i = 0; i < tablesize; ++i) {
+            cout << ' ' << avgMMTable[i] << endl;
+        }
+#endif
+    
+        int ammid = 0;
+        avgMaxMarginal = new FunctionBayes(ammid, m_problem, intersectScope, avgMMTable, tablesize);
+    }
+
+    int bucketIdx = 0;
+
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
-          itB!=minibuckets.end(); ++itB)
+          itB!=minibuckets.end(); ++itB, ++bucketIdx)
     {
-      Function* newf = itB->eliminate(computeTables); // process the minibucket
+
+      // Replace this to generate moment-matched version if #minibuckets > 1
+      Function* newf;
+      if (!m_momentMatching || minibuckets.size() <= 1)
+          newf = itB->eliminate(computeTables); // process the minibucket
+      else {
+          newf = itB->eliminateMM(computeTables,
+                  maxMarginals[bucketIdx],avgMaxMarginal); // process the minibucket
+      }
+      // 
+
       const set<int>& newscope = newf->getScopeSet();
       memSize += newf->getTableSize();
       // go up in tree to find target bucket
@@ -185,6 +282,247 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       m_augmented[n->getVar()].push_back(newf);
     }
     // all minibuckets processed and resulting functions placed
+
+    // free up memory used by max-marginals
+    if (m_momentMatching && minibuckets.size() > 1) {
+      for (unsigned int i = 0; i < maxMarginals.size(); ++i)
+        delete maxMarginals[i];
+      maxMarginals.clear();
+      if(avgMaxMarginal) delete avgMaxMarginal;
+    }
+  }
+
+#ifdef DEBUG
+  // output augmented and intermediate buckets
+  if (computeTables)
+    for (int i=0; i<m_problem->getN(); ++i) {
+      cout << "$ AUG" << i << ": " << m_augmented[i] << " + " << m_intermediate[i] << endl;
+    }
+#endif
+
+  // clean up for estimation mode
+  if (!computeTables) {
+    for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
+      for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB)
+        delete *itB;
+    m_augmented.clear();
+    m_augmented.clear();
+  }
+
+  return memSize;
+}
+
+size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment, bool computeTables) {
+
+
+#ifdef DEBUG
+  cout << "$ Building MBE(" << m_ibound << ")" << endl;
+#endif
+
+  this->reset();
+
+  vector<int> elimOrder; // will hold dfs order
+  findDfsOrder(elimOrder, var); // computes dfs ordering of relevant subtree
+// create map form of assignment
+
+  map<int,val_t> mAssn;
+  for (unsigned int i=0; i<assignment.size(); ++i)
+      if (assignment[i] != -1 && 
+          find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
+          mAssn.insert(pair<int,val_t>(i, assignment[i]));
+      }
+
+  m_augmented.resize(m_problem->getN());
+  m_intermediate.resize(m_problem->getN());
+
+  // keep track of total memory consumption
+  size_t memSize = 0;
+
+  // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
+  for (vector<int>::reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
+
+#ifdef DEBUG
+    cout << "$ Bucket for variable " << *itV << endl;
+#endif
+
+    // collect relevant functions in funs
+    vector<Function*> funs;
+    const vector<Function*>& fnlist = m_pseudotree->getFunctions(*itV);
+    vector<Function*> condfnlist;
+    for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
+        condfnlist.push_back((*itF)->substitute(mAssn));
+    }
+    funs.insert(funs.end(), condfnlist.begin(), condfnlist.end());
+    funs.insert(funs.end(), m_augmented[*itV].begin(), m_augmented[*itV].end());
+#ifdef DEBUG
+    for (vector<Function*>::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
+      cout << ' ' << (**itF);
+    cout << endl;
+#endif
+
+// test
+    if (funs.size() == 0) continue;
+// ===
+
+
+    // compute global upper bound for root (dummy) bucket
+    if (*itV == elimOrder[0]) {// variable is dummy root variable
+      if (computeTables) { // compute upper bound if assignment is given
+        m_globalUB = ELEM_ONE;
+        for (vector<Function*>::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
+          m_globalUB OP_TIMESEQ (*itF)->getValue(assignment);
+//        cout << "    MBE-ALL  = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
+        m_globalUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
+//        cout << "    MBE-ROOT = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
+      }
+      continue; // skip the dummy variable's bucket
+    }
+
+    // sort functions by decreasing scope size
+    sort(funs.begin(), funs.end(), scopeIsLarger);
+
+    // partition functions into minibuckets
+    vector<MiniBucket> minibuckets;
+//    vector<Function*>::iterator itF; bool placed;
+    for (vector<Function*>::iterator itF = funs.begin(); itF!=funs.end(); ++itF) {
+//    while (funs.size()) {
+      bool placed = false;
+      for (vector<MiniBucket>::iterator itB=minibuckets.begin();
+            !placed && itB!=minibuckets.end(); ++itB)
+      {
+        if (itB->allowsFunction(*itF)) { // checks if function fits into bucket
+          itB->addFunction(*itF);
+          placed = true;
+        }
+      }
+      if (!placed) { // no fit, need to create new bucket
+        MiniBucket mb(*itV,m_ibound,m_problem);
+        mb.addFunction(*itF);
+        minibuckets.push_back(mb);
+      }
+//      funs.pop_front();
+      //funs.erase(itF);
+    }
+
+
+    // minibuckets for current bucket are now ready, process each
+    // and place resulting function
+
+    // Find intersection of scopes (the scope of all max-marginals)
+    vector<MiniBucket>::iterator itB=minibuckets.begin();
+    set<int> intersectScope(itB->getJointScope());
+    itB++;
+    for (; itB!=minibuckets.end(); ++itB)
+    {
+        set<int> newInter = intersection(intersectScope, itB->getJointScope());
+        intersectScope = newInter;
+    }
+#ifdef DEBUG
+    cout << "Intersection: " << endl;
+    for (set<int>::iterator it = intersectScope.begin(); it!=intersectScope.end(); ++it) {
+        cout << ' ' << *it;
+    }
+    cout << endl;
+#endif
+    // Compute max-marginals for each bucket
+
+    vector<Function*> maxMarginals;
+    double *avgMMTable; 
+    Function *avgMaxMarginal;
+    
+    if (m_momentMatching && minibuckets.size() > 1) {
+        // Find intersection of scopes (the scope of all max-marginals)
+        vector<MiniBucket>::iterator itB=minibuckets.begin();
+        set<int> intersectScope(itB->getJointScope());
+        itB++;
+        for (; itB!=minibuckets.end(); ++itB)
+        {
+            set<int> newInter = intersection(intersectScope, itB->getJointScope());
+            intersectScope = newInter;
+        }
+        for (vector<MiniBucket>::iterator itB=minibuckets.begin();
+                itB!=minibuckets.end(); ++itB)
+        {
+            set<int> elimVars = setminus(itB->getJointScope(), intersectScope);
+#ifdef DEBUG
+            Function *eF = itB->eliminate(computeTables, elimVars);
+            cout << "Max-marginal values: " << endl;
+            for (int i=0; i < eF->getTableSize(); ++i) {
+                cout << ' ' << ELEM_DECODE(eF->getTable()[i]) << endl;
+            }
+            cout << endl;
+            //        cin.get();
+#endif
+            maxMarginals.push_back(itB->eliminate(computeTables, elimVars));
+        }
+
+        // Find average max-marginal (geometric mean)
+        size_t tablesize = 1;
+        for (set<int>::iterator sit=intersectScope.begin(); 
+                sit!=intersectScope.end(); ++sit) {
+            tablesize *= m_problem->getDomainSize(*sit);
+        }
+
+        avgMMTable = new double[tablesize];
+#ifdef DEBUG
+        cout << "Tablesize: " << tablesize << ", buckets: " << minibuckets.size() << endl;
+#endif
+        for (unsigned int i = 0; i < tablesize; ++i) avgMMTable[i] = 0;
+        for (vector<Function*>::iterator itMM=maxMarginals.begin();
+                itMM!=maxMarginals.end(); ++itMM) {
+            for (unsigned int i = 0; i < tablesize; ++i) {
+                avgMMTable[i] += (*itMM)->getTable()[i];
+            }
+        }
+        for (unsigned int i = 0; i < tablesize; ++i) {
+            avgMMTable[i] *= 1.0/minibuckets.size();
+        }
+#ifdef DEBUG
+        cout << "Avg max-marginal: " << endl;
+        for (unsigned int i = 0; i < tablesize; ++i) {
+            cout << ' ' << avgMMTable[i] << endl;
+        }
+#endif
+    
+        int ammid = 0;
+        avgMaxMarginal = new FunctionBayes(ammid, m_problem, intersectScope, avgMMTable, tablesize);
+    }
+
+    int bucketIdx = 0;
+
+    for (vector<MiniBucket>::iterator itB=minibuckets.begin();
+          itB!=minibuckets.end(); ++itB, ++bucketIdx)
+    {
+
+      // Replace this to generate moment-matched version if #minibuckets > 1
+      Function* newf;
+      if (!m_momentMatching || minibuckets.size() <= 1)
+          newf = itB->eliminate(computeTables); // process the minibucket
+      else {
+          newf = itB->eliminateMM(computeTables,
+                  maxMarginals[bucketIdx],avgMaxMarginal); // process the minibucket
+      }
+
+      const set<int>& newscope = newf->getScopeSet();
+      memSize += newf->getTableSize();
+      // go up in tree to find target bucket
+      PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
+      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() ) {
+        m_intermediate[n->getVar()].push_back(newf);
+        n = n->getParent();
+      }
+      // matching bucket found OR root of pseudo tree reached
+      m_augmented[n->getVar()].push_back(newf);
+    }
+    // all minibuckets processed and resulting functions placed
+
+    // free up memory used by max-marginals
+    if (m_momentMatching && minibuckets.size() > 1) {
+      for (unsigned int i = 0; i < maxMarginals.size(); ++i)
+        delete maxMarginals[i];
+      maxMarginals.clear();
+      if(avgMaxMarginal) delete avgMaxMarginal;
+    }
   }
 
 #ifdef DEBUG
@@ -214,6 +552,26 @@ void MiniBucketElim::findDfsOrder(vector<int>& order) const {
   order.clear();
   stack<PseudotreeNode*> dfs;
   dfs.push(m_pseudotree->getRoot());
+  PseudotreeNode* n = NULL;
+  while (!dfs.empty()) {
+    n = dfs.top();
+    dfs.pop();
+    order.push_back(n->getVar());
+    for (vector<PseudotreeNode*>::const_iterator it=n->getChildren().begin();
+          it!=n->getChildren().end(); ++it) {
+      dfs.push(*it);
+    }
+  }
+}
+
+/* finds a dfs order of the pseudotree (or the locally restricted subtree)
+ * and writes it into the argument vector 
+ * this version takes in the variable which is the root of the restricted subtree */
+void MiniBucketElim::findDfsOrder(vector<int>& order, int var) const {
+  order.clear();
+  stack<PseudotreeNode*> dfs;
+  order.push_back(m_pseudotree->getRoot()->getVar());
+  dfs.push(m_pseudotree->getNode(var));
   PseudotreeNode* n = NULL;
   while (!dfs.empty()) {
     n = dfs.top();

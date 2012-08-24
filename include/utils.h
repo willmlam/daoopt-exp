@@ -163,6 +163,8 @@ inline bool intersectionEmpty(const set<int>& a, const set<int>& b) {
   while (ita != a.end() && itb != b.end()) {
     if (*ita == *itb) {
       return false;
+      ++ita;
+      ++itb;
     } else if (*ita < *itb) {
       ++ita;
     } else { // *ita > *itb
@@ -182,11 +184,24 @@ inline set<int> intersection(const set<int>& a, const set<int>& b) {
   while (ita != a.end() && itb != b.end()) {
     if (*ita == *itb) {
       s.insert(*ita);
+      ++ita;
+      ++itb;
     } else if (*ita < *itb) {
       ++ita;
     } else { // *ita > *itb
       ++itb;
     }
+  }
+  return s;
+}
+
+/*
+ * returns the the set A - B
+ */
+inline set<int> setminus(const set<int> &a, const set<int>& b) {
+  set<int> s(a);
+  for (set<int>::iterator itb = b.begin(); itb != b.end(); ++itb) {
+      s.erase(*itb);
   }
   return s;
 }

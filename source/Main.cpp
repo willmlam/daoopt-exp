@@ -281,7 +281,7 @@ bool Main::initDataStructs() {
   m_heuristic.reset(new UnHeuristic);
 #else
   m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-				       m_options.get(), m_options->ibound) );
+              m_options.get(), m_options->ibound) );
 #endif
 
   // Main search engine
@@ -361,6 +361,8 @@ bool Main::compileHeuristic() {
     }
     if (!mbFromFile) {
       cout << "Computing mini bucket heuristic..." << endl;
+      cout << "(Moment matching: " << (m_options->match ? "yes" : "no") << ")" << endl;
+      cout << "(Dynamic: " << (m_options->dynamic ? "yes" : "no") << ")" << endl;
       sz = m_heuristic->build(& m_search->getAssignment(), true); // true =  actually compute heuristic
       time_t cur_time;
       time(&cur_time);
