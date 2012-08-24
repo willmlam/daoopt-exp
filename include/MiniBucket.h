@@ -43,9 +43,21 @@ public:
   bool allowsFunction(Function*);
   // adds a function to the minibucket
   void addFunction(Function*);
+
+  const set<int> &getJointScope() const;
+
   // Joins the MB functions, eliminate the bucket variable, and returns the resulting function
   // set buildTable==false to get only size estimate (table will not be computed)
   Function* eliminate(bool buildTable=true);
+
+  // eliminates the specified set of variables instead of the bucket variables
+  Function* eliminate(bool buildTable, const set<int> &elimVars);
+
+  // eliminates the variable while applying max-marginal matching
+  Function* eliminateMM(bool buildTable, Function *maxMarginal, Function *avgMaxMarginal);
+
+  // Joins the MB functions without elimination
+  Function* join(bool buildTable=true);
 
 public:
   MiniBucket(int var, int bound, Problem* p);
@@ -65,6 +77,10 @@ inline void MiniBucket::addFunction(Function* f) {
 
 inline MiniBucket::MiniBucket(int v, int b, Problem* p) :
   m_bucketVar(v), m_ibound(b), m_problem(p) {}
+
+inline const set<int> &MiniBucket::getJointScope() const {
+    return m_jointScope;
+}
 
 
 #endif /* MINIBUCKET_H_ */

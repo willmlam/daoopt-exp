@@ -43,6 +43,8 @@ public:
   bool par_preOnly; // static parallel: preprocessing only (generate subproblems)
   bool par_postOnly; // static parallel: postprocessing only (read solution files)
   bool rotate; // enables breadth-rotating AOBB
+  bool match; // uses moment matching during MBE
+  bool dynamic; // uses dynamic mini-bucket heuristics (for moment-matching version only)
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

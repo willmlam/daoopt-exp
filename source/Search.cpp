@@ -417,7 +417,13 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
   // sort new nodes by increasing heuristic value
   sort(chi.begin(), chi.end(), SearchNode::heurLess);
 #endif
-
+#ifdef DEBUG
+// =================
+    for (int i = 0;i < chi.size(); ++i) {
+        cout << *chi[i] << " " << chi[i]->getHeur() << " " << chi[i]->getLabel() << endl;
+    }
+// =================
+#endif
   n->addChildren(chi);
 
   return false; // default
