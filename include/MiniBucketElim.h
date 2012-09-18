@@ -24,6 +24,9 @@
 #ifndef MINIBUCKETELIM_H_
 #define MINIBUCKETELIM_H_
 
+#define m_augmented m_miniBucketFunctions.top().m_augmentedF
+#define m_intermediate m_miniBucketFunctions.top().m_intermediateF
+
 #include "Heuristic.h"
 #include "Function.h"
 #include "Problem.h"
@@ -35,6 +38,7 @@
 
 
 /* The overall minibucket elimination */
+class MiniBucketFunctions;
 
 class MiniBucketElim : public Heuristic {
 
@@ -44,12 +48,16 @@ protected:
   int m_ibound;                  // The ibound for this MB instance
   double m_globalUB;             // The global upper bound
 
+/*
   // The augmented buckets that will store the minibucket functions (but not the original ones)
   vector<vector<Function*> > m_augmented;
   // Precompute and store, for each variable v, the relevant intermediate functions that are
   // generated in a pseudotree descendant and passed to an ancestor of v
   // (points to the same function objects as m_augmented)
   vector<vector<Function*> > m_intermediate;
+  */
+
+  stack<MiniBucketFunctions> m_miniBucketFunctions;
 
   bool m_momentMatching;
   bool m_dynamic;
@@ -76,7 +84,7 @@ public:
   size_t build(const vector<val_t>* assignment = NULL, bool computeTables = true);
 
   // builds the heuristic, restricted to the subtree rooted by the current assignment
-  size_t buildSubproblem(int var, const vector<val_t> &assignment, bool computeTables = true);
+  size_t buildSubproblem(int var, const map<int,val_t> &assignment, const vector<val_t> &vAssn, const vector<int> &elimOrder, bool computeTables = true);
 
   // returns the global upper bound
   double getGlobalUB() const { return m_globalUB; }
@@ -94,6 +102,9 @@ public:
   // gets sum of tables sizes
   size_t getSize() const;
 
+  // gets the width of the subproblem rooted at node i
+  int getWidthSubproblem(int i) const;
+
   bool writeToFile(string fn) const;
   bool readFromFile(string fn);
 
@@ -103,6 +114,72 @@ public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
   virtual ~MiniBucketElim();
 
+};
+
+// Class to store minibucket functions used for heuristics, along with its associated assignment
+class MiniBucketFunctions {
+  friend class MiniBucketElim;
+
+  map<int,val_t> m_assignment;
+
+  // Keep track of which variables are eliminated
+  vector<int> m_elimOrder;
+  // The augmented buckets that will store the minibucket functions (but not the original ones)
+  vector<vector<Function*> > m_augmentedF;
+  // Precompute and store, for each variable v, the relevant intermediate functions that are
+  // generated in a pseudotree descendant and passed to an ancestor of v
+  // (points to the same function objects as m_augmented)
+  vector<vector<Function*> > m_intermediateF;
+
+  // value is based on whether any partitioning was performed during function computation
+  bool isAccurate;
+
+public:
+  MiniBucketFunctions() : isAccurate(false) {}
+  MiniBucketFunctions(const map<int,val_t> &assignment, const vector<int> elimOrder) : m_assignment(assignment), m_elimOrder(elimOrder), isAccurate(false) {}
+  MiniBucketFunctions(const vector<int> elimOrder) : m_elimOrder(elimOrder), isAccurate(false) {}
+  ~MiniBucketFunctions() {
+    for (vector<vector<Function*> >::iterator it=m_augmentedF.begin() ;it!=m_augmentedF.end(); ++it)
+      for (vector<Function*>::iterator it2=it->begin(); it2!=it->end(); ++it2)
+          delete (*it2);
+  }
+
+  const map<int,val_t> &getAssignment() const { return m_assignment; }
+
+  // Check to see if the conditioning of these functions are compatible with the assignment 
+  // to be evaluated. Used to see if the stack should be popped.
+  bool isCompatible(const map<int,val_t> &assignment, const vector<int> &elimOrder) const {
+      for (map<int,val_t>::const_iterator it=m_assignment.begin(); it!=m_assignment.end(); ++it)
+          if (it->second != assignment.find(it->first)->second) {
+              return false;
+          }
+
+      // m_elimOrder must be a superset of elimOrder
+      unsigned int i=0,j=0;
+      while(j<elimOrder.size()) {
+          while(m_elimOrder[i] != elimOrder[j])
+              if(++i >= m_elimOrder.size()) {
+//                  cout << "var " << elimOrder[j] << " not found" << endl;
+                  return false;
+              }
+          ++j;
+      }
+      return true;
+
+  }
+
+  void printAssignAndElim() const {
+      for (map<int,val_t>::const_iterator it=m_assignment.begin(); it!=m_assignment.end(); ++it)
+          cout << " " << it->first << " "<< int(it->second) << endl;
+      cout << endl << "m_elimOrder: " << endl;
+      for (unsigned int i=0; i<m_elimOrder.size(); ++i)
+          cout << " " << m_elimOrder[i];
+      cout << endl;
+  }
+
+  bool isEmpty() const {
+      return m_augmentedF.size()==0 && m_intermediateF.size()==0;
+  }
 };
 
 /* Inline definitions */
@@ -120,9 +197,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 
 inline MiniBucketElim::~MiniBucketElim() {
   // make sure to delete each function only once
-  for (vector<vector<Function*> >::iterator it=m_augmented.begin() ;it!=m_augmented.end(); ++it)
-    for (vector<Function*>::iterator it2=it->begin(); it2!=it->end(); ++it2)
-      delete (*it2);
+  while(m_miniBucketFunctions.size()) m_miniBucketFunctions.pop();
 }
 
 inline bool scopeIsLarger(Function* p, Function* q) {
@@ -132,5 +207,6 @@ inline bool scopeIsLarger(Function* p, Function* q) {
   else
     return (p->getArity() > q->getArity());
 }
+
 
 #endif /* MINIBUCKETELIM_H_ */

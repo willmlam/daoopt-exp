@@ -59,7 +59,33 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
   assert( var >= 0 && var < m_problem->getN());
 
   // Rebuild heuristic with conditioning if dynamic
-  if (m_dynamic) buildSubproblem(var, assignment);
+  if (m_dynamic) {
+      vector<int> elimOrder; // will hold dfs order
+      findDfsOrder(elimOrder, var); // computes dfs ordering of relevant subtree
+      // create map form of assignment
+
+      map<int,val_t> mAssn;
+      for (unsigned int i=0; i<assignment.size(); ++i)
+      if (assignment[i] != -1 && 
+          find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
+          mAssn.insert(pair<int,val_t>(i, assignment[i]));
+      }
+      // while top of stack is not compatible pop functions
+      while (!m_miniBucketFunctions.top().isCompatible(mAssn,elimOrder))
+          m_miniBucketFunctions.pop();
+      // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
+      cout << "stack size: " << m_miniBucketFunctions.size() << endl;
+      if (false && !m_miniBucketFunctions.top().isAccurate) {
+          cout << "Ancestor heuristic is not accurate!" << endl;
+          m_miniBucketFunctions.push(MiniBucketFunctions(mAssn,elimOrder));
+          buildSubproblem(var, mAssn, assignment, elimOrder);
+      }
+      else {
+          cout << "Ancestor heuristic is accurate!" << endl;
+          m_miniBucketFunctions.top().printAssignAndElim();
+          cout << endl;
+      }
+  }
 
   double h = ELEM_ONE;
 
@@ -79,9 +105,91 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
 
 
 void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector<double>& out) {
+    /*
+    cout << "var :" << var << endl;
+    cout << "Width subproblem: " << getWidthSubproblem(var) << endl;
+    */
 
   // Rebuild heuristic with conditioning if dynamic
-  if (m_dynamic) buildSubproblem(var, assignment);
+  if (m_dynamic) {
+      vector<int> elimOrder; // will hold dfs order
+      findDfsOrder(elimOrder, var); // computes dfs ordering of relevant subtree
+
+/*
+      cout << "elimOrder:" << endl;
+      for (unsigned int i=0; i<elimOrder.size(); ++i)
+          cout << " " << elimOrder[i];
+      cout << endl;
+      */
+      // create map form of assignment
+
+      map<int,val_t> mAssn;
+      for (unsigned int i=0; i<assignment.size(); ++i) {
+          if (assignment[i] != -1 && 
+                  find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
+              mAssn.insert(pair<int,val_t>(i, assignment[i]));
+          }
+      }
+
+      // DEBUG PRINT mAssn
+/*
+      
+      cout << "DEBUG PRINT mAssn" << endl;
+      for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
+          cout << " " << it->first << " " << int(it->second) << endl;
+      }
+      cout << endl;
+
+      cout << "DEBUG PRINT assignment" << endl;
+      for (unsigned int i=0; i<assignment.size();++i)
+          if (assignment[i] != -1) cout << " " << i << " " << int(assignment[i]) << endl;
+      cout << endl;
+
+*/
+      // ======
+//      cout << "stack size before: " << m_miniBucketFunctions.size() << endl;
+      // while top of stack is not compatible pop functions
+      while (m_miniBucketFunctions.size() && !m_miniBucketFunctions.top().isCompatible(mAssn,elimOrder)) {
+//          cout << "not compatible" << endl;
+/*
+          cout << m_miniBucketFunctions.top().getAssignment().size() << endl;
+          m_miniBucketFunctions.top().printAssignAndElim();
+          cout << endl;
+          */
+          m_miniBucketFunctions.pop();
+      }
+//      cout << "stack size after: " << m_miniBucketFunctions.size() << endl;
+      // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
+      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top().isAccurate) {
+//          cout << "Ancestor heuristic is not accurate!" << endl;
+//          cout << "Rebuilding to evaluate..." << endl;
+          m_miniBucketFunctions.push(MiniBucketFunctions(mAssn,elimOrder));
+          /*
+          for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
+              cout << " " << it->first << " " << int(it->second) << endl;
+          }
+          cout << endl;
+          cout << m_miniBucketFunctions.top().getAssignment().size() << endl;
+          m_miniBucketFunctions.top().printAssignAndElim();
+          cout << endl;
+          */
+          buildSubproblem(var, mAssn, assignment, elimOrder);
+      }
+      else {
+//          cout << "Ancestor heuristic is accurate!" << endl;
+//          cout << "Using heuristic with this assignment..." << endl;
+          /*
+          cout << m_miniBucketFunctions.top().getAssignment().size() << endl;
+          m_miniBucketFunctions.top().printAssignAndElim();
+          cout << "to evaluate..." << endl;
+          for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
+              cout << " " << it->first << " " << int(it->second) << endl;
+          }
+          cout << endl;
+          cout << endl;
+          */
+      }
+  }
 
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
@@ -102,11 +210,16 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
 
 void MiniBucketElim::reset() {
 
+  while(m_miniBucketFunctions.size()) m_miniBucketFunctions.pop();
+//  m_miniBucketFunctions.push(MiniBucketFunctions());
+
+/*
   vector<vector<Function*> > empty;
   m_augmented.swap(empty);
 
   vector<vector<Function*> > empty2;
   m_intermediate.swap(empty2);
+  */
 
 }
 
@@ -121,6 +234,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   vector<int> elimOrder; // will hold dfs order
   findDfsOrder(elimOrder); // computes dfs ordering of relevant subtree
+  m_miniBucketFunctions.push(MiniBucketFunctions(elimOrder));
+
+  m_miniBucketFunctions.top().isAccurate = true;
 
   m_augmented.resize(m_problem->getN());
   m_intermediate.resize(m_problem->getN());
@@ -256,6 +372,8 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
     int bucketIdx = 0;
 
+    if (minibuckets.size() > 1) m_miniBucketFunctions.top().isAccurate = false;
+
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB, ++bucketIdx)
     {
@@ -268,7 +386,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
           newf = itB->eliminateMM(computeTables,
                   maxMarginals[bucketIdx],avgMaxMarginal); // process the minibucket
       }
-      // 
 
       const set<int>& newscope = newf->getScopeSet();
       memSize += newf->getTableSize();
@@ -312,25 +429,18 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   return memSize;
 }
 
-size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment, bool computeTables) {
+size_t MiniBucketElim::buildSubproblem(int var, const map<int,val_t> &assignment, const vector<val_t> &vAssn, const vector<int> &elimOrder, 
+bool computeTables) {
 
 
 #ifdef DEBUG
   cout << "$ Building MBE(" << m_ibound << ")" << endl;
 #endif
 
-  this->reset();
+//  this->reset();
+assert(m_miniBucketFunctions.top().isEmpty());
+  m_miniBucketFunctions.top().isAccurate = true;
 
-  vector<int> elimOrder; // will hold dfs order
-  findDfsOrder(elimOrder, var); // computes dfs ordering of relevant subtree
-// create map form of assignment
-
-  map<int,val_t> mAssn;
-  for (unsigned int i=0; i<assignment.size(); ++i)
-      if (assignment[i] != -1 && 
-          find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
-          mAssn.insert(pair<int,val_t>(i, assignment[i]));
-      }
 
   m_augmented.resize(m_problem->getN());
   m_intermediate.resize(m_problem->getN());
@@ -339,7 +449,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment,
   size_t memSize = 0;
 
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
-  for (vector<int>::reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
+  for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
 
 #ifdef DEBUG
     cout << "$ Bucket for variable " << *itV << endl;
@@ -350,7 +460,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment,
     const vector<Function*>& fnlist = m_pseudotree->getFunctions(*itV);
     vector<Function*> condfnlist;
     for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
-        condfnlist.push_back((*itF)->substitute(mAssn));
+        condfnlist.push_back((*itF)->substitute(assignment));
     }
     funs.insert(funs.end(), condfnlist.begin(), condfnlist.end());
     funs.insert(funs.end(), m_augmented[*itV].begin(), m_augmented[*itV].end());
@@ -370,7 +480,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment,
       if (computeTables) { // compute upper bound if assignment is given
         m_globalUB = ELEM_ONE;
         for (vector<Function*>::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
-          m_globalUB OP_TIMESEQ (*itF)->getValue(assignment);
+          m_globalUB OP_TIMESEQ (*itF)->getValue(vAssn);
 //        cout << "    MBE-ALL  = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
         m_globalUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
 //        cout << "    MBE-ROOT = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
@@ -408,22 +518,6 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment,
     // minibuckets for current bucket are now ready, process each
     // and place resulting function
 
-    // Find intersection of scopes (the scope of all max-marginals)
-    vector<MiniBucket>::iterator itB=minibuckets.begin();
-    set<int> intersectScope(itB->getJointScope());
-    itB++;
-    for (; itB!=minibuckets.end(); ++itB)
-    {
-        set<int> newInter = intersection(intersectScope, itB->getJointScope());
-        intersectScope = newInter;
-    }
-#ifdef DEBUG
-    cout << "Intersection: " << endl;
-    for (set<int>::iterator it = intersectScope.begin(); it!=intersectScope.end(); ++it) {
-        cout << ' ' << *it;
-    }
-    cout << endl;
-#endif
     // Compute max-marginals for each bucket
 
     vector<Function*> maxMarginals;
@@ -440,6 +534,13 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment,
             set<int> newInter = intersection(intersectScope, itB->getJointScope());
             intersectScope = newInter;
         }
+#ifdef DEBUG
+        cout << "Intersection: " << endl;
+        for (set<int>::iterator it = intersectScope.begin(); it!=intersectScope.end(); ++it) {
+            cout << ' ' << *it;
+        }
+        cout << endl;
+#endif
         for (vector<MiniBucket>::iterator itB=minibuckets.begin();
                 itB!=minibuckets.end(); ++itB)
         {
@@ -489,6 +590,8 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &assignment,
     }
 
     int bucketIdx = 0;
+
+    if (minibuckets.size() > 1) m_miniBucketFunctions.top().isAccurate = false;
 
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB, ++bucketIdx)
@@ -570,7 +673,9 @@ void MiniBucketElim::findDfsOrder(vector<int>& order) const {
 void MiniBucketElim::findDfsOrder(vector<int>& order, int var) const {
   order.clear();
   stack<PseudotreeNode*> dfs;
-  order.push_back(m_pseudotree->getRoot()->getVar());
+  if (m_pseudotree->getRoot()->getVar() != var) {
+      order.push_back(m_pseudotree->getRoot()->getVar());
+  }
   dfs.push(m_pseudotree->getNode(var));
   PseudotreeNode* n = NULL;
   while (!dfs.empty()) {
@@ -617,6 +722,23 @@ size_t MiniBucketElim::getSize() const {
       S += (*itF)->getTableSize();
   }
   return S;
+}
+
+int MiniBucketElim::getWidthSubproblem(int i) const {
+    const vector<int>& condset = m_pseudotree->getNode(i)->getFullContextVec();
+    stack<PseudotreeNode*> stck; 
+    stck.push(m_pseudotree->getNode(i));
+    int width = -1;
+    while(stck.size()) {
+        PseudotreeNode *n = stck.top();
+        stck.pop();
+        int x = setminusSize(n->getFullContextVec(), condset);
+        width = max(width,x);
+        for (vector<PseudotreeNode*>::const_iterator it=n->getChildren().begin(); it!=n->getChildren().end(); ++it) {
+            stck.push(*it);
+        }
+    }
+    return width;
 }
 
 
