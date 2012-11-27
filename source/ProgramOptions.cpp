@@ -89,7 +89,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("nocaching", "disable context-based caching during search")
       ("nosearch,n", "perform preprocessing, output stats, and exit")
       ("match", "use moment-matching during MBE")
-      ("dynamic", "use dynamic mini-bucket heuristics (for moment-matching version only)")
+      ("dynamic", "use dynamic mini-bucket heuristics")
+      ("dynmm", "uses dynamic moment-matching heuristic which maintains the tree structure")
 #if not (defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC)
       ("reduce", po::value<string>(), "path to output the reduced network to (removes evidence and unary variables)")
 #endif
@@ -230,6 +231,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       opt->dynamic = true;
     else
       opt->dynamic = false;
+
+    if (vm.count("dynmm"))
+      opt->dynmm = true;
+    else
+      opt->dynmm = false;
 
     if (vm.count("rotate"))
       opt->rotate = true;

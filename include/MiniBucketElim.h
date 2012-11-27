@@ -59,6 +59,9 @@ protected:
 
   stack<MiniBucketFunctions> m_miniBucketFunctions;
 
+  vector<vector<int> > m_augmentedSource;
+  vector<vector<int> > m_intermediateSource;
+
   bool m_momentMatching;
   bool m_dynamic;
 
@@ -131,6 +134,7 @@ class MiniBucketFunctions {
   // (points to the same function objects as m_augmented)
   vector<vector<Function*> > m_intermediateF;
 
+
   // value is based on whether any partitioning was performed during function computation
   bool isAccurate;
 
@@ -165,7 +169,6 @@ public:
           ++j;
       }
       return true;
-
   }
 
   void printAssignAndElim() const {

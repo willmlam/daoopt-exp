@@ -102,6 +102,7 @@ static boost::mutex mtx_io;
 #define OP_TIMESEQ +=
 #define OP_DIVIDE -
 #define OP_DIVIDEEQ -=
+#define OP_ROOT(X,N) X * (1.0 / N);
 #define ELEM_ZERO (- std::numeric_limits<double>::infinity() )
 #define ELEM_ONE 0.0
 
@@ -123,6 +124,7 @@ static boost::mutex mtx_io;
 #define OP_TIMESEQ *=
 #define OP_DIVIDE /
 #define OP_DIVIDEEQ /=
+#define OP_ROOT(X,N) pow(X, 1.0/N)
 #define ELEM_ZERO 0.0
 #define ELEM_ONE 1.0
 

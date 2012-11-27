@@ -62,6 +62,8 @@ ostream& operator <<(ostream& os, const set<unsigned int>& s);
 
 ostream& operator <<(ostream& os, const vector<double>& s);
 
+ostream& operator <<(ostream& os, const map<int,val_t>& s);
+
 string str_replace(string& s, const string& x, const string& y);
 
 /* trim string from start (found on stackoverflow.com) */
