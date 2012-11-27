@@ -19,6 +19,7 @@ CPP_SRCS += \
 ../source/Main.cpp \
 ../source/MiniBucket.cpp \
 ../source/MiniBucketElim.cpp \
+../source/MiniBucketElimDynMM.cpp \
 ../source/ParallelManager.cpp \
 ../source/Problem.cpp \
 ../source/ProgramOptions.cpp \
@@ -50,6 +51,7 @@ OBJS += \
 ./source/Main.o \
 ./source/MiniBucket.o \
 ./source/MiniBucketElim.o \
+./source/MiniBucketElimDynMM.o \
 ./source/ParallelManager.o \
 ./source/Problem.o \
 ./source/ProgramOptions.o \
@@ -81,6 +83,7 @@ CPP_DEPS += \
 ./source/Main.d \
 ./source/MiniBucket.d \
 ./source/MiniBucketElim.d \
+./source/MiniBucketElimDynMM.d \
 ./source/ParallelManager.d \
 ./source/Problem.d \
 ./source/ProgramOptions.d \

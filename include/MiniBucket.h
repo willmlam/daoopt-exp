@@ -41,10 +41,14 @@ protected:
 public:
   // checks whether the MB has space for a function
   bool allowsFunction(Function*);
-  // adds a function to the minibucket
-  void addFunction(Function*);
+  // adds a function to the minibucket and returns its index
+  int addFunction(Function*);
 
   const set<int> &getJointScope() const;
+
+  Function *&getFunctionRef(int i);
+
+  int getVar() const;
 
   // Joins the MB functions, eliminate the bucket variable, and returns the resulting function
   // set buildTable==false to get only size estimate (table will not be computed)
@@ -53,8 +57,14 @@ public:
   // eliminates the specified set of variables instead of the bucket variables
   Function* eliminate(bool buildTable, const set<int> &elimVars);
 
+  // eliminates the specified set of variables with conditioning
+  Function* conditionEliminate(bool buildTable, const map<int,val_t> &cond, const set<int> &elimVars);
+
   // eliminates the variable while applying max-marginal matching
   Function* eliminateMM(bool buildTable, Function *maxMarginal, Function *avgMaxMarginal);
+
+  // eliminates the variable while applying max-marginal matching with conditioning
+  Function* conditionEliminateMM(bool buildTable, const map<int,val_t> &cond, Function *maxMarginal, Function *avgMaxMarginal);
 
   // Joins the MB functions without elimination
   Function* join(bool buildTable=true);
@@ -67,12 +77,18 @@ public:
 
 /* Inline definitions */
 
-inline void MiniBucket::addFunction(Function* f) {
+inline int MiniBucket::addFunction(Function* f) {
   assert(f);
   // insert function
   m_functions.push_back(f);
   // update joint scope
   m_jointScope.insert(f->getScopeVec().begin(), f->getScopeVec().end() );
+  return m_functions.size() - 1;
+}
+
+inline Function *&MiniBucket::getFunctionRef(int i) {
+    assert(i < m_functions.size());
+    return m_functions[i];
 }
 
 inline MiniBucket::MiniBucket(int v, int b, Problem* p) :
@@ -80,6 +96,10 @@ inline MiniBucket::MiniBucket(int v, int b, Problem* p) :
 
 inline const set<int> &MiniBucket::getJointScope() const {
     return m_jointScope;
+}
+
+inline int MiniBucket::getVar() const {
+    return m_bucketVar;
 }
 
 

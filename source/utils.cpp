@@ -135,6 +135,16 @@ ostream& operator <<(ostream& os, const vector<double>& s) {
   return os;
 }
 
+ostream& operator <<(ostream& os, const map<int,val_t> & s) {
+    os << '[';
+    for (map<int,val_t>::const_iterator it = s.begin(); it!= s.end(); ) {
+        os << '{' << it->first << ',' << int(it->second) << '}';
+        if (++it != s.end()) os << ',';
+    }
+    os << ']';
+    return os;
+}
+
 string str_replace(string& s, const string& x, const string& y) {
   string res = s;
   size_t i=res.find(x);

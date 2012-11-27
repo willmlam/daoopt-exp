@@ -74,17 +74,23 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
       while (!m_miniBucketFunctions.top().isCompatible(mAssn,elimOrder))
           m_miniBucketFunctions.pop();
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
+#ifdef DEBUG
       cout << "stack size: " << m_miniBucketFunctions.size() << endl;
+#endif
       if (false && !m_miniBucketFunctions.top().isAccurate) {
+#ifdef DEBUG
           cout << "Ancestor heuristic is not accurate!" << endl;
+#endif
           m_miniBucketFunctions.push(MiniBucketFunctions(mAssn,elimOrder));
           buildSubproblem(var, mAssn, assignment, elimOrder);
       }
+#ifdef DEBUG
       else {
           cout << "Ancestor heuristic is accurate!" << endl;
           m_miniBucketFunctions.top().printAssignAndElim();
           cout << endl;
       }
+#endif
   }
 
   double h = ELEM_ONE;
@@ -349,15 +355,15 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 #ifdef DEBUG
         cout << "Tablesize: " << tablesize << ", buckets: " << minibuckets.size() << endl;
 #endif
-        for (unsigned int i = 0; i < tablesize; ++i) avgMMTable[i] = 0;
+        for (unsigned int i = 0; i < tablesize; ++i) avgMMTable[i] = ELEM_ONE;
         for (vector<Function*>::iterator itMM=maxMarginals.begin();
                 itMM!=maxMarginals.end(); ++itMM) {
             for (unsigned int i = 0; i < tablesize; ++i) {
-                avgMMTable[i] += (*itMM)->getTable()[i];
+                avgMMTable[i] OP_TIMESEQ (*itMM)->getTable()[i];
             }
         }
         for (unsigned int i = 0; i < tablesize; ++i) {
-            avgMMTable[i] *= 1.0/minibuckets.size();
+            avgMMTable[i] = OP_ROOT(avgMMTable[i],minibuckets.size());
         }
 #ifdef DEBUG
         cout << "Avg max-marginal: " << endl;
