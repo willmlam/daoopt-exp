@@ -152,6 +152,7 @@ class MiniBucketFunctionTree {
 #ifdef DEBUG
             cout << "Popping function " << *(m_fStack.top()) << endl;
 #endif
+            delete m_fStack.top();
             m_fStack.pop();
             m_aStack.pop();
             m_mbTarget->getFunctionRef(m_fIdx) = m_fStack.top();
@@ -209,6 +210,10 @@ class MiniBucketFunctionTree {
     vector<set<int> > m_separators;
     vector<size_t> m_sepSizes;
 
+    // Preallocate memory to store max-marginals and average max-marginal
+    vector<vector<Function *> > m_maxMarginals;
+    vector<Function *> m_avgMaxMarginals;
+
     // Stores references to messages which are dynamic
     // vector index indicates the destination variable of the edge
     vector<vector<FunctionEdge *> > m_dynamicMessages;
@@ -232,6 +237,8 @@ public:
         m_dynamicMessages.resize(m_problem->getN());
         m_dynamicMessagesSource.resize(m_problem->getN());
         m_intermediateMessages.resize(m_problem->getN());
+        m_maxMarginals.resize(m_problem->getN());
+        m_avgMaxMarginals.resize(m_problem->getN());
     }
 
     vector<MiniBucket*> &getVarMiniBuckets(int var) {
@@ -275,6 +282,7 @@ public:
         queue<int> msgTargetQ;
         updateMessages(message->getSource()->getVar(), assignment);
 
+        /*
         vector<FunctionEdge*>::iterator it = m_dynamicMessagesSource[source].begin();
         for (; it != m_dynamicMessagesSource[source].end(); ++it) {
             MiniBucket *targetBucket = (*it)->getTarget();
@@ -287,6 +295,7 @@ public:
 #endif
             msgTargetQ.push(newTarget);
         }
+        */
         /*
         while (!msgTargetQ.empty()) {
             int currentSource = msgTargetQ.front();
@@ -323,7 +332,14 @@ public:
     }
 
     // Processes a bucket with a given assignment, updating its outgoing messages
-    void updateMessages(int var, const map<int,val_t> &assignment, bool forceUpdate=false) {
+    void updateMessages(int var, const map<int,val_t> &assignIn, bool forceUpdate=false) {
+
+        // Make a copy and remove unnecessary conditioning
+        map<int,val_t> assignment(assignIn);
+        set<int>::iterator sit = m_separators[var].begin();
+        for (; sit != m_separators[var].end(); ++sit) {
+            assignment.erase(*sit);
+        }
         // First check the bucket's current assignment by checking outgoing messages
         // no need to perform updates if all match
         if (assignmentIsEqual(var, assignment) && !forceUpdate) return;
@@ -370,6 +386,7 @@ public:
             cout << "orig sep: " << m_separators[var] << endl;
 #endif
 
+            /*
             size_t tempSepSize = m_sepSizes[var];
             set<int> tempSep = m_separators[var];
 
@@ -383,46 +400,54 @@ public:
                     tempSepSize /= erasedDomain;
                 }
             }
+            */
 
             // Compute conditioned max-marginals
             // For the minibucket of each outgoing message, compute the max-marginal
 #ifdef DEBUG
             cout << " Conditioning: " << assignment << endl;
 #endif
-            vector<Function*> maxMarginals;
-            for (itV = outgoingMessages.begin(); itV != outgoingMessages.end(); ++itV) {
+            vector<Function*> &maxMarginals = m_maxMarginals[var];
+            int count = 0;
+            for (itV = outgoingMessages.begin(); itV != outgoingMessages.end(); ++itV, ++count) {
                 MiniBucket *mb = (*itV)->getSource();
-                set<int> elimVar = setminus(mb->getJointScope(), tempSep);
+                set<int> elimVar = setminus(mb->getJointScope(), m_separators[var]);
 #ifdef DEBUG
                 cout << "Computing a max-marginal." << endl;
                 cout << "Joint scope: " << mb->getJointScope() << endl;
-                cout << "Separator: "<< tempSep << endl;
+                cout << "Separator: "<< m_separators[var] << endl;
                 cout << "Elim vars: "<< elimVar << endl;
 #endif
-                Function *maxMarg = mb->conditionEliminate(true, assignment, 
-                        setminus(mb->getJointScope(), tempSep));
-                maxMarginals.push_back(maxMarg);
+                if (maxMarginals.size() != outgoingMessages.size()) {
+                    Function *maxMarg = mb->conditionEliminate(true,assignment,elimVar);
+                    maxMarginals.push_back(maxMarg);
+                }
+                else {
+                    mb->conditionEliminateInPlace(true,assignment,elimVar,maxMarginals[count]->getTable());
+                }
 #ifdef DEBUG
-                cout << maxMarg->getScopeSet().size() << endl;
+                cout << maxMarginals[count]->getScopeSet().size() << endl;
 #endif
             }
 
             // Compute average max-marginal
-            double *avgMMTable = new double[tempSepSize];
-            for (unsigned i = 0; i < tempSepSize; ++i) {
+            double *avgMMTable = m_avgMaxMarginals[var]->getTable();
+            for (unsigned i = 0; i < m_sepSizes[var]; ++i) {
                 avgMMTable[i] = ELEM_ONE;
             }
             for (vector<Function*>::iterator itMM=maxMarginals.begin();
                     itMM!=maxMarginals.end(); ++itMM) {
-                for (unsigned j = 0; j < tempSepSize; ++j) {
+                for (unsigned j = 0; j < m_sepSizes[var]; ++j) {
                     avgMMTable[j] OP_TIMESEQ (*itMM)->getTable()[j];
                 }
             }
-            for (unsigned i = 0; i < tempSepSize; ++i) {
+            for (unsigned i = 0; i < m_sepSizes[var]; ++i) {
                 avgMMTable[i] = OP_ROOT(avgMMTable[i],maxMarginals.size());
             }
+            /*
             Function *avgMaxMarginal = new FunctionBayes(var, m_problem, 
                     tempSep, avgMMTable, tempSepSize);
+                    */
 
             assert(maxMarginals.size() == outgoingMessages.size());
             vector<Function*>::iterator itF;
@@ -433,14 +458,14 @@ public:
                     delete (*itV)->getFunction(); // delete dummy function
                 }
                 (*itV)->pushFunction(mb->conditionEliminateMM(true, assignment, 
-                            *itF, avgMaxMarginal), assignment);
+                            *itF, m_avgMaxMarginals[var]), assignment);
             }
         }
     }
 
     void computeSeparators() {
         m_separators.clear();
-        for (int i = 0; i < int(m_minibuckets.size()); ++i) {
+        for (unsigned i = 0; i < m_minibuckets.size(); ++i) {
             if (m_minibuckets[i].empty()) {
                 m_separators.push_back(set<int>());
                 continue;
@@ -455,7 +480,20 @@ public:
             for (set<int>::iterator sit=currentSep.begin(); sit!=currentSep.end(); ++sit) {
                 m_sepSizes.back() *= m_problem->getDomainSize(*sit);
             }
+
+            // ...also initialize average max marginal functions
+            m_avgMaxMarginals[i] = new FunctionBayes(i, m_problem, currentSep, new double[m_sepSizes.back()], m_sepSizes.back());
         }
+    }
+
+    int getSumOfStackSizes() {
+        int result = 0;
+        for (unsigned i = 0; i < m_dynamicMessages.size(); ++i) {
+            for (unsigned j = 0; j < m_dynamicMessages[i].size(); ++j) {
+                result += m_dynamicMessages[i][j]->getStackSize();
+            }
+        }
+        return result;
     }
     
 public:
@@ -467,12 +505,12 @@ public:
         }
         m_dynamicMessages.clear();
         for (unsigned i = 0; i < m_minibuckets.size(); ++i) {
+            delete m_avgMaxMarginals[i];
             for (unsigned j = 0; j < m_minibuckets[i].size(); ++j) {
                 delete m_minibuckets[i][j];
+                delete m_maxMarginals[i][j];
             }
-            m_minibuckets[i].clear();
         }
-        m_minibuckets.clear();
     }
 };
 

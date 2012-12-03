@@ -86,6 +86,9 @@ double MiniBucketElimDynMM::getHeur(int var, const vector<val_t>& assignment) {
       m_tree->firstOrderUpdate(*it,assign);
       h OP_TIMESEQ (*it)->getFunction()->getValue(assignment);
   }
+#ifdef DEBUG
+  cout << "number of messages stored: " << m_tree->getSumOfStackSizes() << endl;
+#endif
   return h;
 }
 
