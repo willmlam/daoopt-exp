@@ -60,6 +60,9 @@ public:
   // eliminates the specified set of variables with conditioning
   Function* conditionEliminate(bool buildTable, const map<int,val_t> &cond, const set<int> &elimVars);
 
+  // eliminates the specified set of variables with conditioning
+  void conditionEliminateInPlace(bool buildTable, const map<int,val_t> &cond, const set<int> &elimVars, double *table);
+
   // eliminates the variable while applying max-marginal matching
   Function* eliminateMM(bool buildTable, Function *maxMarginal, Function *avgMaxMarginal);
 

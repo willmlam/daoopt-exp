@@ -77,7 +77,7 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
 #ifdef DEBUG
       cout << "stack size: " << m_miniBucketFunctions.size() << endl;
 #endif
-      if (false && !m_miniBucketFunctions.top().isAccurate) {
+      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top().isAccurate) {
 #ifdef DEBUG
           cout << "Ancestor heuristic is not accurate!" << endl;
 #endif
