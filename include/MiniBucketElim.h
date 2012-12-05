@@ -24,8 +24,8 @@
 #ifndef MINIBUCKETELIM_H_
 #define MINIBUCKETELIM_H_
 
-#define m_augmented m_miniBucketFunctions.top().m_augmentedF
-#define m_intermediate m_miniBucketFunctions.top().m_intermediateF
+#define m_augmented m_miniBucketFunctions.top()->m_augmentedF
+#define m_intermediate m_miniBucketFunctions.top()->m_intermediateF
 
 #include "Heuristic.h"
 #include "Function.h"
@@ -48,6 +48,7 @@ protected:
   int m_ibound;                  // The ibound for this MB instance
   double m_globalUB;             // The global upper bound
 
+
 /*
   // The augmented buckets that will store the minibucket functions (but not the original ones)
   vector<vector<Function*> > m_augmented;
@@ -57,13 +58,16 @@ protected:
   vector<vector<Function*> > m_intermediate;
   */
 
-  stack<MiniBucketFunctions> m_miniBucketFunctions;
+  stack<MiniBucketFunctions*> m_miniBucketFunctions;
 
   vector<vector<int> > m_augmentedSource;
   vector<vector<int> > m_intermediateSource;
 
   bool m_momentMatching;
   bool m_dynamic;
+
+  int m_gNodes;                  // compute the heuristic every g nodes
+  int m_currentGIter;            // Counter for managing granularity
 
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
@@ -123,10 +127,14 @@ public:
 class MiniBucketFunctions {
   friend class MiniBucketElim;
 
+  // Variable for heuristic
+  int m_var;
+
+  // Conditioning used in computing heuristic
   map<int,val_t> m_assignment;
 
   // Keep track of which variables are eliminated
-  vector<int> m_elimOrder;
+  //vector<int> m_elimOrder;
   // The augmented buckets that will store the minibucket functions (but not the original ones)
   vector<vector<Function*> > m_augmentedF;
   // Precompute and store, for each variable v, the relevant intermediate functions that are
@@ -140,8 +148,8 @@ class MiniBucketFunctions {
 
 public:
   MiniBucketFunctions() : isAccurate(false) {}
-  MiniBucketFunctions(const map<int,val_t> &assignment, const vector<int> elimOrder) : m_assignment(assignment), m_elimOrder(elimOrder), isAccurate(false) {}
-  MiniBucketFunctions(const vector<int> elimOrder) : m_elimOrder(elimOrder), isAccurate(false) {}
+  MiniBucketFunctions(int var) : m_var(var), isAccurate(false) {}
+  MiniBucketFunctions(int var, const map<int,val_t> &assignment) : m_var(var), m_assignment(assignment), isAccurate(false) {}
   ~MiniBucketFunctions() {
     for (vector<vector<Function*> >::iterator it=m_augmentedF.begin() ;it!=m_augmentedF.end(); ++it)
       for (vector<Function*>::iterator it2=it->begin(); it2!=it->end(); ++it2)
@@ -152,32 +160,24 @@ public:
 
   // Check to see if the conditioning of these functions are compatible with the assignment 
   // to be evaluated. Used to see if the stack should be popped.
-  bool isCompatible(const map<int,val_t> &assignment, const vector<int> &elimOrder) const {
-      for (map<int,val_t>::const_iterator it=m_assignment.begin(); it!=m_assignment.end(); ++it)
-          if (it->second != assignment.find(it->first)->second) {
+  bool isCompatible(int var, const map<int,val_t> &assignment, Pseudotree *pt) const {
+      // Check if m_var is an ancestor of var
+      PseudotreeNode *n = pt->getNode(var);
+      while (n->getVar() != m_var) {
+          if (n != pt->getRoot())
+              n = n->getParent();
+          else
               return false;
-          }
-
-      // m_elimOrder must be a superset of elimOrder
-      unsigned int i=0,j=0;
-      while(j<elimOrder.size()) {
-          while(m_elimOrder[i] != elimOrder[j])
-              if(++i >= m_elimOrder.size()) {
-//                  cout << "var " << elimOrder[j] << " not found" << endl;
-                  return false;
-              }
-          ++j;
       }
-      return true;
+      map<int,val_t>::const_iterator it = m_assignment.begin();
+      for (; it!=m_assignment.end() && it->second != assignment.find(it->first)->second; ++it);
+      return it==m_assignment.end();
   }
 
-  void printAssignAndElim() const {
+  void printVarAndAssign() const {
+      cout << "var: " << m_var << endl;
       for (map<int,val_t>::const_iterator it=m_assignment.begin(); it!=m_assignment.end(); ++it)
           cout << " " << it->first << " "<< int(it->second) << endl;
-      cout << endl << "m_elimOrder: " << endl;
-      for (unsigned int i=0; i<m_elimOrder.size(); ++i)
-          cout << " " << m_elimOrder[i];
-      cout << endl;
   }
 
   bool isEmpty() const {
@@ -194,7 +194,7 @@ inline bool MiniBucketElim::isAccurate() {
 
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
-    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic)
+    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic), m_gNodes(po->gNodes), m_currentGIter(0)
 // , m_augmented(p->getN()), m_intermediate(p->getN())
   { }
 

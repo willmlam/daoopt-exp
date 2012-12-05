@@ -46,6 +46,7 @@ public:
   bool match; // uses moment matching during MBE
   bool dynamic; // uses dynamic mini-bucket heuristics
   bool dynmm; // uses dynamic moment-matching heuristic that maintains the tree structure
+  int gNodes; // Computation granularity for dynamic heuristics
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

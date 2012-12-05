@@ -71,23 +71,23 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
           mAssn.insert(pair<int,val_t>(i, assignment[i]));
       }
       // while top of stack is not compatible pop functions
-      while (!m_miniBucketFunctions.top().isCompatible(mAssn,elimOrder))
+      while (!m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree))
           m_miniBucketFunctions.pop();
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
 #ifdef DEBUG
       cout << "stack size: " << m_miniBucketFunctions.size() << endl;
 #endif
-      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top().isAccurate) {
+      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top()->isAccurate) {
 #ifdef DEBUG
           cout << "Ancestor heuristic is not accurate!" << endl;
 #endif
-          m_miniBucketFunctions.push(MiniBucketFunctions(mAssn,elimOrder));
+          m_miniBucketFunctions.push(new MiniBucketFunctions(var,mAssn));
           buildSubproblem(var, mAssn, assignment, elimOrder);
       }
 #ifdef DEBUG
       else {
           cout << "Ancestor heuristic is accurate!" << endl;
-          m_miniBucketFunctions.top().printAssignAndElim();
+          m_miniBucketFunctions.top()->printVarAndAssign();
           cout << endl;
       }
 #endif
@@ -155,21 +155,23 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       // ======
 //      cout << "stack size before: " << m_miniBucketFunctions.size() << endl;
       // while top of stack is not compatible pop functions
-      while (m_miniBucketFunctions.size() && !m_miniBucketFunctions.top().isCompatible(mAssn,elimOrder)) {
+      assert(m_miniBucketFunctions.size());
+      while (m_miniBucketFunctions.size() && !m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree)) {
 //          cout << "not compatible" << endl;
 /*
-          cout << m_miniBucketFunctions.top().getAssignment().size() << endl;
-          m_miniBucketFunctions.top().printAssignAndElim();
+          cout << m_miniBucketFunctions.top()->getAssignment().size() << endl;
+          m_miniBucketFunctions.top()->printAssignAndElim();
           cout << endl;
           */
+          delete m_miniBucketFunctions.top();
           m_miniBucketFunctions.pop();
+          assert(m_miniBucketFunctions.size());
       }
 //      cout << "stack size after: " << m_miniBucketFunctions.size() << endl;
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
-      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top().isAccurate) {
+      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top()->isAccurate) {
 //          cout << "Ancestor heuristic is not accurate!" << endl;
 //          cout << "Rebuilding to evaluate..." << endl;
-          m_miniBucketFunctions.push(MiniBucketFunctions(mAssn,elimOrder));
           /*
           for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
               cout << " " << it->first << " " << int(it->second) << endl;
@@ -179,7 +181,11 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
           m_miniBucketFunctions.top().printAssignAndElim();
           cout << endl;
           */
-          buildSubproblem(var, mAssn, assignment, elimOrder);
+          if (m_currentGIter == 0) {
+              m_miniBucketFunctions.push(new MiniBucketFunctions(var,mAssn));
+              buildSubproblem(var, mAssn, assignment, elimOrder);
+          }
+          m_currentGIter = (m_currentGIter + 1) % m_gNodes;
       }
       else {
 //          cout << "Ancestor heuristic is accurate!" << endl;
@@ -196,6 +202,11 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
           */
       }
   }
+
+#ifdef DEBUG
+  cout << "Using this heuristic: " << endl;
+  m_miniBucketFunctions.top()->printVarAndAssign();
+#endif
 
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
@@ -240,9 +251,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   vector<int> elimOrder; // will hold dfs order
   findDfsOrder(elimOrder); // computes dfs ordering of relevant subtree
-  m_miniBucketFunctions.push(MiniBucketFunctions(elimOrder));
+  m_miniBucketFunctions.push(new MiniBucketFunctions(m_pseudotree->getRoot()->getVar()));
 
-  m_miniBucketFunctions.top().isAccurate = true;
+  m_miniBucketFunctions.top()->isAccurate = true;
 
   m_augmented.resize(m_problem->getN());
   m_intermediate.resize(m_problem->getN());
@@ -378,7 +389,8 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
     int bucketIdx = 0;
 
-    if (minibuckets.size() > 1) m_miniBucketFunctions.top().isAccurate = false;
+    if (m_miniBucketFunctions.top()->isAccurate && minibuckets.size() > 1) 
+        m_miniBucketFunctions.top()->isAccurate = false;
 
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB, ++bucketIdx)
@@ -429,7 +441,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB)
         delete *itB;
     m_augmented.clear();
-    m_augmented.clear();
   }
 
   return memSize;
@@ -444,8 +455,8 @@ bool computeTables) {
 #endif
 
 //  this->reset();
-assert(m_miniBucketFunctions.top().isEmpty());
-  m_miniBucketFunctions.top().isAccurate = true;
+  assert(m_miniBucketFunctions.top()->isEmpty());
+  m_miniBucketFunctions.top()->isAccurate = true;
 
 
   m_augmented.resize(m_problem->getN());
@@ -578,11 +589,11 @@ assert(m_miniBucketFunctions.top().isEmpty());
         for (vector<Function*>::iterator itMM=maxMarginals.begin();
                 itMM!=maxMarginals.end(); ++itMM) {
             for (unsigned int i = 0; i < tablesize; ++i) {
-                avgMMTable[i] += (*itMM)->getTable()[i];
+                avgMMTable[i] OP_TIMESEQ (*itMM)->getTable()[i];
             }
         }
         for (unsigned int i = 0; i < tablesize; ++i) {
-            avgMMTable[i] *= 1.0/minibuckets.size();
+            avgMMTable[i] = OP_ROOT(avgMMTable[i],minibuckets.size());
         }
 #ifdef DEBUG
         cout << "Avg max-marginal: " << endl;
@@ -597,7 +608,8 @@ assert(m_miniBucketFunctions.top().isEmpty());
 
     int bucketIdx = 0;
 
-    if (minibuckets.size() > 1) m_miniBucketFunctions.top().isAccurate = false;
+    if (minibuckets.size() > 1) 
+        m_miniBucketFunctions.top()->isAccurate = false;
 
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB, ++bucketIdx)
