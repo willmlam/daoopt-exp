@@ -46,6 +46,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("sol-file,c", po::value<string>(), "path to output optimal solution to")
       ("ibound,i", po::value<int>()->default_value(10), "i-bound for mini bucket heuristics")
       ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
+      ("gNodes,g", po::value<int>()->default_value(1), "computation granularity for dynamic mini-bucket heuristics")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -149,6 +150,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("cbound")) {
       opt->cbound = vm["cbound"].as<int>();
       opt->cbound_worker = vm["cbound"].as<int>();
+    }
+    if (vm.count("gNodes")) {
+      opt->gNodes = vm["gNodes"].as<int>();
     }
 
     if (vm.count("cbound-worker"))

@@ -90,7 +90,7 @@ inline int MiniBucket::addFunction(Function* f) {
 }
 
 inline Function *&MiniBucket::getFunctionRef(int i) {
-    assert(i < m_functions.size());
+    assert(i < int(m_functions.size()));
     return m_functions[i];
 }
 
