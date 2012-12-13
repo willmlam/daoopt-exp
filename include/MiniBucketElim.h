@@ -69,6 +69,8 @@ protected:
   int m_gNodes;                  // compute the heuristic every g nodes
   int m_currentGIter;            // Counter for managing granularity
 
+  int m_dhDepth;
+
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
   void findDfsOrder(vector<int>&) const;
@@ -194,7 +196,7 @@ inline bool MiniBucketElim::isAccurate() {
 
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
-    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic), m_gNodes(po->gNodes), m_currentGIter(0)
+    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic), m_gNodes(po->gNodes), m_currentGIter(0), m_dhDepth(po->dhDepth)
 // , m_augmented(p->getN()), m_intermediate(p->getN())
   { }
 

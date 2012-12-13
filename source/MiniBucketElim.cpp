@@ -169,7 +169,8 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       }
 //      cout << "stack size after: " << m_miniBucketFunctions.size() << endl;
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
-      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top()->isAccurate) {
+      if (m_miniBucketFunctions.empty() || 
+              (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth >= m_pseudotree->getNode(var)->getDepth())) {
 //          cout << "Ancestor heuristic is not accurate!" << endl;
 //          cout << "Rebuilding to evaluate..." << endl;
           /*
@@ -181,7 +182,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
           m_miniBucketFunctions.top().printAssignAndElim();
           cout << endl;
           */
-          if (m_currentGIter == 0) {
+          if (m_gNodes > 0 && m_currentGIter == 0) {
               m_miniBucketFunctions.push(new MiniBucketFunctions(var,mAssn));
               buildSubproblem(var, mAssn, assignment, elimOrder);
           }
@@ -227,7 +228,10 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
 
 void MiniBucketElim::reset() {
 
-  while(m_miniBucketFunctions.size()) m_miniBucketFunctions.pop();
+  while(m_miniBucketFunctions.size()) {
+      delete m_miniBucketFunctions.top();
+      m_miniBucketFunctions.pop();
+  }
 //  m_miniBucketFunctions.push(MiniBucketFunctions());
 
 /*
