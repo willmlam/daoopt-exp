@@ -60,9 +60,6 @@ protected:
 
   stack<MiniBucketFunctions*> m_miniBucketFunctions;
 
-  vector<vector<int> > m_augmentedSource;
-  vector<vector<int> > m_intermediateSource;
-
   bool m_momentMatching;
   bool m_dynamic;
 
@@ -70,6 +67,8 @@ protected:
   int m_currentGIter;            // Counter for managing granularity
 
   int m_dhDepth;
+
+  vector<vector<int> > m_elimOrder;
 
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
@@ -198,7 +197,15 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
     Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic), m_gNodes(po->gNodes), m_currentGIter(0), m_dhDepth(po->dhDepth)
 // , m_augmented(p->getN()), m_intermediate(p->getN())
-  { }
+  { 
+      // If dynamic, precomupute all DFS elimination orders for each node
+      if (m_dynamic) {
+          m_elimOrder.resize(p->getN());
+          for (int i = 0 ; i < p->getN(); ++i) {
+              findDfsOrder(m_elimOrder[i], i);
+          }
+      }
+  }
 
 inline MiniBucketElim::~MiniBucketElim() {
   // make sure to delete each function only once

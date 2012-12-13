@@ -60,10 +60,9 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
 
   // Rebuild heuristic with conditioning if dynamic
   if (m_dynamic) {
-      vector<int> elimOrder; // will hold dfs order
-      findDfsOrder(elimOrder, var); // computes dfs ordering of relevant subtree
-      // create map form of assignment
+      const vector<int> &elimOrder = m_elimOrder[var]; // retrieve ordering
 
+      // create map form of assignment
       map<int,val_t> mAssn;
       for (unsigned int i=0; i<assignment.size(); ++i)
       if (assignment[i] != -1 && 
@@ -118,8 +117,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
 
   // Rebuild heuristic with conditioning if dynamic
   if (m_dynamic) {
-      vector<int> elimOrder; // will hold dfs order
-      findDfsOrder(elimOrder, var); // computes dfs ordering of relevant subtree
+      const vector<int> &elimOrder = m_elimOrder[var]; // will hold dfs order
 
 /*
       cout << "elimOrder:" << endl;
