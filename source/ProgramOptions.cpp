@@ -48,6 +48,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
       ("gNodes,g", po::value<int>()->default_value(1), "computation granularity for dynamic mini-bucket heuristics")
       ("dhDepth", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum depth to compute dynamic heuristics")
+      ("depthInterval", po::value<int>()->default_value(1), "compute heuristics only at these depth intervals")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -157,6 +158,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     }
     if (vm.count("dhDepth")) {
       opt->dhDepth = vm["dhDepth"].as<int>(); 
+    }
+    if (vm.count("depthInterval")) {
+      opt->depthInterval = vm["depthInterval"].as<int>();
     }
 
     if (vm.count("cbound-worker"))

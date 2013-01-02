@@ -48,6 +48,7 @@ public:
   bool dynmm; // uses dynamic moment-matching heuristic that maintains the tree structure
   int gNodes; // Computation granularity for dynamic heuristics
   int dhDepth; // Maximum depth to compute dynamic heuristics
+  int depthInterval; // compute dynamic heuristics only at depths that are multiples of depthInterval
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

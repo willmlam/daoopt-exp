@@ -67,6 +67,7 @@ protected:
   int m_currentGIter;            // Counter for managing granularity
 
   int m_dhDepth;
+  int m_depthInterval;
 
   vector<vector<int> > m_elimOrder;
 
@@ -195,7 +196,8 @@ inline bool MiniBucketElim::isAccurate() {
 
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
-    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic), m_gNodes(po->gNodes), m_currentGIter(0), m_dhDepth(po->dhDepth)
+    Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), m_momentMatching(po->match), m_dynamic(po->dynamic), m_gNodes(po->gNodes), m_currentGIter(0), m_dhDepth(po->dhDepth),
+    m_depthInterval(po->depthInterval)
 // , m_augmented(p->getN()), m_intermediate(p->getN())
   { 
       // If dynamic, precomupute all DFS elimination orders for each node
