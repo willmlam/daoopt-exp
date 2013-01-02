@@ -156,6 +156,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       assert(m_miniBucketFunctions.size());
       while (m_miniBucketFunctions.size() && !m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree)) {
 //          cout << "not compatible" << endl;
+          assert(m_dhDepth >=0);
 /*
           cout << m_miniBucketFunctions.top()->getAssignment().size() << endl;
           m_miniBucketFunctions.top()->printAssignAndElim();
@@ -167,8 +168,11 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       }
 //      cout << "stack size after: " << m_miniBucketFunctions.size() << endl;
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
+      cout << "var: " << var << endl;
+      int currentDepth = m_pseudotree->getNode(var)->getDepth();
+      cout << "depth: " << currentDepth << endl;
       if (m_miniBucketFunctions.empty() || 
-              (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth >= m_pseudotree->getNode(var)->getDepth())) {
+              (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth > currentDepth && currentDepth % m_depthInterval == 0)) {
 //          cout << "Ancestor heuristic is not accurate!" << endl;
 //          cout << "Rebuilding to evaluate..." << endl;
           /*

@@ -51,7 +51,7 @@ all: daooptDBG
 daooptDBG: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	ccache g++  -o "daooptDBG" $(OBJS) $(USER_OBJS) $(LIBS)
+	ccache g++  -pg -o "daooptDBG" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
