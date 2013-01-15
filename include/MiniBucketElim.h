@@ -163,6 +163,9 @@ public:
   // Check to see if the conditioning of these functions are compatible with the assignment 
   // to be evaluated. Used to see if the stack should be popped.
   bool isCompatible(int var, const map<int,val_t> &assignment, Pseudotree *pt) const {
+      // Always compatible if there is no associated assignment
+      if (m_assignment.empty()) return true;
+
       // Check if m_var is an ancestor of var
       PseudotreeNode *n = pt->getNode(var);
       while (n->getVar() != m_var) {

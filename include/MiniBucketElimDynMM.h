@@ -191,6 +191,10 @@ class MiniBucketFunctionTree {
             while (!isCompatible(assignment)) {
                 popFunction();
             }
+#ifdef DEBUG
+            cout << "compatible with this: " << endl;
+            cout << m_aStack.top() << endl;
+#endif
         }
 
         virtual ~FunctionEdge() {
@@ -282,7 +286,6 @@ public:
         queue<int> msgTargetQ;
         updateMessages(message->getSource()->getVar(), assignment);
 
-        /*
         vector<FunctionEdge*>::iterator it = m_dynamicMessagesSource[source].begin();
         for (; it != m_dynamicMessagesSource[source].end(); ++it) {
             MiniBucket *targetBucket = (*it)->getTarget();
@@ -295,8 +298,6 @@ public:
 #endif
             msgTargetQ.push(newTarget);
         }
-        */
-        /*
         while (!msgTargetQ.empty()) {
             int currentSource = msgTargetQ.front();
             msgTargetQ.pop();
@@ -307,11 +308,12 @@ public:
                 if (targetBucket->getJointScope().find(target) == targetBucket->getJointScope().end()) 
                     continue;
                 int newTarget = targetBucket->getVar();
+#ifdef DEBUG
                 cout << "pushing variable " << newTarget << endl;
+#endif
                 msgTargetQ.push(newTarget);
             }
         }
-        */
     }
 
     // Makes the edges coming into the variable consistent with the assignment
@@ -507,8 +509,12 @@ public:
         for (unsigned i = 0; i < m_minibuckets.size(); ++i) {
             delete m_avgMaxMarginals[i];
             for (unsigned j = 0; j < m_minibuckets[i].size(); ++j) {
-                delete m_minibuckets[i][j];
-                delete m_maxMarginals[i][j];
+                if (m_minibuckets[i][j])
+                    delete m_minibuckets[i][j];
+            }
+            for (unsigned j = 0; j < m_maxMarginals[i].size(); ++j) {
+                if (m_maxMarginals[i][j])
+                    delete m_maxMarginals[i][j];
             }
         }
     }
