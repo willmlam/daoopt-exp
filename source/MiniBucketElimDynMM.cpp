@@ -58,15 +58,11 @@ double MiniBucketElimDynMM::getHeur(int var, const vector<val_t>& assignment) {
 
   assert( var >= 0 && var < m_problem->getN());
 
-  vector<int> elimOrder;
-  findDfsOrder(elimOrder, var);
 
   map<int,val_t> assign;
-  for (unsigned i = 0; i < assignment.size(); ++i) {
-      if (assignment[i] != -1 && 
-              find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
-          assign[i] = assignment[i];
-      }
+  const vector <int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
+  for (unsigned i = 0; i < relVars.size(); ++i) {
+      assign[relVars[i]] = assignment[relVars[i]];
   }
 
   double h = ELEM_ONE;
@@ -75,6 +71,8 @@ double MiniBucketElimDynMM::getHeur(int var, const vector<val_t>& assignment) {
   const vector<MiniBucketFunctionTree::FunctionEdge* > &messages = m_tree->getIncomingMessages(var);
 
   vector<MiniBucketFunctionTree::FunctionEdge*>::const_iterator it;
+
+//  cout << "Assignment: " << assign << endl;
 
   for (it = messages.begin(); it != messages.end(); ++it) {
       m_tree->firstOrderUpdate(*it,assign);
@@ -87,7 +85,8 @@ double MiniBucketElimDynMM::getHeur(int var, const vector<val_t>& assignment) {
       h OP_TIMESEQ (*it)->getFunction()->getValue(assignment);
   }
 #ifdef DEBUG
-  cout << "number of messages stored: " << m_tree->getSumOfStackSizes() << endl;
+  cout << "number of messages stored: " << m_tree->getSumOfStackSizes();
+  cout << ", depth: " << m_pseudotree->getNode(var)->getDepth() << endl;
 #endif
   return h;
 }
@@ -342,7 +341,6 @@ void MiniBucketElimDynMM::findDfsOrder(vector<int>& order, int var) const {
     }
   }
 }
-
 
 size_t MiniBucketElimDynMM::limitSize(size_t memlimit, const vector<val_t> * assignment) {
 

@@ -60,23 +60,32 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
 
   // Rebuild heuristic with conditioning if dynamic
   if (m_dynamic) {
-      const vector<int> &elimOrder = m_elimOrder[var]; // retrieve ordering
+      const vector<int> &elimOrder = m_elimOrder[var]; // will hold dfs order
 
       // create map form of assignment
       map<int,val_t> mAssn;
+      const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
+      for (unsigned i = 0; i < relVars.size(); ++i) {
+          mAssn[relVars[i]] = assignment[relVars[i]];
+      }
+      /*
       for (unsigned int i=0; i<assignment.size(); ++i)
       if (assignment[i] != -1 && 
           find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
           mAssn.insert(pair<int,val_t>(i, assignment[i]));
       }
+      */
       // while top of stack is not compatible pop functions
-      while (!m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree))
+      while (!m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree)) {
           m_miniBucketFunctions.pop();
+      }
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
 #ifdef DEBUG
       cout << "stack size: " << m_miniBucketFunctions.size() << endl;
 #endif
-      if (m_miniBucketFunctions.empty() || !m_miniBucketFunctions.top()->isAccurate) {
+      int currentDepth = m_pseudotree->getNode(var)->getDepth();
+      if (m_miniBucketFunctions.empty() || 
+              (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth > currentDepth && currentDepth % m_depthInterval == 0 && m_miniBucketFunctions.top()->getAssignment() != mAssn)) {
 #ifdef DEBUG
           cout << "Ancestor heuristic is not accurate!" << endl;
 #endif
@@ -168,13 +177,17 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       }
 //      cout << "stack size after: " << m_miniBucketFunctions.size() << endl;
       // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
-      cout << "var: " << var << endl;
+      //cout << "var: " << var << endl;
       int currentDepth = m_pseudotree->getNode(var)->getDepth();
-      cout << "depth: " << currentDepth << endl;
+      //cout << "depth: " << currentDepth << endl;
       if (m_miniBucketFunctions.empty() || 
               (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth > currentDepth && currentDepth % m_depthInterval == 0)) {
 //          cout << "Ancestor heuristic is not accurate!" << endl;
 //          cout << "Rebuilding to evaluate..." << endl;
+            if (m_dhDepth > currentDepth) {
+                cout << "depth limit: " << m_dhDepth << endl;
+                cout << "current depth: " << currentDepth << endl;
+            }
           /*
           for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
               cout << " " << it->first << " " << int(it->second) << endl;
