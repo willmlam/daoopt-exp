@@ -75,13 +75,13 @@ double MiniBucketElimDynMM::getHeur(int var, const vector<val_t>& assignment) {
 //  cout << "Assignment: " << assign << endl;
 
   for (it = messages.begin(); it != messages.end(); ++it) {
-      m_tree->firstOrderUpdate(*it,assign);
+      //m_tree->firstOrderUpdate(*it,assign);
       h OP_TIMESEQ (*it)->getFunction()->getValue(assignment);
   }
 
   const vector<MiniBucketFunctionTree::FunctionEdge* > &ancMessages = m_tree->getIntermediateMessages(var);
   for (it = ancMessages.begin(); it != ancMessages.end(); ++it) {
-      m_tree->firstOrderUpdate(*it,assign);
+      //m_tree->firstOrderUpdate(*it,assign);
       h OP_TIMESEQ (*it)->getFunction()->getValue(assignment);
   }
 #ifdef DEBUG

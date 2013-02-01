@@ -135,6 +135,16 @@ ostream& operator <<(ostream& os, const vector<double>& s) {
   return os;
 }
 
+ostream& operator <<(ostream& os, const vector<bool>& s) {
+  os << '[';
+  for (vector<bool>::const_iterator it = s.begin(); it != s.end(); ) {
+    os << *it;
+    if (++it != s.end()) os << ',';
+  }
+  os << ']';
+  return os;
+}
+
 ostream& operator <<(ostream& os, const map<int,val_t> & s) {
     os << '[';
     for (map<int,val_t>::const_iterator it = s.begin(); it!= s.end(); ) {

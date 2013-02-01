@@ -27,7 +27,7 @@
 #undef DEBUG
 
 
-#ifdef DEBUG
+//#ifdef DEBUG
 /* ostream operator for debugging */
 ostream& operator <<(ostream& os, const list<Function*>& l) {
   list<Function*>::const_iterator it = l.begin();
@@ -50,7 +50,18 @@ ostream& operator <<(ostream& os, const vector<Function*>& l) {
   os << ']';
   return os;
 }
-#endif
+
+ostream& operator <<(ostream& os, const set<Function*>& l) {
+  set<Function*>::const_iterator it = l.begin();
+  os << '[';
+  while (it!=l.end()) {
+    os << (**it);
+    if (++it != l.end()) os << ',';
+  }
+  os << ']';
+  return os;
+}
+//#endif
 
 
 /* computes the augmented part of the heuristic estimate */
@@ -58,53 +69,10 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment) {
 
   assert( var >= 0 && var < m_problem->getN());
 
-  // Rebuild heuristic with conditioning if dynamic
-  if (m_dynamic) {
-      const vector<int> &elimOrder = m_elimOrder[var]; // will hold dfs order
-
-      // create map form of assignment
-      map<int,val_t> mAssn;
-      const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
-      for (unsigned i = 0; i < relVars.size(); ++i) {
-          mAssn[relVars[i]] = assignment[relVars[i]];
-      }
-      /*
-      for (unsigned int i=0; i<assignment.size(); ++i)
-      if (assignment[i] != -1 && 
-          find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
-          mAssn.insert(pair<int,val_t>(i, assignment[i]));
-      }
-      */
-      // while top of stack is not compatible pop functions
-      while (!m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree)) {
-          m_miniBucketFunctions.pop();
-      }
-      // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
-#ifdef DEBUG
-      cout << "stack size: " << m_miniBucketFunctions.size() << endl;
-#endif
-      int currentDepth = m_pseudotree->getNode(var)->getDepth();
-      if (m_miniBucketFunctions.empty() || 
-              (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth > currentDepth && currentDepth % m_depthInterval == 0 && m_miniBucketFunctions.top()->getAssignment() != mAssn)) {
-#ifdef DEBUG
-          cout << "Ancestor heuristic is not accurate!" << endl;
-#endif
-          m_miniBucketFunctions.push(new MiniBucketFunctions(var,mAssn));
-          buildSubproblem(var, mAssn, assignment, elimOrder);
-      }
-#ifdef DEBUG
-      else {
-          cout << "Ancestor heuristic is accurate!" << endl;
-          m_miniBucketFunctions.top()->printVarAndAssign();
-          cout << endl;
-      }
-#endif
-  }
-
   double h = ELEM_ONE;
 
   // go over augmented and intermediate lists and combine all values
-  vector<Function*>::const_iterator itF = m_augmented[var].begin();
+  set<Function*>::const_iterator itF = m_augmented[var].begin();
   for (; itF!=m_augmented[var].end(); ++itF) {
     h OP_TIMESEQ (*itF)->getValue(assignment);
   }
@@ -135,23 +103,19 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       cout << endl;
       */
       // create map form of assignment
-
       map<int,val_t> mAssn;
-      for (unsigned int i=0; i<assignment.size(); ++i) {
-          if (assignment[i] != -1 && 
-                  find(elimOrder.begin(), elimOrder.end(), i) == elimOrder.end()) {
-              mAssn.insert(pair<int,val_t>(i, assignment[i]));
-          }
+      const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
+      for (unsigned i = 0; i < relVars.size(); ++i) {
+          mAssn[relVars[i]] = assignment[relVars[i]];
       }
 
       // DEBUG PRINT mAssn
-/*
       
+      /*
       cout << "DEBUG PRINT mAssn" << endl;
-      for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
-          cout << " " << it->first << " " << int(it->second) << endl;
-      }
-      cout << endl;
+      cout << mAssn << endl;
+      */
+      /*
 
       cout << "DEBUG PRINT assignment" << endl;
       for (unsigned int i=0; i<assignment.size();++i)
@@ -159,51 +123,38 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       cout << endl;
 
 */
-      // ======
-//      cout << "stack size before: " << m_miniBucketFunctions.size() << endl;
-      // while top of stack is not compatible pop functions
-      assert(m_miniBucketFunctions.size());
-      while (m_miniBucketFunctions.size() && !m_miniBucketFunctions.top()->isCompatible(var,mAssn,m_pseudotree)) {
-//          cout << "not compatible" << endl;
-          assert(m_dhDepth >=0);
-/*
-          cout << m_miniBucketFunctions.top()->getAssignment().size() << endl;
-          m_miniBucketFunctions.top()->printAssignAndElim();
-          cout << endl;
-          */
-          delete m_miniBucketFunctions.top();
-          m_miniBucketFunctions.pop();
-          assert(m_miniBucketFunctions.size());
-      }
-//      cout << "stack size after: " << m_miniBucketFunctions.size() << endl;
-      // if the heuristic on top is not accurate, compute conditioned subproblem heuristics
-      //cout << "var: " << var << endl;
       int currentDepth = m_pseudotree->getNode(var)->getDepth();
       //cout << "depth: " << currentDepth << endl;
-      if (m_miniBucketFunctions.empty() || 
-              (!m_miniBucketFunctions.top()->isAccurate && m_dhDepth > currentDepth && currentDepth % m_depthInterval == 0)) {
+      // if the heuristic is not accurate and the current search node satifies the conditions
+      // defined by the parameters
+      //cout << m_accurateHeuristicIn << endl;
+      if (!m_accurateHeuristicIn[var] && m_dhDepth > currentDepth && currentDepth % m_depthInterval == 0) {
 //          cout << "Ancestor heuristic is not accurate!" << endl;
 //          cout << "Rebuilding to evaluate..." << endl;
-            if (m_dhDepth > currentDepth) {
+           if (m_dhDepth > currentDepth) {
+               /*
                 cout << "depth limit: " << m_dhDepth << endl;
                 cout << "current depth: " << currentDepth << endl;
+                */
             }
-          /*
-          for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
-              cout << " " << it->first << " " << int(it->second) << endl;
-          }
-          cout << endl;
-          cout << m_miniBucketFunctions.top().getAssignment().size() << endl;
-          m_miniBucketFunctions.top().printAssignAndElim();
-          cout << endl;
-          */
+          int improvement = numberOfDuplicateVariables(m_mbCurrentHeur[var],var) -
+              numberOfDuplicateVariables(var,var);
           if (m_gNodes > 0 && m_currentGIter == 0) {
-              m_miniBucketFunctions.push(new MiniBucketFunctions(var,mAssn));
-              buildSubproblem(var, mAssn, assignment, elimOrder);
+              if (improvement >= m_dupeImp)
+                  buildSubproblem(var, mAssn, assignment, elimOrder);
           }
           m_currentGIter = (m_currentGIter + 1) % m_gNodes;
       }
       else {
+          /*
+          cout << "isAccurate: " << m_accurateHeuristicIn[var] << endl;
+          cout << "currentDepth: " << currentDepth << endl;
+          cout << "m_dhDepth: " << m_dhDepth << endl;
+          cout << "m_depthInterval: " << m_depthInterval << endl;
+          cout << "m_dhDepth > currentDepth: " << (m_dhDepth > currentDepth) << endl;
+          cout << "currentDepth % m_depthInterval: " << currentDepth % m_depthInterval << endl;
+          cout << endl;
+          */
 //          cout << "Ancestor heuristic is accurate!" << endl;
 //          cout << "Using heuristic with this assignment..." << endl;
           /*
@@ -219,15 +170,10 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
       }
   }
 
-#ifdef DEBUG
-  cout << "Using this heuristic: " << endl;
-  m_miniBucketFunctions.top()->printVarAndAssign();
-#endif
-
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
   vector<double> funVals;
-  vector<Function*>::const_iterator itF;
+  set<Function*>::const_iterator itF;
   for (itF = m_augmented[var].begin(); itF!=m_augmented[var].end(); ++itF) {
     (*itF)->getValues(assignment, var, funVals);
     for (size_t i=0; i<out.size(); ++i)
@@ -238,14 +184,17 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, vector
     for (size_t i=0; i<out.size(); ++i)
       out[i] OP_TIMESEQ funVals[i];
   }
+
 }
 
 
 void MiniBucketElim::reset() {
 
-  while(m_miniBucketFunctions.size()) {
-      delete m_miniBucketFunctions.top();
-      m_miniBucketFunctions.pop();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+      while (!m_cMessages[i].empty()) {
+          delete m_cMessages[i].top();
+          m_cMessages[i].pop();
+      }
   }
 //  m_miniBucketFunctions.push(MiniBucketFunctions());
 
@@ -268,20 +217,23 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   this->reset();
 
-  vector<int> elimOrder; // will hold dfs order
-  findDfsOrder(elimOrder); // computes dfs ordering of relevant subtree
-  m_miniBucketFunctions.push(new MiniBucketFunctions(m_pseudotree->getRoot()->getVar()));
+  const vector<int> &elimOrder = 
+      (m_dynamic ? 
+       m_elimOrder[m_pseudotree->getRoot()->getVar()] :
+       m_elimOrder[0]);
 
-  m_miniBucketFunctions.top()->isAccurate = true;
+  //m_miniBucketFunctions.push(new MiniBucketFunctions(m_pseudotree->getRoot()->getVar()));
 
-  m_augmented.resize(m_problem->getN());
-  m_intermediate.resize(m_problem->getN());
+  //m_miniBucketFunctions.top()->isAccurate = true;
 
   // keep track of total memory consumption
   size_t memSize = 0;
 
+  vector<bool> visited(m_problem->getN(), false);
+
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
-  for (vector<int>::reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
+  for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
+      m_mbCurrentHeur[*itV] = elimOrder[0];
 
 #ifdef DEBUG
     cout << "$ Bucket for variable " << *itV << endl;
@@ -347,6 +299,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     vector<Function*> maxMarginals;
     double *avgMMTable;
     Function *avgMaxMarginal;
+
+    // messages are accurate if no partitioning and incoming messages were also accurate
+    m_accurateHeuristic[*itV] = m_accurateHeuristicIn[*itV] && minibuckets.size() == 1;
     
     if (m_momentMatching && minibuckets.size() > 1) {
         // Find intersection of scopes (the scope of all max-marginals)
@@ -362,15 +317,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
                 itB!=minibuckets.end(); ++itB)
         {
             set<int> elimVars = setminus(itB->getJointScope(), intersectScope);
-#ifdef DEBUG
-            Function *eF = itB->eliminate(computeTables, elimVars);
-            cout << "Max-marginal values: " << endl;
-            for (int i=0; i < eF->getTableSize(); ++i) {
-                cout << ' ' << ELEM_DECODE(eF->getTable()[i]) << endl;
-            }
-            cout << endl;
-            //        cin.get();
-#endif
             maxMarginals.push_back(itB->eliminate(computeTables, elimVars));
         }
 
@@ -382,9 +328,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
         }
 
         avgMMTable = new double[tablesize];
-#ifdef DEBUG
-        cout << "Tablesize: " << tablesize << ", buckets: " << minibuckets.size() << endl;
-#endif
         for (unsigned int i = 0; i < tablesize; ++i) avgMMTable[i] = ELEM_ONE;
         for (vector<Function*>::iterator itMM=maxMarginals.begin();
                 itMM!=maxMarginals.end(); ++itMM) {
@@ -395,12 +338,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
         for (unsigned int i = 0; i < tablesize; ++i) {
             avgMMTable[i] = OP_ROOT(avgMMTable[i],minibuckets.size());
         }
-#ifdef DEBUG
-        cout << "Avg max-marginal: " << endl;
-        for (unsigned int i = 0; i < tablesize; ++i) {
-            cout << ' ' << avgMMTable[i] << endl;
-        }
-#endif
     
         int ammid = 0;
         avgMaxMarginal = new FunctionBayes(ammid, m_problem, intersectScope, avgMMTable, tablesize);
@@ -408,8 +345,8 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
     int bucketIdx = 0;
 
-    if (m_miniBucketFunctions.top()->isAccurate && minibuckets.size() > 1) 
-        m_miniBucketFunctions.top()->isAccurate = false;
+    map<int,val_t> emptyAssignment;
+    m_cMessages[*itV].push(new ConditionedMessages(emptyAssignment, m_accurateHeuristic[*itV]));
 
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB, ++bucketIdx)
@@ -426,15 +363,27 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
       const set<int>& newscope = newf->getScopeSet();
       memSize += newf->getTableSize();
+
+      vector<int> *path = new vector<int>();
       // go up in tree to find target bucket
       PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
       while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() ) {
-        m_intermediate[n->getVar()].push_back(newf);
+        path->push_back(n->getVar());
+        /*
+        m_accurateHeuristicIn[n->getVar()] = 
+            m_accurateHeuristicIn[n->getVar()] && m_accurateHeuristic[*itV];
+        */
         n = n->getParent();
       }
       // matching bucket found OR root of pseudo tree reached
-      m_augmented[n->getVar()].push_back(newf);
+      path->push_back(n->getVar());
+      /*
+      m_accurateHeuristicIn[n->getVar()] = 
+          m_accurateHeuristicIn[n->getVar()] && m_accurateHeuristic[*itV];
+      */
+      m_cMessages[*itV].top()->addFunction(newf, path);
     }
+    insertMessages(m_cMessages[*itV].top(), *itV, visited);
     // all minibuckets processed and resulting functions placed
 
     // free up memory used by max-marginals
@@ -455,41 +404,106 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 #endif
 
   // clean up for estimation mode
+  /*
   if (!computeTables) {
     for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
       for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB)
         delete *itB;
     m_augmented.clear();
   }
+  */
 
   return memSize;
 }
 
 size_t MiniBucketElim::buildSubproblem(int var, const map<int,val_t> &assignment, const vector<val_t> &vAssn, const vector<int> &elimOrder, 
 bool computeTables) {
+    m_buildSubCalled++;
+    //if (m_buildSubCalled % 1 == 0) cout << m_buildSubCalled << endl;
 
+  if (m_pseudotree->getRoot()->getVar() == var) return 0;
 
 #ifdef DEBUG
   cout << "$ Building MBE(" << m_ibound << ")" << endl;
 #endif
 
+
+  /*
+  cout << "BuildSubproblem" << endl;
+  cout << "var: " << var << endl;
+  cout << "assign: " << assignment << endl;
+  */
+  assert(!m_accurateHeuristicIn[var]); // should only be here if heuristic is not accurate
+
 //  this->reset();
-  assert(m_miniBucketFunctions.top()->isEmpty());
-  m_miniBucketFunctions.top()->isAccurate = true;
-
-
-  m_augmented.resize(m_problem->getN());
-  m_intermediate.resize(m_problem->getN());
 
   // keep track of total memory consumption
   size_t memSize = 0;
 
+  vector<bool> visited(m_problem->getN(), false);
+
+
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
   for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
 
+    if (*itV == var) {
+        /*
+        cout << "will skip var "  << var << endl;
+        cout << "assign " << assignment << endl;
+        */
+        continue;
+    }
 #ifdef DEBUG
     cout << "$ Bucket for variable " << *itV << endl;
 #endif
+
+
+    bool erased = false;
+    if (*itV != elimOrder[0]) {
+        // pop stacks until previous outgoing messages are consistent
+        if (!m_cMessages[*itV].top()->isConsistent(assignment)) {
+            eraseMessages(m_cMessages[*itV].top());
+            erased = true;
+            /*
+            cout << m_cMessages[*itV].top()->getAssignment() << " is not consistent with " << endl;
+            cout << assignment << endl << endl;
+            */
+            delete m_cMessages[*itV].top();
+            m_cMessages[*itV].pop();
+        }
+        // outgoing messages were immediately consistent and accurate
+        else if (m_cMessages[*itV].top()->isAccurate()) {
+            assert(m_cMessages[*itV].top()->getFunctions().size() == 1);
+            //cout << "Skipped redundant computation" << endl;
+            continue;
+        }
+        // consistent, but not accurate
+        else {
+            eraseMessages(m_cMessages[*itV].top());
+        }
+
+        // continue if more, (no need to erase at this point)
+        while (!m_cMessages[*itV].top()->isConsistent(assignment)) {
+            /*
+            cout << m_cMessages[*itV].top()->getAssignment() << " is not consistent with " << endl;
+            cout << assignment << endl << endl;
+            */
+            delete m_cMessages[*itV].top();
+            m_cMessages[*itV].pop();
+        }
+
+
+        // top message cannot be accurate if we had to remove other messages
+        assert(!m_cMessages[*itV].top()->isAccurate());
+        // if exceeding the limit for recomputation, just replace messages
+        if (m_buildSubCalled > m_maxDynHeur) {
+            insertMessages(m_cMessages[*itV].top(),*itV,visited);
+            continue;
+        }
+    }
+
+    // otherwise start recomputing bucket
+    m_mbCurrentHeur[*itV] = var;
 
     // collect relevant functions in funs
     vector<Function*> funs;
@@ -498,8 +512,15 @@ bool computeTables) {
     for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
         condfnlist.push_back((*itF)->substitute(assignment));
     }
+    for(set<Function*>::const_iterator itF=m_augmented[*itV].begin(); 
+            itF!=m_augmented[*itV].end(); ++itF) {
+        condfnlist.push_back((*itF)->substitute(assignment));
+    }
     funs.insert(funs.end(), condfnlist.begin(), condfnlist.end());
+    /*
+    // Check later: better to condition augmented?
     funs.insert(funs.end(), m_augmented[*itV].begin(), m_augmented[*itV].end());
+    */
 #ifdef DEBUG
     for (vector<Function*>::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
       cout << ' ' << (**itF);
@@ -523,6 +544,7 @@ bool computeTables) {
       }
       continue; // skip the dummy variable's bucket
     }
+
 
     // sort functions by decreasing scope size
     sort(funs.begin(), funs.end(), scopeIsLarger);
@@ -550,9 +572,27 @@ bool computeTables) {
       //funs.erase(itF);
     }
 
+    /*
+    cout << "func " << m_cMessages[*itV].top()->getFunctions() << endl;
+    cout << "Old cond " << m_cMessages[*itV].top()->getAssignment() << endl;
+    cout << "cur Cond " << assignment << endl;
+    */
+    //assert(previousNumOfPartitions >= minibuckets.size());
+    /*
+    if (previousNumOfPartitions == minibuckets.size()) {
+        if (erased) {
+            insertMessages(m_cMessages[*itV].top(), *itV, visited);
+        }
+        continue;
+    }
+    */
+
 
     // minibuckets for current bucket are now ready, process each
     // and place resulting function
+    
+    // messages are accurate if no partitioning and incoming messages were also accurate
+    m_accurateHeuristic[*itV] = m_accurateHeuristicIn[*itV] && minibuckets.size() == 1;
 
     // Compute max-marginals for each bucket
 
@@ -570,26 +610,10 @@ bool computeTables) {
             set<int> newInter = intersection(intersectScope, itB->getJointScope());
             intersectScope = newInter;
         }
-#ifdef DEBUG
-        cout << "Intersection: " << endl;
-        for (set<int>::iterator it = intersectScope.begin(); it!=intersectScope.end(); ++it) {
-            cout << ' ' << *it;
-        }
-        cout << endl;
-#endif
         for (vector<MiniBucket>::iterator itB=minibuckets.begin();
                 itB!=minibuckets.end(); ++itB)
         {
             set<int> elimVars = setminus(itB->getJointScope(), intersectScope);
-#ifdef DEBUG
-            Function *eF = itB->eliminate(computeTables, elimVars);
-            cout << "Max-marginal values: " << endl;
-            for (int i=0; i < eF->getTableSize(); ++i) {
-                cout << ' ' << ELEM_DECODE(eF->getTable()[i]) << endl;
-            }
-            cout << endl;
-            //        cin.get();
-#endif
             maxMarginals.push_back(itB->eliminate(computeTables, elimVars));
         }
 
@@ -601,9 +625,6 @@ bool computeTables) {
         }
 
         avgMMTable = new double[tablesize];
-#ifdef DEBUG
-        cout << "Tablesize: " << tablesize << ", buckets: " << minibuckets.size() << endl;
-#endif
         for (unsigned int i = 0; i < tablesize; ++i) avgMMTable[i] = 0;
         for (vector<Function*>::iterator itMM=maxMarginals.begin();
                 itMM!=maxMarginals.end(); ++itMM) {
@@ -614,12 +635,6 @@ bool computeTables) {
         for (unsigned int i = 0; i < tablesize; ++i) {
             avgMMTable[i] = OP_ROOT(avgMMTable[i],minibuckets.size());
         }
-#ifdef DEBUG
-        cout << "Avg max-marginal: " << endl;
-        for (unsigned int i = 0; i < tablesize; ++i) {
-            cout << ' ' << avgMMTable[i] << endl;
-        }
-#endif
     
         int ammid = 0;
         avgMaxMarginal = new FunctionBayes(ammid, m_problem, intersectScope, avgMMTable, tablesize);
@@ -627,8 +642,7 @@ bool computeTables) {
 
     int bucketIdx = 0;
 
-    if (minibuckets.size() > 1) 
-        m_miniBucketFunctions.top()->isAccurate = false;
+    m_cMessages[*itV].push(new ConditionedMessages(assignment, m_accurateHeuristic[*itV]));
 
     for (vector<MiniBucket>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB, ++bucketIdx)
@@ -645,16 +659,28 @@ bool computeTables) {
 
       const set<int>& newscope = newf->getScopeSet();
       memSize += newf->getTableSize();
+
       // go up in tree to find target bucket
+      vector<int> *path = new vector<int>();
+
       PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
       while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() ) {
-        m_intermediate[n->getVar()].push_back(newf);
+        path->push_back(n->getVar());
         n = n->getParent();
       }
       // matching bucket found OR root of pseudo tree reached
-      m_augmented[n->getVar()].push_back(newf);
+      path->push_back(n->getVar());
+      /*
+      m_accurateHeuristicIn[n->getVar()] = 
+          m_accurateHeuristic[*itV] && 
+          (!visited[n->getVar()] || m_accurateHeuristicIn[n->getVar()]);
+      visited[n->getVar()] = true;
+      */
+      m_cMessages[*itV].top()->addFunction(newf, path);
     }
+    insertMessages(m_cMessages[*itV].top(), *itV, visited);
     // all minibuckets processed and resulting functions placed
+    //
 
     // free up memory used by max-marginals
     if (m_momentMatching && minibuckets.size() > 1) {
@@ -673,6 +699,7 @@ bool computeTables) {
     }
 #endif
 
+  /*
   // clean up for estimation mode
   if (!computeTables) {
     for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
@@ -681,10 +708,151 @@ bool computeTables) {
     m_augmented.clear();
     m_augmented.clear();
   }
+  */
 
   return memSize;
 }
 
+int MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrder) {
+
+  //if (m_pseudotree->getRoot()->getVar() == var) return 0;
+
+#ifdef DEBUG
+  cout << "$ Building MBE(" << m_ibound << ")" << endl;
+#endif
+
+
+  /*
+  cout << "BuildSubproblem" << endl;
+  cout << "var: " << var << endl;
+  cout << "assign: " << assignment << endl;
+  */
+  //assert(!m_accurateHeuristicIn[var]); // should only be here if heuristic is not accurate
+
+//  this->reset();
+
+
+  //vector<bool> visited(m_problem->getN(), false);
+  
+  // sets of scopes for each variable
+  vector<vector<Scope*> > augmentedSim(m_problem->getN());
+  set<int> subproblemVars(elimOrder.begin(),elimOrder.end());
+  subproblemVars.erase(var);
+
+  int cntMiniBuckets = 0;
+
+
+  // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
+  for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
+
+    if (*itV == var) {
+        /*
+        cout << "will skip var "  << var << endl;
+        cout << "assign " << assignment << endl;
+        */
+        continue;
+    }
+#ifdef DEBUG
+    cout << "$ Bucket for variable " << *itV << endl;
+#endif
+
+    // collect relevant scopes in funs
+    vector<Scope*> funs;
+    const vector<Function*>& fnlist = m_pseudotree->getFunctions(*itV);
+    for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
+        funs.push_back(new Scope((*itF)->getId(), 
+                    intersection(subproblemVars, (*itF)->getScopeSet())));
+    }
+    for(vector<Scope*>::const_iterator itF=augmentedSim[*itV].begin(); 
+            itF!=augmentedSim[*itV].end(); ++itF) {
+        funs.push_back(new Scope((*itF)->getId(), 
+                    intersection(subproblemVars, (*itF)->getScope())));
+    }
+
+    // account for "empty" minibuckets
+    if (funs.size() == 0) {
+        m_mbCount[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
+            m_mbCount[var][*itV];
+        //cntMiniBuckets++;
+        continue;
+    }
+// ===
+
+
+    // compute global upper bound for root (dummy) bucket
+    if (*itV == elimOrder[0]) {// variable is dummy root variable
+      continue; // skip the dummy variable's bucket
+    }
+
+
+    // sort functions by decreasing scope size
+    sort(funs.begin(), funs.end(), scopeIsLargerS);
+
+    // partition functions into minibuckets
+    //vector<MiniBucket> minibuckets;
+    vector<Scope*> minibuckets;
+//    vector<Function*>::iterator itF; bool placed;
+    for (vector<Scope*>::iterator itF = funs.begin(); itF!=funs.end(); ++itF) {
+      bool placed = false;
+      for (vector<Scope*>::iterator itB=minibuckets.begin();
+            !placed && itB!=minibuckets.end(); ++itB)
+      {
+        set<int> &a=(*itB)->getScope(), b=(*itF)->getScope();
+        set<int>::iterator ita=a.begin(), itb=b.begin();
+        int s=0,d=0;
+
+        while (ita != a.end() && itb != b.end()) {
+            d = *ita - *itb;
+            if(d>0) {
+                ++s; ++itb;
+            } else if (d<0) {
+                ++s; ++ita;
+            } else {
+                ++s; ++ita; ++itb;
+            }
+        }
+        while (ita != a.end()) {
+            ++s; ++ita;
+        }
+        while (itb != b.end()) {
+            ++s; ++itb;
+        }
+        if (s == (int) a.size() || s <= m_ibound+1) {// checks if function fits into bucket
+            a.insert(b.begin(),b.end()); 
+            placed = true;
+        }
+      }
+      if (!placed) { // no fit, need to create new bucket
+        minibuckets.push_back(new Scope(-(*itV), (*itF)->getScope()));
+      }
+    }
+
+    for (vector<Scope*>::iterator itB=minibuckets.begin();
+          itB!=minibuckets.end(); ++itB)
+    {
+
+      (*itB)->erase(*itV);
+        
+      const set<int> &newscope((*itB)->getScope());
+
+      // go up in tree to find target bucket
+
+      PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
+      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() ) {
+        n = n->getParent();
+      }
+      // matching bucket found OR root of pseudo tree reached
+      augmentedSim[n->getVar()].push_back(*itB);
+
+    }
+    m_mbCount[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
+        (m_mbCount[var][*itV] + minibuckets.size());
+    // all minibuckets processed and resulting functions placed
+
+  }
+
+  return m_mbCount[var][var];
+}
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)
  * and writes it into the argument vector */
@@ -726,6 +894,46 @@ void MiniBucketElim::findDfsOrder(vector<int>& order, int var) const {
   }
 }
 
+void MiniBucketElim::eraseMessages(ConditionedMessages *cm) {
+    const vector< vector<int> *> paths = cm->getPaths();
+    unsigned i, j;
+    for (i = 0; i < paths.size(); ++i) {
+        for (j = 0; j < paths[i]->size() - 1; ++j) {
+            m_intermediate[paths[i]->at(j)].erase(cm->getFunctions()[i]);
+            //m_accurateHeuristicIn[paths[i]->at(j)] = false;
+        }
+        m_augmented[paths[i]->at(j)].erase(cm->getFunctions()[i]);
+
+        // If we are erasing, then whatever replaces it will not be accurate
+        m_accurateHeuristicIn[paths[i]->at(j)] = false;
+    }
+}
+
+void MiniBucketElim::insertMessages(ConditionedMessages *cm, int bVar, vector<bool> &visited) {
+    const vector< vector<int> *> paths = cm->getPaths();
+    unsigned i, j;
+    int var;
+    for (i = 0; i < paths.size(); ++i) {
+        for (j = 0; j < paths[i]->size() - 1; ++j) {
+            var = paths[i]->at(j);
+            m_intermediate[var].insert(cm->getFunctions()[i]);
+            /*
+            m_accurateHeuristicIn[var] = 
+                cm->isAccurate() &&
+                (!visited[var] || m_accurateHeuristicIn[var]);
+            visited[var] = true;
+            */
+        }
+        var = paths[i]->at(j);
+        m_augmented[var].insert(cm->getFunctions()[i]);
+        m_accurateHeuristicIn[var] = 
+                cm->isAccurate() &&
+                (!visited[var] || m_accurateHeuristicIn[var]);
+        visited[var] = true;
+
+    }
+}
+
 
 size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignment) {
 
@@ -754,8 +962,8 @@ size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignme
 
 size_t MiniBucketElim::getSize() const {
   size_t S = 0;
-  for (vector<vector<Function*> >::const_iterator it=m_augmented.begin(); it!= m_augmented.end(); ++it) {
-    for (vector<Function*>::const_iterator itF=it->begin(); itF!=it->end(); ++itF)
+  for (vector<set<Function*> >::const_iterator it=m_augmented.begin(); it!= m_augmented.end(); ++it) {
+    for (set<Function*>::const_iterator itF=it->begin(); itF!=it->end(); ++itF)
       S += (*itF)->getTableSize();
   }
   return S;
@@ -829,7 +1037,7 @@ bool MiniBucketElim::writeToFile(string fn) const {
     size_t sz2 = m_augmented[i].size();
     out.write((char*)&( sz2 ), sizeof( sz2 ));
 
-    vector<Function*>::const_iterator itF = m_augmented[i].begin();
+    set<Function*>::const_iterator itF = m_augmented[i].begin();
     for (size_t j=0; j<sz2; ++j, ++itF) {
       const Function* f = *itF;
       funcMap.insert(make_pair(f,funcMap.size()));
@@ -866,7 +1074,7 @@ bool MiniBucketElim::writeToFile(string fn) const {
     size_t sz2 = m_intermediate[i].size();
     out.write((char*)&( sz2 ), sizeof( sz2 ));
 
-    vector<Function*>::const_iterator itF = m_intermediate[i].begin();
+    set<Function*>::const_iterator itF = m_intermediate[i].begin();
     for (size_t j=0; j<sz2; ++j, ++itF) {
       y = funcMap.find(*itF)->second;
       out.write((char*) &( y ), sizeof(y));
@@ -946,7 +1154,7 @@ bool MiniBucketElim::readFromFile(string fn) {
 
       // create function and store it
       Function* f = new FunctionBayes(id,m_problem,scope,T,sz3);
-      m_augmented[i].push_back(f);
+      m_augmented[i].insert(f);
       allFuncs.push_back(f);
     }
   }
@@ -959,7 +1167,7 @@ bool MiniBucketElim::readFromFile(string fn) {
     for (size_t j=0; j<sz2; ++j) {
       // function index
       in.read((char*) &(y), sizeof(y));
-      m_intermediate[i].push_back(allFuncs.at(y));
+      m_intermediate[i].insert(allFuncs.at(y));
     }
   }
 
