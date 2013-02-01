@@ -61,6 +61,7 @@ ostream& operator <<(ostream& os, const set<int>& s);
 ostream& operator <<(ostream& os, const set<unsigned int>& s);
 
 ostream& operator <<(ostream& os, const vector<double>& s);
+ostream& operator <<(ostream& os, const vector<bool>& s);
 
 ostream& operator <<(ostream& os, const map<int,val_t>& s);
 

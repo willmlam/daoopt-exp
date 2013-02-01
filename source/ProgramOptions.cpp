@@ -49,6 +49,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("gNodes,g", po::value<int>()->default_value(1), "computation granularity for dynamic mini-bucket heuristics")
       ("dhDepth", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum depth to compute dynamic heuristics")
       ("depthInterval", po::value<int>()->default_value(1), "compute heuristics only at these depth intervals")
+      ("maxDupe", po::value<int>()->default_value(0), "maximum number of duplicate varibles allowed for skipping dynamic heuristic computation")
+      ("dupeImp", po::value<int>()->default_value(0), "minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)")
+      ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -161,6 +164,15 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     }
     if (vm.count("depthInterval")) {
       opt->depthInterval = vm["depthInterval"].as<int>();
+    }
+    if (vm.count("maxDupe")) {
+      opt->maxDupe = vm["maxDupe"].as<int>();
+    }
+    if (vm.count("dupeImp")) {
+      opt->dupeImp = vm["dupeImp"].as<int>();
+    }
+    if (vm.count("maxDynHeur")) {
+      opt->maxDynHeur = vm["maxDynHeur"].as<int>();
     }
 
     if (vm.count("cbound-worker"))
