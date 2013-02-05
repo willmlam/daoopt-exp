@@ -458,29 +458,8 @@ bool computeTables) {
 #endif
 
 
-    bool erased = false;
     if (*itV != elimOrder[0]) {
         // pop stacks until previous outgoing messages are consistent
-        if (!m_cMessages[*itV].top()->isConsistent(assignment)) {
-            eraseMessages(m_cMessages[*itV].top());
-            erased = true;
-            /*
-            cout << m_cMessages[*itV].top()->getAssignment() << " is not consistent with " << endl;
-            cout << assignment << endl << endl;
-            */
-            delete m_cMessages[*itV].top();
-            m_cMessages[*itV].pop();
-        }
-        // outgoing messages were immediately consistent and accurate
-        else if (m_cMessages[*itV].top()->isAccurate()) {
-            assert(m_cMessages[*itV].top()->getFunctions().size() == 1);
-            //cout << "Skipped redundant computation" << endl;
-            continue;
-        }
-        // consistent, but not accurate
-        else {
-            eraseMessages(m_cMessages[*itV].top());
-        }
 
         // continue if more, (no need to erase at this point)
         while (!m_cMessages[*itV].top()->isConsistent(assignment)) {
@@ -488,13 +467,23 @@ bool computeTables) {
             cout << m_cMessages[*itV].top()->getAssignment() << " is not consistent with " << endl;
             cout << assignment << endl << endl;
             */
+            eraseMessages(m_cMessages[*itV].top());
             delete m_cMessages[*itV].top();
             m_cMessages[*itV].pop();
         }
-
+        
+        // outgoing messages are accurate
+        if (m_cMessages[*itV].top()->isAccurate()) {
+            assert(m_cMessages[*itV].top()->getFunctions().size() == 1);
+            //cout << "Skipped redundant computation" << endl;
+            continue;
+        }
 
         // top message cannot be accurate if we had to remove other messages
         assert(!m_cMessages[*itV].top()->isAccurate());
+
+        // consistent but not accurate
+
         // if exceeding the limit for recomputation, just replace messages
         if (m_buildSubCalled > m_maxDynHeur) {
             insertMessages(m_cMessages[*itV].top(),*itV,visited);
@@ -508,15 +497,13 @@ bool computeTables) {
     // collect relevant functions in funs
     vector<Function*> funs;
     const vector<Function*>& fnlist = m_pseudotree->getFunctions(*itV);
-    vector<Function*> condfnlist;
     for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
-        condfnlist.push_back((*itF)->substitute(assignment));
+        funs.push_back((*itF)->substitute(assignment));
     }
     for(set<Function*>::const_iterator itF=m_augmented[*itV].begin(); 
             itF!=m_augmented[*itV].end(); ++itF) {
-        condfnlist.push_back((*itF)->substitute(assignment));
+        funs.push_back((*itF)->substitute(assignment));
     }
-    funs.insert(funs.end(), condfnlist.begin(), condfnlist.end());
     /*
     // Check later: better to condition augmented?
     funs.insert(funs.end(), m_augmented[*itV].begin(), m_augmented[*itV].end());
@@ -542,6 +529,10 @@ bool computeTables) {
         m_globalUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
 //        cout << "    MBE-ROOT = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
       }
+      for (unsigned i = 0; i < funs.size(); ++i) {
+          delete funs[i];
+      }
+      funs.clear();
       continue; // skip the dummy variable's bucket
     }
 
@@ -664,7 +655,7 @@ bool computeTables) {
       vector<int> *path = new vector<int>();
 
       PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
-      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() ) {
+      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() && n->getVar() != var) {
         path->push_back(n->getVar());
         n = n->getParent();
       }
@@ -689,6 +680,12 @@ bool computeTables) {
       maxMarginals.clear();
       if(avgMaxMarginal) delete avgMaxMarginal;
     }
+
+    // free up conditioned functions
+    for (unsigned i = 0; i < funs.size(); ++i) {
+        delete funs[i];
+    }
+    funs.clear();
   }
 
 #ifdef DEBUG
@@ -713,7 +710,7 @@ bool computeTables) {
   return memSize;
 }
 
-int MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrder) {
+void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrder) {
 
   //if (m_pseudotree->getRoot()->getVar() == var) return 0;
 
@@ -738,9 +735,6 @@ int MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrde
   vector<vector<Scope*> > augmentedSim(m_problem->getN());
   set<int> subproblemVars(elimOrder.begin(),elimOrder.end());
   subproblemVars.erase(var);
-
-  int cntMiniBuckets = 0;
-
 
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
   for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
@@ -781,6 +775,10 @@ int MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrde
 
     // compute global upper bound for root (dummy) bucket
     if (*itV == elimOrder[0]) {// variable is dummy root variable
+        for (unsigned i = 0; i < funs.size(); ++i){
+            delete funs[i];
+        }
+        funs.clear();
       continue; // skip the dummy variable's bucket
     }
 
@@ -826,6 +824,10 @@ int MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrde
         minibuckets.push_back(new Scope(-(*itV), (*itF)->getScope()));
       }
     }
+    for (unsigned i = 0; i < funs.size(); ++i){
+        delete funs[i];
+    }
+    funs.clear();
 
     for (vector<Scope*>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB)
@@ -848,10 +850,16 @@ int MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrde
     m_mbCount[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
         (m_mbCount[var][*itV] + minibuckets.size());
     // all minibuckets processed and resulting functions placed
+    minibuckets.clear();
 
   }
+  for (int i = 0; i < m_problem->getN(); ++i) {
+      for (int j = 0; j < int(augmentedSim[i].size()); ++j) {
+          delete augmentedSim[i][j];
+      }
+  }
 
-  return m_mbCount[var][var];
+  //return m_mbCount[var][var];
 }
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)

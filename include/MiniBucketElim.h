@@ -129,7 +129,7 @@ public:
   size_t buildSubproblem(int var, const map<int,val_t> &assignment, const vector<val_t> &vAssn, const vector<int> &elimOrder, bool computeTables = true);
 
   // simulates building the subproblem heuristic, returning the number of buckets
-  int simulateBuildSubproblem(int var, const vector<int> &elimOrder);
+  void simulateBuildSubproblem(int var, const vector<int> &elimOrder);
 
   // returns the global upper bound
   double getGlobalUB() const { return m_globalUB; }
@@ -214,8 +214,12 @@ class ConditionedMessages {
     ~ConditionedMessages() {
         for (unsigned i = 0; i < m_functions.size(); ++i) {
             delete m_functions[i];
+        }
+        m_functions.clear();
+        for (unsigned i = 0; i < m_paths.size(); ++i) {
             delete m_paths[i];
         }
+        m_paths.clear();
     }
 };
 
@@ -223,13 +227,17 @@ class Scope {
     int m_id;
     set<int> m_scope;
 public:
-    Scope(int id, const set<int> &scope) : m_id(id), m_scope(scope) {
+    Scope(int id, const set<int> &scope) : m_id(id) {
+        m_scope.insert(scope.begin(),scope.end());
     };
     int getId() const { return m_id; }
     set<int> &getScope() { return m_scope; }
     int getArity() const { return m_scope.size(); }
     void erase(int i) {
         m_scope.erase(i);
+    }
+    ~Scope() {
+        m_scope.clear();
     }
 };
 
