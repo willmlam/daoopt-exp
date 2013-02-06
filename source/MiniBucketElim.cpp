@@ -462,12 +462,14 @@ bool computeTables) {
         // pop stacks until previous outgoing messages are consistent
 
         // continue if more, (no need to erase at this point)
+        bool erased = false;
         while (!m_cMessages[*itV].top()->isConsistent(assignment)) {
             /*
             cout << m_cMessages[*itV].top()->getAssignment() << " is not consistent with " << endl;
             cout << assignment << endl << endl;
             */
             eraseMessages(m_cMessages[*itV].top());
+            erased = true;
             delete m_cMessages[*itV].top();
             m_cMessages[*itV].pop();
         }
@@ -486,8 +488,12 @@ bool computeTables) {
 
         // if exceeding the limit for recomputation, just replace messages
         if (m_buildSubCalled > m_maxDynHeur) {
-            insertMessages(m_cMessages[*itV].top(),*itV,visited);
+            if (erased)
+                insertMessages(m_cMessages[*itV].top(),*itV,visited);
             continue;
+        }
+        else if (!erased) {
+            eraseMessages(m_cMessages[*itV].top());
         }
     }
 
