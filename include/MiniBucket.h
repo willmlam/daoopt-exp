@@ -41,6 +41,11 @@ protected:
 public:
   // checks whether the MB has space for a function
   bool allowsFunction(Function*);
+
+  // checks whether the MB has space for a function given the heursitic is evaluated
+  // given the context
+  bool allowsFunction(Function*, const set<int> &context);
+
   // adds a function to the minibucket and returns its index
   int addFunction(Function*);
 
@@ -56,6 +61,9 @@ public:
 
   // eliminates the specified set of variables instead of the bucket variables
   Function* eliminate(bool buildTable, const set<int> &elimVars);
+
+  // eliminates the specified set of variables with conditioning
+  Function* conditionEliminate(bool buildTable, const map<int,val_t> &cond);
 
   // eliminates the specified set of variables with conditioning
   Function* conditionEliminate(bool buildTable, const map<int,val_t> &cond, const set<int> &elimVars);

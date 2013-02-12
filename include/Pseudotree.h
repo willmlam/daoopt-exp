@@ -222,6 +222,7 @@ public:
   static bool compLess(PseudotreeNode* a, PseudotreeNode* b);
 
   void setFullContext(const set<int>& c);
+  const set<int>& getFullContext() const { return m_contextS; }
   const vector<int>& getFullContextVec() const { return m_contextV; }
 
   void setCacheContext(const set<int>& c);
