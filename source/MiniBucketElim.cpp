@@ -442,6 +442,9 @@ bool computeTables) {
 
   vector<bool> visited(m_problem->getN(), false);
 
+  set<int> subproblemVars(elimOrder.begin(),elimOrder.end());
+  subproblemVars.erase(var);
+
 
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
   for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
@@ -477,6 +480,7 @@ bool computeTables) {
         // outgoing messages are accurate
         if (m_cMessages[*itV].top()->isAccurate()) {
             assert(m_cMessages[*itV].top()->getFunctions().size() == 1);
+            //cout << *(m_cMessages[*itV].top()->getFunctions()[0]) << endl;
             //cout << "Skipped redundant computation" << endl;
             continue;
         }
@@ -501,27 +505,54 @@ bool computeTables) {
     m_mbCurrentHeur[*itV] = var;
 
     // collect relevant functions in funs
-    vector<Function*> funs;
+    vector<pair<int, Function*> > funs;
     const vector<Function*>& fnlist = m_pseudotree->getFunctions(*itV);
+    /*
     for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
         funs.push_back((*itF)->substitute(assignment));
     }
+    */
+    int fcount = 0;
+    for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF, ++fcount) {
+        funs.push_back(pair<int,Function*>(
+                    getConditionedArity((*itF)->getScopeSet(), 
+                        m_pseudotree->getNode(var)->getFullContext()),
+                    *itF));
+    }
+    //funs.insert(funs.end(),fnlist.begin(),fnlist.end());
+    /*
     for(set<Function*>::const_iterator itF=m_augmented[*itV].begin(); 
             itF!=m_augmented[*itV].end(); ++itF) {
         funs.push_back((*itF)->substitute(assignment));
     }
+    */
+    for(set<Function*>::const_iterator itF=m_augmented[*itV].begin(); 
+            itF!=m_augmented[*itV].end(); ++itF, ++fcount) {
+        funs.push_back(pair<int,Function*>(
+                    getConditionedArity((*itF)->getScopeSet(), 
+                        m_pseudotree->getNode(var)->getFullContext()),
+                    *itF));
+    }
+    //funs.insert(funs.end(),m_augmented[*itV].begin(),m_augmented[*itV].end());
     /*
     // Check later: better to condition augmented?
     funs.insert(funs.end(), m_augmented[*itV].begin(), m_augmented[*itV].end());
     */
 #ifdef DEBUG
-    for (vector<Function*>::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
-      cout << ' ' << (**itF);
+    for (vector<pair<int,Function*> >::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
+      cout << ' ' << (*(itF->second));
+    cout << endl;
+    cout << assignment << endl;
+    for (vector<pair<int,Function*> >::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
+      cout << ' ' << (*(itF->second)->substitute(assignment));
     cout << endl;
 #endif
 
 // test
-    if (funs.size() == 0) continue;
+    if (funs.size() == 0) {
+        cout << "empty bucket" << endl;
+        continue;
+    }
 // ===
 
 
@@ -529,45 +560,45 @@ bool computeTables) {
     if (*itV == elimOrder[0]) {// variable is dummy root variable
       if (computeTables) { // compute upper bound if assignment is given
         m_globalUB = ELEM_ONE;
-        for (vector<Function*>::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
-          m_globalUB OP_TIMESEQ (*itF)->getValue(vAssn);
+        for (vector<pair<int,Function*> >::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
+          m_globalUB OP_TIMESEQ (itF->second)->getValue(vAssn);
 //        cout << "    MBE-ALL  = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
         m_globalUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
 //        cout << "    MBE-ROOT = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
       }
-      for (unsigned i = 0; i < funs.size(); ++i) {
-          delete funs[i];
-      }
-      funs.clear();
       continue; // skip the dummy variable's bucket
     }
 
 
     // sort functions by decreasing scope size
-    sort(funs.begin(), funs.end(), scopeIsLarger);
+    sort(funs.begin(), funs.end(), scopeIsLargerIF);
 
     // partition functions into minibuckets
     vector<MiniBucket> minibuckets;
 //    vector<Function*>::iterator itF; bool placed;
-    for (vector<Function*>::iterator itF = funs.begin(); itF!=funs.end(); ++itF) {
+    for (vector<pair<int,Function*> >::iterator itF = funs.begin(); itF!=funs.end(); ++itF) {
 //    while (funs.size()) {
       bool placed = false;
       for (vector<MiniBucket>::iterator itB=minibuckets.begin();
             !placed && itB!=minibuckets.end(); ++itB)
       {
-        if (itB->allowsFunction(*itF)) { // checks if function fits into bucket
-          itB->addFunction(*itF);
+        if (itB->allowsFunction(itF->second,m_pseudotree->getNode(var)->getFullContext())) { // checks if function fits into bucket
+          itB->addFunction(itF->second);
+          //cout << itF->first << " " << itF->second->getArity() << endl;
           placed = true;
         }
       }
       if (!placed) { // no fit, need to create new bucket
         MiniBucket mb(*itV,m_ibound,m_problem);
-        mb.addFunction(*itF);
+        mb.addFunction(itF->second);
+          //cout << itF->first << " " << itF->second->getArity() << endl;
+          
         minibuckets.push_back(mb);
       }
 //      funs.pop_front();
       //funs.erase(itF);
     }
+    //cout << endl;
 
     /*
     cout << "func " << m_cMessages[*itV].top()->getFunctions() << endl;
@@ -648,9 +679,9 @@ bool computeTables) {
       // Replace this to generate moment-matched version if #minibuckets > 1
       Function* newf;
       if (!m_momentMatching || minibuckets.size() <= 1)
-          newf = itB->eliminate(computeTables); // process the minibucket
+          newf = itB->conditionEliminate(computeTables,assignment); // process the minibucket
       else {
-          newf = itB->eliminateMM(computeTables,
+          newf = itB->conditionEliminateMM(computeTables,assignment,
                   maxMarginals[bucketIdx],avgMaxMarginal); // process the minibucket
       }
 
@@ -674,6 +705,10 @@ bool computeTables) {
       visited[n->getVar()] = true;
       */
       m_cMessages[*itV].top()->addFunction(newf, path);
+      /*
+      cout << *newf << endl;
+    cout << "sent message to (of " << minibuckets.size() << ")" << path->back() << endl;
+    */
     }
     insertMessages(m_cMessages[*itV].top(), *itV, visited);
     // all minibuckets processed and resulting functions placed
@@ -687,11 +722,6 @@ bool computeTables) {
       if(avgMaxMarginal) delete avgMaxMarginal;
     }
 
-    // free up conditioned functions
-    for (unsigned i = 0; i < funs.size(); ++i) {
-        delete funs[i];
-    }
-    funs.clear();
   }
 
 #ifdef DEBUG
@@ -722,6 +752,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
 
 #ifdef DEBUG
   cout << "$ Building MBE(" << m_ibound << ")" << endl;
+  cout << "simulating at " << var << endl;
 #endif
 
 
@@ -760,13 +791,15 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
     vector<Scope*> funs;
     const vector<Function*>& fnlist = m_pseudotree->getFunctions(*itV);
     for(vector<Function*>::const_iterator itF=fnlist.begin(); itF!=fnlist.end(); ++itF) {
-        funs.push_back(new Scope((*itF)->getId(), 
-                    intersection(subproblemVars, (*itF)->getScopeSet())));
+        Scope *s = new Scope((*itF)->getId(), 
+                intersection(subproblemVars, (*itF)->getScopeSet()));
+        funs.push_back(s);
     }
     for(vector<Scope*>::const_iterator itF=augmentedSim[*itV].begin(); 
             itF!=augmentedSim[*itV].end(); ++itF) {
-        funs.push_back(new Scope((*itF)->getId(), 
-                    intersection(subproblemVars, (*itF)->getScope())));
+        Scope *s = new Scope((*itF)->getId(), 
+                intersection(subproblemVars, (*itF)->getScope()));
+        funs.push_back(s); 
     }
 
     // account for "empty" minibuckets
@@ -781,10 +814,6 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
 
     // compute global upper bound for root (dummy) bucket
     if (*itV == elimOrder[0]) {// variable is dummy root variable
-        for (unsigned i = 0; i < funs.size(); ++i){
-            delete funs[i];
-        }
-        funs.clear();
       continue; // skip the dummy variable's bucket
     }
 
@@ -830,7 +859,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
         minibuckets.push_back(new Scope(-(*itV), (*itF)->getScope()));
       }
     }
-    for (unsigned i = 0; i < funs.size(); ++i){
+    for (unsigned i = 0; i < funs.size(); ++i) {
         delete funs[i];
     }
     funs.clear();
@@ -841,12 +870,13 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
 
       (*itB)->erase(*itV);
         
-      const set<int> &newscope((*itB)->getScope());
+      const set<int> &newscope = (*itB)->getScope();
 
       // go up in tree to find target bucket
 
       PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
-      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() ) {
+      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() && 
+              n->getVar() != var) {
         n = n->getParent();
       }
       // matching bucket found OR root of pseudo tree reached

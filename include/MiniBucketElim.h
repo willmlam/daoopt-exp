@@ -37,6 +37,7 @@
 /* The overall minibucket elimination */
 //class MiniBucketFunctions;
 class ConditionedMessages;
+class Scope;
 
 class MiniBucketElim : public Heuristic {
 
@@ -110,6 +111,15 @@ protected:
   // computed at at variable u for evaluating a variable v
   int numberOfDuplicateVariables(int u, int v) {
       return m_mbCount[u][v] - m_mbCountAccurate[v];
+  }
+
+  // Calculate the number of variables not in the given context
+  int getConditionedArity(const set<int> &scope, const set<int> &context) {
+      int s = 0;
+      for (typeof(scope.begin()) it = scope.begin(); it != scope.end(); ++it) {
+          if (context.count(*it)==0) ++s;
+      }
+      return s;
   }
 
   // reset the data structures
@@ -200,7 +210,7 @@ class ConditionedMessages {
         map<int,val_t>::iterator it = m_assignment.begin();
         for(; it != m_assignment.end(); ++it) {
             const map<int,val_t>::const_iterator fit = assignment.find(it->first);
-            if (fit == assignment.end() || fit->second != it->second) 
+            if (fit != assignment.end() && fit->second != it->second) 
                 return false;
         }
         return true;
@@ -380,6 +390,16 @@ inline bool scopeIsLargerS(Scope* p, Scope* q) {
     return (p->getId() > q->getId());
   else
     return (p->getArity() > q->getArity());
+}
+
+inline bool scopeIsLargerIF(const pair<int,Function*> &l, const pair<int,Function*> &r) {
+  Function *p = l.second;
+  Function *q = r.second;
+  assert(p && q);
+  if (l.first == r.first)
+    return (p->getId() > q->getId());
+  else
+    return (l.first > r.first);
 }
 
 #endif /* MINIBUCKETELIM_H_ */
