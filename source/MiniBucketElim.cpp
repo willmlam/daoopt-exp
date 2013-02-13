@@ -413,6 +413,16 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   }
   */
 
+  // adaptively set maxDynHeur
+  if (m_memlimit > 0) {
+      cout << memSize << endl;
+      int maxDynHeur = m_memlimit / (memSize / (1024*1024.0)) * sizeof(double);
+      if (maxDynHeur < m_maxDynHeur) {
+          cout << "Cannot fit " << m_maxDynHeur << " heuristics in memory." << endl;
+          cout << "Adjusting maximum number of heuristics to: " << maxDynHeur << endl;
+          m_maxDynHeur = maxDynHeur;
+      }
+  }
   return memSize;
 }
 
@@ -980,7 +990,7 @@ void MiniBucketElim::insertMessages(ConditionedMessages *cm, int bVar, vector<bo
 
 
 size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignment) {
-
+    if (m_dynamic) return 0;
   // convert to bits
   memlimit *= 1024 *1024 / sizeof(double);
 
