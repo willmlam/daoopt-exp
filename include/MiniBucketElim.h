@@ -88,6 +88,8 @@ protected:
   int m_maxDynHeur;
 
   int m_buildSubCalled;
+  
+  int m_memlimit;
 
   vector<vector<int> > m_elimOrder;
 
@@ -348,7 +350,8 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_maxDupe(po->maxDupe),
     m_dupeImp(po->dupeImp),
     m_maxDynHeur(po->maxDynHeur),
-    m_buildSubCalled(0)
+    m_buildSubCalled(0),
+    m_memlimit(po->memlimit)
   { 
       // If dynamic, precomupute all DFS elimination orders for each node
       // and precompute number of minibuckets used in each subproblem rooted by each node
