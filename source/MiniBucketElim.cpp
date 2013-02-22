@@ -100,6 +100,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
     // Handle initial root search node
     if (sNode->getHeurInstance() == NULL) {
         sNode->setHeurInstance(m_rootHeurInstance);
+        m_rootHeurInstance->setOwner(sNode);
     }
     int currentDepth = m_pseudotree->getNode(var)->getDepth();
 
@@ -166,6 +167,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
                           sNode->getHeurInstance(), 
                           newHeur);
                   sNode->setHeurInstance(newHeur);
+                  newHeur->setOwner(sNode);
                   /*
                   cout << "Compiled heuristic at (var,depth): " 
                       << "(" << var << "," << currentDepth << ")" << endl;

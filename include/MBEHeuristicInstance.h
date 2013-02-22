@@ -8,6 +8,7 @@
 #include "utils.h"
 
 class MBEHeuristicInstance;
+class SearchNode;
 
 // Class to store the outgoing messages from a bucket
 class ConditionedMessages {
@@ -77,7 +78,10 @@ class MBEHeuristicInstance {
 
     vector<bool> m_accurateHeurIn;
 
-    map<int,val_t> m_assignment;
+    //map<int,val_t> m_assignment;
+
+    // Keep track of the original node using this heuristic
+    SearchNode *m_owner;
 
     public:
     MBEHeuristicInstance(int nVars, int var);
@@ -110,6 +114,15 @@ class MBEHeuristicInstance {
         return m_accurateHeurIn;
     }
 
+    inline SearchNode *getOwner() const {
+        return m_owner;
+    }
+
+    inline void setOwner(SearchNode *owner) {
+        m_owner = owner;
+    }
+
+    /*
     inline const map<int,val_t> &getAssignment() const {
         return m_assignment;
     }
@@ -127,6 +140,7 @@ class MBEHeuristicInstance {
         }
         return true;
     }
+    */
 
 
     void populateMessages(int var, vector<bool> &visited);
