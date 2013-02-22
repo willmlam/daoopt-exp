@@ -304,10 +304,12 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 
 inline MiniBucketElim::~MiniBucketElim() {
   // make sure to delete each function only once
-  delete m_rootHeurInstance;
+  //delete m_rootHeurInstance;
+  /*
   for (unsigned i = 0; i < m_heurCollection.size(); ++i) {
       delete m_heurCollection[i];
   }
+  */
 }
 
 inline bool scopeIsLarger(Function* p, Function* q) {

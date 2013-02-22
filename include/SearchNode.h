@@ -405,6 +405,7 @@ inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
 
 
 inline SearchNodeOR::~SearchNodeOR() {
+  if (m_hNode && this == m_hNode->getOwner()) delete m_hNode;
   this->clearHeurCache();
 }
 
