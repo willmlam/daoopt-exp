@@ -290,6 +290,9 @@ bool Search::generateChildrenAND(SearchNode* n, vector<SearchNode*>& chi) {
   {
     int vChild = (*it)->getVar();
     SearchNodeOR* c = new SearchNodeOR(n, vChild, depth+1);
+    SearchNodeOR* nParent = dynamic_cast<SearchNodeOR*>(n->getParent());
+    assert(nParent);
+    c->setHeurInstance(nParent->getHeurInstance());
     chi.push_back(c);
 #ifndef NO_HEURISTIC
     // Compute and set heuristic estimate, includes child labels
@@ -442,6 +445,7 @@ double Search::assignCostsOR(SearchNode* n) {
   double h = ELEM_ZERO; // the new OR nodes h value
   const vector<Function*>& funs = m_pseudotree->getFunctions(v);
 
+
 #ifdef GET_VALUE_BULK
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
@@ -451,7 +455,7 @@ double Search::assignCostsOR(SearchNode* n) {
       dv[2*i+1] OP_TIMESEQ m_costTmp[i];
   }
 
-  m_heuristic->getHeurAll(v, m_assignment, m_costTmp);
+  m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
   for (int i=0; i<vDomain; ++i) {
     dv[2*i] = dv[2*i+1] OP_TIMES m_costTmp[i];
     h = max(h, dv[2*i]);
@@ -461,7 +465,7 @@ double Search::assignCostsOR(SearchNode* n) {
   for (val_t i=0;i<m_problem->getDomainSize(v);++i) {
     m_assignment[v] = i;
     // compute heuristic value
-    dv[2*i] = m_heuristic->getHeur(v,m_assignment);
+    dv[2*i] = m_heuristic->getHeur(v,m_assignment, n);
     // precompute label value
     d = ELEM_ONE;
     for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it)

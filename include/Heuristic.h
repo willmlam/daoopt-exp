@@ -26,6 +26,7 @@
 
 #include "assert.h"
 #include "DEFINES.h"
+#include "Search.h"
 #include <string>
 #include <vector>
 
@@ -33,6 +34,7 @@
 class ProgramOptions;
 class Problem;
 class Pseudotree;
+class SearchNode;
 
 /*
  * Base class for all heuristic implementations.
@@ -87,11 +89,11 @@ public:
    * from which the relevant assignments (i.e. the context of the current
    * variable) will be extracted.
    */
-  virtual double getHeur(int var, const std::vector<val_t>& assignment) = 0;
+  virtual double getHeur(int var, const std::vector<val_t>& assignment, SearchNode* node) = 0;
 
   /* same as above, but writes heuristic values for all instantiations
    * of var into out. */
-  virtual void getHeurAll(int var, const std::vector<val_t>& assignment,
+  virtual void getHeurAll(int var, const std::vector<val_t>& assignment, SearchNode* node,
       std::vector<double>& out) = 0;
 
   /* Returns true if the heuristic is provably accurate. Default false,

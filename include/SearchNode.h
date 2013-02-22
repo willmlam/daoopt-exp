@@ -27,6 +27,7 @@
 #include "_base.h"
 #include "utils.h"
 #include "SubprobStats.h"  // only for PARALLEL_STATIC
+#include "MBEHeuristicInstance.h"
 
 class Problem;
 class PseudotreeNode;
@@ -75,6 +76,7 @@ protected:
   vector<val_t> m_optAssignment;     // stores the optimal solution to the subproblem
 #endif
 
+
 public:
   virtual int getType() const = 0;
   virtual int getVar() const = 0;
@@ -93,6 +95,7 @@ public:
 
   virtual void setCacheContext(const context_t&) = 0;
   virtual const context_t& getCacheContext() const = 0;
+#include "MBEHeuristicInstance.h"
 
   virtual void setCacheInst(size_t i) = 0;
   virtual size_t getCacheInst() const = 0;
@@ -248,6 +251,8 @@ protected:
   SubprobFeatures m_subprobFeatures; // subproblem feature set
 #endif
 
+  MBEHeuristicInstance *m_hNode;     // pointer to the heuristic used for this node
+
 public:
   int getType() const { return NODE_OR; }
   int getVar() const { return m_var; }
@@ -299,6 +304,9 @@ public:
   void setHeurCache(double* d) { m_heurCache = d; }
   double* getHeurCache() const { return m_heurCache; }
   void clearHeurCache();
+
+  void setHeurInstance(MBEHeuristicInstance *hNode) { m_hNode = hNode; }
+  MBEHeuristicInstance *getHeurInstance() const { return m_hNode; }
 
 public:
   SearchNodeOR(SearchNode* parent, int var, int depth);
@@ -388,7 +396,8 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 
 
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
-  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(NULL) //, m_cacheContext(NULL)
+  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(NULL), m_hNode(NULL) 
+    //, m_cacheContext(NULL)
 #if defined PARALLE_STATIC || defined PARALLEL_DYNAMIC
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)
 #endif
