@@ -64,7 +64,7 @@ void Problem::removeEvidence() {
       covered.at(i) = true;
     }
   }
-  for (size_t i=0; i<m_n; ++i) {
+  for (i=0; i<m_n; ++i) {
     if (!covered.at(i)) eliminateVar.at(i) = true;
   }
 

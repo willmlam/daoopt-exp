@@ -37,6 +37,8 @@
 #include "SubproblemCondor.h"
 #endif
 
+class Heuristic;
+
 /* All search algorithms should inherit from this */
 class Search {
 

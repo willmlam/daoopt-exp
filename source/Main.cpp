@@ -280,14 +280,16 @@ bool Main::initDataStructs() {
 #ifdef NO_HEURISTIC
   m_heuristic.reset(new UnHeuristic);
 #else
+  /*
   if (m_options->dynmm) {
       m_heuristic.reset(new MiniBucketElimDynMM(m_problem.get(), m_pseudotree.get(),
                   m_options.get(), m_options->ibound) );
   }
   else {
-      m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-                  m_options.get(), m_options->ibound) );
   }
+  */
+  m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
+              m_options.get(), m_options->ibound) );
 #endif
 
   // Main search engine

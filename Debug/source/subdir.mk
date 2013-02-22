@@ -17,9 +17,9 @@ CPP_SRCS += \
 ../source/LearningEngine.cpp \
 ../source/LimitedDiscrepancy.cpp \
 ../source/Main.cpp \
+../source/MBEHeuristicInstance.cpp \
 ../source/MiniBucket.cpp \
 ../source/MiniBucketElim.cpp \
-../source/MiniBucketElimDynMM.cpp \
 ../source/ParallelManager.cpp \
 ../source/Problem.cpp \
 ../source/ProgramOptions.cpp \
@@ -49,9 +49,9 @@ OBJS += \
 ./source/LearningEngine.o \
 ./source/LimitedDiscrepancy.o \
 ./source/Main.o \
+./source/MBEHeuristicInstance.o \
 ./source/MiniBucket.o \
 ./source/MiniBucketElim.o \
-./source/MiniBucketElimDynMM.o \
 ./source/ParallelManager.o \
 ./source/Problem.o \
 ./source/ProgramOptions.o \
@@ -81,9 +81,9 @@ CPP_DEPS += \
 ./source/LearningEngine.d \
 ./source/LimitedDiscrepancy.d \
 ./source/Main.d \
+./source/MBEHeuristicInstance.d \
 ./source/MiniBucket.d \
 ./source/MiniBucketElim.d \
-./source/MiniBucketElimDynMM.d \
 ./source/ParallelManager.d \
 ./source/Problem.d \
 ./source/ProgramOptions.d \
