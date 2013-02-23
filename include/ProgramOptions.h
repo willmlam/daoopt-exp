@@ -52,6 +52,7 @@ public:
   int maxDupe; // maximum number of duplicate varibles allowed for skipping dynamic heuristic computation
   int dupeImp; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
   int maxDynHeur; // maximum number of times to compute dynamic heuristics
+  bool reuseMessages; // reuse ancestor heuristic messages
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

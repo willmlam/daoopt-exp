@@ -94,8 +94,11 @@ bool MiniBucket::allowsFunction(Function* f, const set<int> &context) {
   }
 
   // accept if no scope increase or new scope not greater than ibound
-  //cout << "size: " << s << endl;
-  return (s == (int) m_jointScope.size()) || (s <= m_ibound+1);
+  /*
+  cout << "size: " << s << ", ";
+  cout << int(m_jointScope.size()) << " " << m_ibound+1 << endl;
+  */
+  return (s == m_trueScopeSize) || (s <= m_ibound+1);
   // new scope would be greater then ibound?
   //return s <= m_ibound+1;
 
