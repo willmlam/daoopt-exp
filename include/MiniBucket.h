@@ -37,6 +37,7 @@ protected:
   Problem* m_problem;      // pointer to the bucket elimination structure
   vector<Function*> m_functions; // the functions in the MB
   set<int> m_jointScope;         // keeps track of the joint scope if the functions
+  int m_trueScopeSize;      // keeps track of the true scope size of the bucket
 
 public:
   // checks whether the MB has space for a function
@@ -48,6 +49,8 @@ public:
 
   // adds a function to the minibucket and returns its index
   int addFunction(Function*);
+
+  int addFunction(Function*, const set<int> &context);
 
   const set<int> &getJointScope() const;
 
@@ -97,13 +100,27 @@ inline int MiniBucket::addFunction(Function* f) {
   return m_functions.size() - 1;
 }
 
+inline int MiniBucket::addFunction(Function* f, const set<int> &context) {
+  assert(f);
+  // insert function
+  m_functions.push_back(f);
+  // update joint scope
+  for (unsigned i = 0; i < f->getScopeVec().size(); ++i) {
+      int var = f->getScopeVec()[i];
+      if (m_jointScope.count(var) == 0 && context.count(var) == 0) 
+          m_trueScopeSize++;
+  }
+  m_jointScope.insert(f->getScopeVec().begin(), f->getScopeVec().end() );
+  return m_functions.size() - 1;
+}
+
 inline Function *&MiniBucket::getFunctionRef(int i) {
     assert(i < int(m_functions.size()));
     return m_functions[i];
 }
 
 inline MiniBucket::MiniBucket(int v, int b, Problem* p) :
-  m_bucketVar(v), m_ibound(b), m_problem(p) {}
+  m_bucketVar(v), m_ibound(b), m_problem(p), m_trueScopeSize(0) {}
 
 inline const set<int> &MiniBucket::getJointScope() const {
     return m_jointScope;
