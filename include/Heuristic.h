@@ -50,6 +50,7 @@ protected:
   Problem* m_problem;            // The problem instance
   Pseudotree* m_pseudotree;      // The underlying pseudotree
   ProgramOptions* m_options;     // Program options instance
+  double m_heurCompTime;         // Store the time spent computing heuristics
 
 public:
 
@@ -100,10 +101,12 @@ public:
    * override in child class.
    */
   virtual bool isAccurate() { return false; }
+
+  virtual double getHeurCompTime() { return m_heurCompTime; }
   
 protected:
   Heuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) :
-      m_problem(p), m_pseudotree(pt), m_options(po) { /* nothing */ }
+      m_problem(p), m_pseudotree(pt), m_options(po), m_heurCompTime(0) { /* nothing */ }
 public:
   virtual ~Heuristic() { /* nothing */ }
 };
