@@ -293,6 +293,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   this->reset();
 
+  time_t heurCompStart, heurCompEnd;
+  time(&heurCompStart);
+
   const vector<int> &elimOrder = 
       (m_dynamic ? 
        m_elimOrder[m_pseudotree->getRoot()->getVar()] :
@@ -510,6 +513,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
           m_maxDynHeur = maxDynHeur;
       }
   }
+
+  time(&heurCompEnd);
+  m_heurCompTime += difftime(heurCompEnd,heurCompStart);
   return memSize;
 }
 
@@ -517,6 +523,8 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
         MBEHeuristicInstance *ancHeur,
         MBEHeuristicInstance *curHeur, bool computeTables) {
     m_buildSubCalled++;
+    time_t heurCompStart, heurCompEnd;
+    time(&heurCompStart);
     //if (m_buildSubCalled % 1 == 0) cout << m_buildSubCalled << endl;
 
 
@@ -837,6 +845,8 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
     m_augmented.clear();
   }
   */
+  time(&heurCompEnd);
+  m_heurCompTime += difftime(heurCompEnd, heurCompStart);
 
   return memSize;
 }
