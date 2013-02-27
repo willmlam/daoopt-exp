@@ -118,7 +118,7 @@ protected:
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
           (numberOfDuplicateVariables(varAncestor,var) -
            numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
-          rand::next(100) < int(m_options->randDyn * 100);
+          rand::next() < int(m_options->randDyn * rand::max());
   }
 
   // reset the data structures
