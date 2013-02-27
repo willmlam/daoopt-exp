@@ -104,99 +104,34 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
     }
     int currentDepth = m_pseudotree->getNode(var)->getDepth();
 
+    /*
       map<int,val_t> mAssn;
       const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
       for (unsigned i = 0; i < relVars.size(); ++i) {
           mAssn[relVars[i]] = assignment[relVars[i]];
       }
+      */
 
   // Rebuild heuristic with conditioning if dynamic
-  if (m_dynamic) {
-
-/*
-      cout << "elimOrder:" << endl;
-      for (unsigned int i=0; i<elimOrder.size(); ++i)
-          cout << " " << elimOrder[i];
-      cout << endl;
-      */
-      // create map form of assignment
-      // to change?
-
-      // DEBUG PRINT mAssn
-      
-      /*
-      cout << "DEBUG PRINT mAssn" << endl;
-      cout << mAssn << endl;
-      */
-      /*
-
-      cout << "DEBUG PRINT assignment" << endl;
-      for (unsigned int i=0; i<assignment.size();++i)
-          if (assignment[i] != -1) cout << " " << i << " " << int(assignment[i]) << endl;
-      cout << endl;
-
-*/
-      //cout << "depth: " << currentDepth << endl;
-      // if the heuristic is not accurate and the current search node satifies the conditions
-      // defined by the parameters
-      //cout << m_accurateHeuristicIn << endl;
+  if (m_options->dynamic) {
       if (m_pseudotree->getRoot()->getVar() != var &&
-              !sNode->getHeurInstance()->getAccurateHeurIn()[var] && 
-              m_dhDepth > currentDepth && 
-              currentDepth % m_depthInterval == 0 && 
-              m_buildSubCalled < m_maxDynHeur) {
-//          cout << "Ancestor heuristic is not accurate!" << endl;
-//          cout << "Rebuilding to evaluate..." << endl;
-           if (m_dhDepth > currentDepth) {
-               /*
-                cout << "depth limit: " << m_dhDepth << endl;
-                cout << "current depth: " << currentDepth << endl;
-                */
-            }
-          int improvement = numberOfDuplicateVariables(sNode->getHeurInstance()->getVar(),var) -
-              numberOfDuplicateVariables(var,var);
-          if (m_gNodes > 0 && m_currentGIter == 0) {
-              if (improvement >= m_dupeImp) {
-                  MBEHeuristicInstance *newHeur = new MBEHeuristicInstance(m_problem->getN(),var);
-                  newHeur->setDepth(currentDepth);
-                  m_heurCollection.push_back(newHeur);
-                  buildSubproblem(var, 
-                          assignment, 
-                          sNode->getHeurInstance(), 
-                          newHeur);
-                  sNode->setHeurInstance(newHeur);
-                  newHeur->setOwner(sNode);
-                  /*
-                  cout << "Compiled heuristic at (var,depth): " 
-                      << "(" << var << "," << currentDepth << ")" << endl;
-                      */
-              }
-          }
-          m_currentGIter = (m_currentGIter + 1) % m_gNodes;
-      }
-      else {
+              !sNode->getHeurInstance()->getAccurateHeurIn()[var] &&
+              meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)) {
+          MBEHeuristicInstance *newHeur = new MBEHeuristicInstance(m_problem->getN(),var);
+          newHeur->setDepth(currentDepth);
+          m_heurCollection.push_back(newHeur);
+          buildSubproblem(var, 
+                  assignment, 
+                  sNode->getHeurInstance(), 
+                  newHeur);
+          sNode->setHeurInstance(newHeur);
+          newHeur->setOwner(sNode);
           /*
-          cout << "isAccurate: " << m_accurateHeuristicIn[var] << endl;
-          cout << "currentDepth: " << currentDepth << endl;
-          cout << "m_dhDepth: " << m_dhDepth << endl;
-          cout << "m_depthInterval: " << m_depthInterval << endl;
-          cout << "m_dhDepth > currentDepth: " << (m_dhDepth > currentDepth) << endl;
-          cout << "currentDepth % m_depthInterval: " << currentDepth % m_depthInterval << endl;
-          cout << endl;
-          */
-//          cout << "Ancestor heuristic is accurate!" << endl;
-//          cout << "Using heuristic with this assignment..." << endl;
-          /*
-          cout << m_miniBucketFunctions.top().getAssignment().size() << endl;
-          m_miniBucketFunctions.top().printAssignAndElim();
-          cout << "to evaluate..." << endl;
-          for(map<int,val_t>::iterator it=mAssn.begin(); it!=mAssn.end(); ++it) {
-              cout << " " << it->first << " " << int(it->second) << endl;
-          }
-          cout << endl;
-          cout << endl;
-          */
+             cout << "Compiled heuristic at (var,depth): " 
+             << "(" << var << "," << currentDepth << ")" << endl;
+             */
       }
+      m_currentGIter = (m_currentGIter + 1) % m_options->gNodes;
   }
 
   assert(sNode->getHeurInstance()->getDepth() <= currentDepth);
@@ -244,7 +179,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
 
   for (itF = augmentedR[var].begin(); itF!=augmentedR[var].end(); ++itF) {
     (*itF)->getValues(assignment, var, funVals);
-    for (size_t i=0; i<outRoot.size(); ++i)
+    for:(size_t i=0; i<outRoot.size(); ++i)
       outRoot[i] OP_TIMESEQ funVals[i];
   }
   for (itF = intermediateR[var].begin(); itF!=intermediateR[var].end(); ++itF) {
@@ -297,7 +232,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   time(&heurCompStart);
 
   const vector<int> &elimOrder = 
-      (m_dynamic ? 
+      (m_options->dynamic ? 
        m_elimOrder[m_pseudotree->getRoot()->getVar()] :
        m_elimOrder[0]);
 
@@ -385,7 +320,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     // messages are accurate if no partitioning and incoming messages were also accurate
     bool accurateHeur = accurateHeurIn[*itV] && minibuckets.size() == 1;
     
-    if (m_momentMatching && minibuckets.size() > 1) {
+    if (m_options->match && minibuckets.size() > 1) {
         // Find intersection of scopes (the scope of all max-marginals)
         vector<MiniBucket>::iterator itB=minibuckets.begin();
         set<int> intersectScope(itB->getJointScope());
@@ -436,7 +371,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
       // Replace this to generate moment-matched version if #minibuckets > 1
       Function* newf;
-      if (!m_momentMatching || minibuckets.size() <= 1)
+      if (!m_options->match || minibuckets.size() <= 1)
           newf = itB->eliminate(computeTables); // process the minibucket
       else {
           newf = itB->eliminateMM(computeTables,
@@ -476,7 +411,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     // all minibuckets processed and resulting functions placed
 
     // free up memory used by max-marginals
-    if (m_momentMatching && minibuckets.size() > 1) {
+    if (m_options->match && minibuckets.size() > 1) {
       for (unsigned int i = 0; i < maxMarginals.size(); ++i)
         delete maxMarginals[i];
       maxMarginals.clear();
@@ -504,9 +439,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   */
 
   // adaptively set maxDynHeur
-  if (m_memlimit > 0) {
+  if (m_options->memlimit > 0) {
       cout << memSize << endl;
-      int maxDynHeur = m_memlimit / (memSize / (1024*1024.0)) * sizeof(double);
+      int maxDynHeur = m_options->memlimit / (memSize / (1024*1024.0)) * sizeof(double);
       if (maxDynHeur < m_maxDynHeur) {
           cout << "Cannot fit " << m_maxDynHeur << " heuristics in memory." << endl;
           cout << "Adjusting maximum number of heuristics to: " << maxDynHeur << endl;
@@ -726,7 +661,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
     double *avgMMTable; 
     Function *avgMaxMarginal = NULL;
     
-    if (m_momentMatching && minibuckets.size() > 1) {
+    if (m_options->match && minibuckets.size() > 1) {
         // Find intersection of scopes (the scope of all max-marginals)
         vector<MiniBucket>::iterator itB=minibuckets.begin();
         set<int> intersectScope = setminus(itB->getJointScope(), context);
@@ -777,7 +712,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 
       // Replace this to generate moment-matched version if #minibuckets > 1
       Function* newf;
-      if (!m_momentMatching || minibuckets.size() <= 1)
+      if (!m_options->match || minibuckets.size() <= 1)
           newf = itB->conditionEliminate(computeTables,assignment); // process the minibucket
       else {
           newf = itB->conditionEliminateMM(computeTables,assignment,
@@ -817,7 +752,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
     //
 
     // free up memory used by max-marginals
-    if (m_momentMatching && minibuckets.size() > 1) {
+    if (m_options->match && minibuckets.size() > 1) {
       for (unsigned int i = 0; i < maxMarginals.size(); ++i)
         delete maxMarginals[i];
       maxMarginals.clear();
@@ -1044,7 +979,7 @@ void MiniBucketElim::findDfsOrder(vector<int>& order, int var) const {
 }
 
 size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignment) {
-    if (m_dynamic) return 0;
+    if (m_options->dynamic) return 0;
   // convert to bits
   memlimit *= 1024 *1024 / sizeof(double);
 
