@@ -62,16 +62,7 @@ protected:
   vector<vector<int> > m_mbCount;
   vector<int> m_mbCountAccurate;
 
-  bool m_momentMatching;
-  bool m_dynamic;
-
-  int m_gNodes;                  // compute the heuristic every g nodes
   int m_currentGIter;            // Counter for managing granularity
-
-  int m_dhDepth;
-  int m_depthInterval;
-  int m_maxDupe;
-  int m_dupeImp;
 
   int m_maxDynHeur;
 
@@ -120,6 +111,16 @@ protected:
       return s;
   }
 
+  bool meetsComputeConditions(int var, int varAncestor, int depth) {
+      return m_buildSubCalled < m_maxDynHeur &&
+          m_options->dhDepth > depth &&
+          depth % m_options->depthInterval == 0 &&
+          (m_options->gNodes > 0 && m_currentGIter == 0) &&
+          (numberOfDuplicateVariables(varAncestor,var) -
+           numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
+          rand::next(100) < int(m_options->randDyn * 100);
+  }
+
   // reset the data structures
   void reset();
 
@@ -146,6 +147,7 @@ public:
   double getHeur(int var, const vector<val_t>& assignment, SearchNode *n);
   // computes heuristic values for all instantiations of var, given context assignment
   void getHeurAll(int var, const vector<val_t>& assignment, SearchNode *n, vector<double>& out);
+
 
   // reset the i-bound
   void setIbound(int ibound) { m_ibound = ibound; }
@@ -271,24 +273,16 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_cMessages(p->getN()), 
     m_mbCount(p->getN(),vector<int>(p->getN(), 0)),
     m_mbCountAccurate(p->getN()),
-    m_momentMatching(po->match),
-    m_dynamic(po->dynamic), 
-    m_gNodes(po->gNodes), 
     m_currentGIter(0), 
-    m_dhDepth(po->dhDepth),
-    m_depthInterval(po->depthInterval),
-    m_maxDupe(po->maxDupe),
-    m_dupeImp(po->dupeImp),
     m_maxDynHeur(po->maxDynHeur),
-    m_buildSubCalled(0),
-    m_memlimit(po->memlimit)
+    m_buildSubCalled(0)
   { 
       m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar());
       
       // If dynamic, precomupute all DFS elimination orders for each node
       // and precompute number of minibuckets used in each subproblem 
       // rooted by each node
-      if (m_dynamic) {
+      if (m_options->dynamic) {
           m_elimOrder.resize(p->getN());
           for (int i = 0 ; i < p->getN(); ++i) {
               findDfsOrder(m_elimOrder[i], i);

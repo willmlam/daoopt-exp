@@ -50,9 +50,10 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("dhDepth", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum depth to compute dynamic heuristics")
       ("depthInterval", po::value<int>()->default_value(1), "compute heuristics only at these depth intervals")
       ("maxDupe", po::value<int>()->default_value(0), "maximum number of duplicate varibles allowed for skipping dynamic heuristic computation")
-      ("dupeImp", po::value<int>()->default_value(0), "minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)")
+      ("dupeRed", po::value<int>()->default_value(0), "minimum amount of reduction of duplicated variables to heuristic needed for recomputation") 
       ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
       ("reuseMessages", "reuse ancestor heuristic messages")
+      ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -169,11 +170,14 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("maxDupe")) {
       opt->maxDupe = vm["maxDupe"].as<int>();
     }
-    if (vm.count("dupeImp")) {
-      opt->dupeImp = vm["dupeImp"].as<int>();
+    if (vm.count("dupeRed")) {
+      opt->dupeRed = vm["dupeRed"].as<int>();
     }
     if (vm.count("maxDynHeur")) {
       opt->maxDynHeur = vm["maxDynHeur"].as<int>();
+    }
+    if (vm.count("randDyn")) {
+      opt->randDyn = vm["randDyn"].as<double>();
     }
     if (vm.count("reuseMessages")) {
         opt->reuseMessages = true;
