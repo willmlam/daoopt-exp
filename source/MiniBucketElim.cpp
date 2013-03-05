@@ -115,7 +115,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   // Rebuild heuristic with conditioning if dynamic
   if (m_options->dynamic) {
       if (m_pseudotree->getRoot()->getVar() != var &&
-              !sNode->getHeurInstance()->getAccurateHeurIn()[var] &&
+              !(m_options->reuseMessages && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
               meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)) {
           MBEHeuristicInstance *newHeur = new MBEHeuristicInstance(m_problem->getN(),var);
           newHeur->setDepth(currentDepth);
@@ -451,13 +451,13 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd,heurCompStart);
+  m_numHeuristics++;
   return memSize;
 }
 
 size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn, 
         MBEHeuristicInstance *ancHeur,
         MBEHeuristicInstance *curHeur, bool computeTables) {
-    m_buildSubCalled++;
     time_t heurCompStart, heurCompEnd;
     time(&heurCompStart);
     //if (m_buildSubCalled % 1 == 0) cout << m_buildSubCalled << endl;
@@ -468,7 +468,10 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 #endif
 
 
-  assert(!ancHeur->getAccurateHeurIn()[var]); // should only be here if heuristic is not accurate
+  // should only be here if heuristic is not accurate or if not reusing messages
+  assert(!m_options->reuseMessages || !ancHeur->getAccurateHeurIn()[var]); 
+
+  // should never be recomputing the root heuristic
   assert(var != m_pseudotree->getRoot()->getVar());
 
 
@@ -782,6 +785,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   */
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd, heurCompStart);
+  m_numHeuristics++;
 
   return memSize;
 }

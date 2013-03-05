@@ -66,7 +66,7 @@ protected:
 
   int m_maxDynHeur;
 
-  int m_buildSubCalled;
+  int m_numHeuristics;
   
   int m_memlimit;
 
@@ -112,13 +112,13 @@ protected:
   }
 
   bool meetsComputeConditions(int var, int varAncestor, int depth) {
-      return m_buildSubCalled < m_maxDynHeur &&
+      return m_numHeuristics < m_maxDynHeur &&
           m_options->dhDepth > depth &&
           depth % m_options->depthInterval == 0 &&
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
           (numberOfDuplicateVariables(varAncestor,var) -
            numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
-          rand::next(100) < int(m_options->randDyn * 100);
+          rand::next() < int(m_options->randDyn * rand::max());
   }
 
   // reset the data structures
@@ -164,6 +164,10 @@ public:
   bool readFromFile(string fn);
 
   bool isAccurate();
+
+  int getNumHeuristics() const {
+      return m_numHeuristics;
+  }
 
 public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
@@ -275,7 +279,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_mbCountAccurate(p->getN()),
     m_currentGIter(0), 
     m_maxDynHeur(po->maxDynHeur),
-    m_buildSubCalled(0)
+    m_numHeuristics(0)
   { 
       m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar());
       

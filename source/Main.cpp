@@ -664,6 +664,7 @@ bool Main::outputStats() const {
   time_passed = difftime(_time_pre, _time_start);
   cout << "Preprocessing: " << time_passed << " seconds" << endl;
   cout << "Heur. time:    " << int(m_heuristic->getHeurCompTime()) << " seconds" << endl;
+  cout << "# Heuristics:  " << int(m_heuristic->getNumHeuristics()) << endl;
   cout << "-------------------------------" << endl;
 
 #ifdef PARALLEL_STATIC

@@ -103,6 +103,8 @@ public:
   virtual bool isAccurate() { return false; }
 
   virtual double getHeurCompTime() { return m_heurCompTime; }
+
+  virtual int getNumHeuristics() const = 0;
   
 protected:
   Heuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) :
