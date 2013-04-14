@@ -1,5 +1,8 @@
 #include "MBEHeuristicInstance.h"
 
+int MBEHeuristicInstance::currentNumActive = 0;
+int MBEHeuristicInstance::maxNumActive = 0;
+
 void MBEHeuristicInstance::populateMessages(int var, vector<bool> &visited) {
     ConditionedMessages *cm = m_computedMessages[var];
     assert(cm);

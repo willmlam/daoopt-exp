@@ -39,6 +39,8 @@
 //class MiniBucketFunctions;
 class Scope;
 
+enum DomRel { DOMINATES = 10, NEG_DOMINATES = -10, EQUAL = 1, INDETERMINATE = 0 };
+
 class MiniBucketElim : public Heuristic {
 
   friend class MiniBucket;
@@ -59,7 +61,17 @@ protected:
 
   vector<stack<ConditionedMessages*> > m_cMessages;
 
-  vector<vector<int> > m_mbCount;
+  vector<vector<int> > m_mbCountSubtree; // cumulative on entire subtree
+  vector<vector<int> > m_dupeCount; // number of mini buckets for each bucket
+
+  // for each entry in this matrix M[i][j] =
+  // 1 if i dominates j
+  // -1 if j dominates i
+  // 0 if i and j are equal
+  // -10 if i and j are not comparable
+  // condition: M[i][j] = -M[j][i] unless they are not comparable
+  vector<vector<DomRel> > m_heuristicDominates;
+
   vector<int> m_mbCountAccurate;
 
   int m_currentGIter;            // Counter for managing granularity
@@ -85,6 +97,9 @@ protected:
   void findDfsOrder(vector<int>&) const;
   void findDfsOrder(vector<int>&, int var) const;
 
+  // Computes a bfs order of the pseudo tree
+  void findBfsOrder(vector<int>&) const;
+
   // Compares the size of the scope of two functions
 //  bool scopeIsLarger(Function*, Function*) const;
 
@@ -99,7 +114,7 @@ protected:
   // Calculate the number of extra variables induced by the minibucket heuristic 
   // computed at at variable u for evaluating a variable v
   int numberOfDuplicateVariables(int u, int v) {
-      return m_mbCount[u][v] - m_mbCountAccurate[v];
+      return m_mbCountSubtree[u][v] - m_mbCountAccurate[v];
   }
 
   // Calculate the number of variables not in the given context
@@ -118,7 +133,77 @@ protected:
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
           (numberOfDuplicateVariables(varAncestor,var) -
            numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
+          (m_options->strictDupeRed <= 0 || m_heuristicDominates[var][varAncestor] == DOMINATES) &&
           rand::next() < int(m_options->randDyn * rand::max());
+  }
+
+  bool meetsReuseCondition(int var, int varAncestor, int bucket) {
+      switch(m_options->reuseLevel) {
+          case 1:
+              //return m_dupeCount[varAncestor][bucket] == m_dupeCount[var][bucket];
+          case 2:
+              return m_dupeCount[varAncestor][bucket] == 1;
+          default:
+              return false;
+      }
+  }
+
+  void buildDominanceMatrix() {
+      vector<int> ordering; 
+      findBfsOrder(ordering);
+      vector<int>::iterator it = ordering.begin();
+      for (; it != ordering.end(); ++it) {
+          PseudotreeNode *n = m_pseudotree->getNode(*it);
+          m_heuristicDominates[*it][*it] = EQUAL;
+          vector<bool> processed(ordering.size(),false);
+          while ( (n = n->getParent()) ) {
+              int v2 = n->getVar();
+              // skip since variable was already processed via transitivity
+              if (processed[v2]) continue;
+                  
+              // check dupe count on current variable only
+              vector<int>::iterator vit = m_elimOrder[*it].begin();
+              bool allEqualOrLess = true;
+              int countStrictlyLess = 0;
+              for (; vit != m_elimOrder[*it].end(); ++vit) {
+                  if (*vit == m_pseudotree->getRoot()->getVar()) continue;
+                  else if (m_dupeCount[*it][*vit] > m_dupeCount[v2][*vit]) {
+                      allEqualOrLess = false;
+                      break;
+                  }
+                  if (m_dupeCount[*it][*vit] < m_dupeCount[v2][*vit]) countStrictlyLess++;
+              }
+              if (allEqualOrLess) {
+                  PseudotreeNode *n2 = m_pseudotree->getNode(v2);
+                  if (countStrictlyLess >= m_options->strictDupeRed) {
+                      m_heuristicDominates[*it][v2] = DOMINATES;
+                      m_heuristicDominates[v2][*it] = NEG_DOMINATES;
+                      while ( (n2 = n2->getParent()) ) {
+                          int v3 = n2->getVar();
+                          // if the relation is defined, it is transitively dominating
+                          if (m_heuristicDominates[v2][v3] != INDETERMINATE) {
+                              m_heuristicDominates[*it][v3] = DOMINATES;
+                              m_heuristicDominates[v3][*it] = NEG_DOMINATES;
+                              processed[v3] = true;
+                          }
+                      }
+                  }
+                  else {
+                      m_heuristicDominates[*it][v2] = m_heuristicDominates[v2][*it] = EQUAL;
+                      while ( (n2 = n2->getParent()) ) {
+                          int v3 = n2->getVar();
+                          // if the relation is defined, it is transitively the same relation
+                          if (m_heuristicDominates[v2][v3] != INDETERMINATE) {
+                              m_heuristicDominates[*it][v3] = m_heuristicDominates[v2][v3];
+                              m_heuristicDominates[v3][*it] = m_heuristicDominates[v3][v2];
+                              processed[v3] = true;
+                          }
+                      }
+                  }
+              }
+          }
+          processed[*it] = true;
+      }
   }
 
   // reset the data structures
@@ -167,6 +252,14 @@ public:
 
   int getNumHeuristics() const {
       return m_numHeuristics;
+  }
+
+  int getCurrentNumActive() const {
+      return MBEHeuristicInstance::getCurrentNumActive();
+  }
+
+  int getMaxNumActive() const {
+      return MBEHeuristicInstance::getMaxNumActive();
   }
 
 public:
@@ -275,13 +368,15 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
     Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), 
     m_cMessages(p->getN()), 
-    m_mbCount(p->getN(),vector<int>(p->getN(), 0)),
+    m_mbCountSubtree(p->getN(),vector<int>(p->getN(), 0)),
+    m_dupeCount(p->getN(),vector<int>(p->getN(), 0)),
+    m_heuristicDominates(p->getN(),vector<DomRel>(p->getN(),INDETERMINATE)),
     m_mbCountAccurate(p->getN()),
     m_currentGIter(0), 
     m_maxDynHeur(po->maxDynHeur),
     m_numHeuristics(0)
   { 
-      m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar());
+      m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
       
       // If dynamic, precomupute all DFS elimination orders for each node
       // and precompute number of minibuckets used in each subproblem 
@@ -293,6 +388,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
               m_mbCountAccurate[i] = m_elimOrder[i].size() - (i==p->getN()-1 ? 1 : 2);
               simulateBuildSubproblem(i, m_elimOrder[i]);
           }
+          if (m_options->strictDupeRed > 0) buildDominanceMatrix();
       }
       else {
           m_elimOrder.resize(1);

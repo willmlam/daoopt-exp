@@ -52,7 +52,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("maxDupe", po::value<int>()->default_value(0), "maximum number of duplicate varibles allowed for skipping dynamic heuristic computation")
       ("dupeRed", po::value<int>()->default_value(0), "minimum amount of reduction of duplicated variables to heuristic needed for recomputation") 
       ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
-      ("reuseMessages", "reuse ancestor heuristic messages")
+      ("reuseLevel", po::value<int>()->default_value(0), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets")
+      ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
+      ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
       ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
@@ -179,11 +181,19 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("randDyn")) {
       opt->randDyn = vm["randDyn"].as<double>();
     }
-    if (vm.count("reuseMessages")) {
-        opt->reuseMessages = true;
+    if (vm.count("reuseLevel")) {
+        opt->reuseLevel = vm["reuseLevel"].as<int>();
+        if (opt->reuseLevel > 2) opt->reuseLevel = 0;
+    }
+    if (vm.count("strictDupeRed")) {
+        opt->strictDupeRed = vm["strictDupeRed"].as<int>();
+    }
+
+    if (vm.count("useSimpleHeurSelection")) {
+        opt->useSimpleHeurSelection = true;
     }
     else {
-        opt->reuseMessages = false;
+        opt->useSimpleHeurSelection = false;
     }
 
     if (vm.count("cbound-worker"))

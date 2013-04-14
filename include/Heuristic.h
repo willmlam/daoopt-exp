@@ -105,6 +105,9 @@ public:
   virtual double getHeurCompTime() { return m_heurCompTime; }
 
   virtual int getNumHeuristics() const = 0;
+
+  virtual int getCurrentNumActive() const = 0;
+  virtual int getMaxNumActive() const = 0;
   
 protected:
   Heuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) :
