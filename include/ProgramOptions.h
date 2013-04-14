@@ -53,7 +53,9 @@ public:
   int dupeRed; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
   int maxDynHeur; // maximum number of times to compute dynamic heuristics
   double randDyn; // probability based schedule of computing dynamic heuristics
-  bool reuseMessages; // reuse ancestor heuristic messages
+  int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
+  int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
+  bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

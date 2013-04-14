@@ -115,9 +115,10 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   // Rebuild heuristic with conditioning if dynamic
   if (m_options->dynamic) {
       if (m_pseudotree->getRoot()->getVar() != var &&
-              !(m_options->reuseMessages && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
+              !(m_options->reuseLevel != 0 && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
               meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)) {
-          MBEHeuristicInstance *newHeur = new MBEHeuristicInstance(m_problem->getN(),var);
+          MBEHeuristicInstance *newHeur = 
+              new MBEHeuristicInstance(m_problem->getN(),var,sNode->getHeurInstance());
           newHeur->setDepth(currentDepth);
           m_heurCollection.push_back(newHeur);
           buildSubproblem(var, 
@@ -135,22 +136,34 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   }
 
   assert(sNode->getHeurInstance()->getDepth() <= currentDepth);
+  /*
   const vector<vector<Function*> >&augmented = sNode->getHeurInstance()->getAugmented();
   const vector<vector<Function*> >&intermediate = sNode->getHeurInstance()->getIntermediate();
+  */
+  MBEHeuristicInstance *curHeur = sNode->getHeurInstance();
+  /*
+  if (curHeur->getParent()) 
+      curHeur = curHeur->getParent();
+      */
+  const vector<vector<Function*> >&augmented = curHeur->getAugmented();
+  const vector<vector<Function*> >&intermediate = curHeur->getIntermediate();
 
   /*
   if (sNode->getHeurInstance() == m_rootHeurInstance) {
       cout << "using root heuristic" << endl;
   }
   else {
-      cout << sNode << endl;
-      cout << mAssn << endl;
+      cout << sNode->getHeurInstance() << endl;
+      //cout << mAssn << endl;
       cout << "using conditioned heuristic" << endl;
   }
   */
 
+
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
+
+
   vector<double> funVals;
   vector<Function*>::const_iterator itF;
   for (itF = augmented[var].begin(); itF!=augmented[var].end(); ++itF) {
@@ -164,10 +177,31 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
       out[i] OP_TIMESEQ funVals[i];
   }
 
-  /*
-  cout << mAssn << endl;
-  cout << out << endl;
-  */
+  if (m_options->useSimpleHeurSelection) {
+      vector<double> tempOut;
+      tempOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
+      // modified to look at all parent heuristics as well
+      // guarantees heuristic computed dominates
+      while ( (curHeur = curHeur->getParent()) ) {
+          const vector<vector<Function*> >&augmentedAnc = curHeur->getAugmented();
+          const vector<vector<Function*> >&intermediateAnc = curHeur->getIntermediate();
+          for (itF = augmentedAnc[var].begin(); itF!=augmentedAnc[var].end(); ++itF) {
+              (*itF)->getValues(assignment, var, funVals);
+              for (size_t i=0; i<tempOut.size(); ++i)
+                  tempOut[i] OP_TIMESEQ funVals[i];
+          }
+          for (itF = intermediateAnc[var].begin(); itF!=intermediateAnc[var].end(); ++itF) {
+              (*itF)->getValues(assignment, var, funVals);
+              for (size_t i=0; i<tempOut.size(); ++i)
+                  tempOut[i] OP_TIMESEQ funVals[i];
+          }
+          for (size_t i=0; i<out.size(); ++i) {
+              out[i] = min(out[i],tempOut[i]);
+              tempOut[i] = ELEM_ONE;
+          }
+      }
+  }
+
 
 
   /*
@@ -469,7 +503,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 
 
   // should only be here if heuristic is not accurate or if not reusing messages
-  assert(!m_options->reuseMessages || !ancHeur->getAccurateHeurIn()[var]); 
+  assert(m_options->reuseLevel == 0 || !ancHeur->getAccurateHeurIn()[var]); 
 
   // should never be recomputing the root heuristic
   assert(var != m_pseudotree->getRoot()->getVar());
@@ -496,6 +530,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   size_t memSize = 0;
 
   vector<bool> visited(m_problem->getN(), false);
+  vector<bool> forceUpdate(m_problem->getN(), false);
 
   vector<vector<Function*> > &augmented = curHeur->getAugmented();
   vector<ConditionedMessages*> &computedMessages = curHeur->getComputedMessages();
@@ -516,19 +551,11 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
     cout << "$ Bucket for variable " << *itV << endl;
 #endif
 
-    if (*itV != elimOrder[0]) {
-        // Check if ancestor heuristic has an accurate version
-
-        if (ancHeur->getComputedMessages()[*itV]->isAccurate()) {
-            //cout << "Intent to reuse: " << endl;
-
-
-           if(m_options->reuseMessages) {
-                computedMessages[*itV] = ancHeur->getComputedMessages()[*itV];   
-                curHeur->populateMessages(*itV,visited);
-                continue;
-            }
-        }
+    // reuse if child messages were not updated and conditions met
+    if (!forceUpdate[*itV] && meetsReuseCondition(var,ancHeur->getVar(),*itV)) {
+            computedMessages[*itV] = ancHeur->getComputedMessages()[*itV];   
+            curHeur->populateMessages(*itV,visited);
+            continue;
     }
 
     // otherwise start recomputing bucket
@@ -748,6 +775,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
       }
       // matching bucket found OR root of pseudo tree reached
       path->push_back(n->getVar());
+      forceUpdate[n->getVar()] = true;
       computedMessages[*itV]->addFunction(newf, path);
     }
     curHeur->populateMessages(*itV,visited);
@@ -848,8 +876,8 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
 
     // account for "empty" minibuckets
     if (funs.size() == 0) {
-        m_mbCount[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
-            m_mbCount[var][*itV];
+        m_mbCountSubtree[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
+            m_mbCountSubtree[var][*itV];
         //cntMiniBuckets++;
         continue;
     }
@@ -908,6 +936,9 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
     }
     funs.clear();
 
+    m_dupeCount[var][*itV] = minibuckets.size();
+    
+
     for (vector<Scope*>::iterator itB=minibuckets.begin();
           itB!=minibuckets.end(); ++itB)
     {
@@ -927,8 +958,8 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
       augmentedSim[n->getVar()].push_back(*itB);
 
     }
-    m_mbCount[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
-        (m_mbCount[var][*itV] + minibuckets.size());
+    m_mbCountSubtree[var][m_pseudotree->getNode(*itV)->getParent()->getVar()] += 
+        (m_mbCountSubtree[var][*itV] + minibuckets.size());
     // all minibuckets processed and resulting functions placed
     minibuckets.clear();
 
@@ -939,7 +970,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
       }
   }
 
-  //return m_mbCount[var][var];
+  //return m_mbCountSubtree[var][var];
 }
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)
@@ -978,6 +1009,23 @@ void MiniBucketElim::findDfsOrder(vector<int>& order, int var) const {
     for (vector<PseudotreeNode*>::const_iterator it=n->getChildren().begin();
           it!=n->getChildren().end(); ++it) {
       dfs.push(*it);
+    }
+  }
+}
+
+/* finds a bfs order of the pseudotree */
+void MiniBucketElim::findBfsOrder(vector<int>& order) const {
+  order.clear();
+  queue<PseudotreeNode*> bfs;
+  bfs.push(m_pseudotree->getRoot());
+  PseudotreeNode* n = NULL;
+  while (!bfs.empty()) {
+    n = bfs.front();
+    bfs.pop(); 
+    order.push_back(n->getVar());
+    for (vector<PseudotreeNode*>::const_iterator it=n->getChildren().begin();
+          it!=n->getChildren().end(); ++it) {
+      bfs.push(*it);
     }
   }
 }

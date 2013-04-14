@@ -70,6 +70,8 @@ class ConditionedMessages {
 };
 
 class MBEHeuristicInstance {
+    static int maxNumActive;
+    static int currentNumActive;
     int m_var;
     int m_depth;
     vector<vector<Function*> > m_augmented;
@@ -83,8 +85,18 @@ class MBEHeuristicInstance {
     // Keep track of the original node using this heuristic
     SearchNode *m_owner;
 
+    // Parent heursitic
+    MBEHeuristicInstance *m_parent;
+
     public:
-    MBEHeuristicInstance(int nVars, int var);
+    MBEHeuristicInstance(int nVars, int var, MBEHeuristicInstance *parent);
+
+    inline static int getCurrentNumActive() {
+        return currentNumActive;
+    }
+    inline static int getMaxNumActive() {
+        return maxNumActive;
+    }
 
     inline int getVar() const {
         return m_var;
@@ -118,6 +130,10 @@ class MBEHeuristicInstance {
         return m_owner;
     }
 
+    inline MBEHeuristicInstance *getParent() const {
+        return m_parent;
+    }
+
     inline void setOwner(SearchNode *owner) {
         m_owner = owner;
     }
@@ -148,18 +164,22 @@ class MBEHeuristicInstance {
     ~MBEHeuristicInstance();
 };
 
-inline MBEHeuristicInstance::MBEHeuristicInstance(int nVars, int var) 
-: m_var(var), m_depth(-1), m_accurateHeurIn(nVars, true) {
+inline MBEHeuristicInstance::MBEHeuristicInstance(int nVars, int var, MBEHeuristicInstance *parent) 
+: m_var(var), m_depth(-1), m_accurateHeurIn(nVars, true), m_parent(parent) {
     m_augmented.resize(nVars);
     m_intermediate.resize(nVars);
     m_computedMessages.resize(nVars, NULL);
+    ++currentNumActive;
+    if (currentNumActive > maxNumActive) maxNumActive = currentNumActive;
 }
 inline MBEHeuristicInstance::~MBEHeuristicInstance() {
     for (unsigned i = 0; i < m_computedMessages.size(); ++i) {
         if (m_computedMessages[i] && this == m_computedMessages[i]->getOwner())
             delete m_computedMessages[i];
     }
+    --currentNumActive;
 }
+
 
 #endif
 
