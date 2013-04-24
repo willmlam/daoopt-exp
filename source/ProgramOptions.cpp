@@ -55,6 +55,10 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("reuseLevel", po::value<int>()->default_value(0), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets")
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
+      ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
+      ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
+      ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
+      ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
       ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
@@ -195,6 +199,16 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     else {
         opt->useSimpleHeurSelection = false;
     }
+
+    if (vm.count("mplp"))
+        opt->mplp = vm["mplp"].as<int>();
+    if (vm.count("mplps"))
+        opt->mplps = vm["mplps"].as<double>();
+    if (vm.count("jglp"))
+        opt->jglp = vm["jglp"].as<int>();
+    if (vm.count("jglps"))
+        opt->jglps = vm["jglps"].as<double>();
+
 
     if (vm.count("cbound-worker"))
       opt->cbound_worker = vm["cbound-worker"].as<int>();

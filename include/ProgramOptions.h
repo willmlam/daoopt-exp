@@ -56,6 +56,10 @@ public:
   int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
   int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
   bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
+  int mplp;  // enables MPLP in Alex Ihler's MBE library (# iters)
+  double mplps;  // enables MPLP in Alex Ihler's MBE library (# sec)
+  int jglp;  // enables JGLP tightening in Alex Ihler's MBE library (# iters)
+  double jglps;  // enables JGLP tightening in Alex Ihler's MBE library (# sec)
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes
