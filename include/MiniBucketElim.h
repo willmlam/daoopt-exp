@@ -34,6 +34,8 @@
 #include "MiniBucket.h"
 #include "MBEHeuristicInstance.h"
 
+#include "mex/mbe.h"
+
 
 /* The overall minibucket elimination */
 //class MiniBucketFunctions;
@@ -73,6 +75,8 @@ protected:
   vector<vector<DomRel> > m_heuristicDominates;
 
   vector<int> m_mbCountAccurate;
+
+  vector<int> m_subproblemWidth; // widths for each subproblem
 
   int m_currentGIter;            // Counter for managing granularity
 
@@ -262,9 +266,19 @@ public:
       return MBEHeuristicInstance::getMaxNumActive();
   }
 
+  // Preprocess problem using FGLP/JGLP
+  bool doFGLP();
+  bool doJGLP();
+
 public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
   virtual ~MiniBucketElim();
+
+protected:
+  mex::mbe _mbe;
+  mex::vector<mex::Factor> copyFactors(void);
+  void rewriteFactors(const vector<mex::Factor>& factors);
+
 
 };
 
@@ -372,29 +386,47 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_dupeCount(p->getN(),vector<int>(p->getN(), 0)),
     m_heuristicDominates(p->getN(),vector<DomRel>(p->getN(),INDETERMINATE)),
     m_mbCountAccurate(p->getN()),
+    m_subproblemWidth(p->getN(),-1),
     m_currentGIter(0), 
     m_maxDynHeur(po->maxDynHeur),
-    m_numHeuristics(0)
-  { 
-      m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
+    m_numHeuristics(0),
+    _mbe() { 
+
+        m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
       
-      // If dynamic, precomupute all DFS elimination orders for each node
-      // and precompute number of minibuckets used in each subproblem 
-      // rooted by each node
-      if (m_options->dynamic) {
-          m_elimOrder.resize(p->getN());
-          for (int i = 0 ; i < p->getN(); ++i) {
-              findDfsOrder(m_elimOrder[i], i);
-              m_mbCountAccurate[i] = m_elimOrder[i].size() - (i==p->getN()-1 ? 1 : 2);
-              simulateBuildSubproblem(i, m_elimOrder[i]);
-          }
-          if (m_options->strictDupeRed > 0) buildDominanceMatrix();
-      }
-      else {
-          m_elimOrder.resize(1);
-          findDfsOrder(m_elimOrder[0]);
-      }
-  }
+        // If dynamic, precomupute all DFS elimination orders for each node
+        // and precompute number of minibuckets used in each subproblem 
+        // rooted by each node
+        if (m_options->dynamic) {
+            m_elimOrder.resize(p->getN());
+            for (int i = 0 ; i < p->getN(); ++i) {
+                findDfsOrder(m_elimOrder[i], i);
+                m_mbCountAccurate[i] = m_elimOrder[i].size() - (i==p->getN()-1 ? 1 : 2);
+                simulateBuildSubproblem(i, m_elimOrder[i]);
+            }
+            /*
+            for (int i = 0; i < p->getN(); ++i) {
+                cout << i << ", " << m_pseudotree->getNode(i)->getDepth() << ", " << m_subproblemWidth[i] << endl;
+            }
+            for (int i = 0; i < p->getN(); ++i) {
+                Pseudotree *temp = new Pseudotree(*m_pseudotree);
+                int depth = temp->restrictSubproblem(i);
+                cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
+                delete temp;
+            }
+            */
+            if (m_options->strictDupeRed > 0) buildDominanceMatrix();
+        }
+        else {
+            m_elimOrder.resize(1);
+            findDfsOrder(m_elimOrder[0]);
+        }
+
+        if (m_options->mplp > 0 || m_options->mplps > 0) {
+            doFGLP();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
+}
 
 inline MiniBucketElim::~MiniBucketElim() {
   // make sure to delete each function only once

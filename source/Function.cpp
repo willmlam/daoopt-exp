@@ -10,6 +10,7 @@
  *  (at your option) any later version.
  *
  *  DAOOPT is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
@@ -38,6 +39,26 @@ Function::Function(const int& id, Problem* p, const set<int>& scope, double* T, 
     offset *= m_problem->getDomainSize(*rit);
   }
 #endif
+}
+
+/* ATI: convert between mex/Factor representation and daoopt Function representation */
+mex::Factor Function::asFactor() {
+  mex::VarSet vs;
+  for (vector<int>::iterator it=m_scopeV.begin();it!=m_scopeV.end();++it) vs+=mex::Var(*it,m_problem->getDomainSize(*it));
+  mex::Factor F(vs, 0.0); //m_table);
+  mex::vector<mex::Var> ord(vs.begin(),vs.end());
+  mex::permuteIndex pi(ord,true);
+  for (size_t j=0;j<F.numel();j++) F[j]=m_table[pi.convert(j)]; //F[pi.convertLinearIndex(j)]=m_table[j];
+  return F;
+}
+void Function::fromFactor(const mex::Factor& F) {
+  mex::VarSet vs;
+  for (vector<int>::iterator it=m_scopeV.begin();it!=m_scopeV.end();++it) vs+=mex::Var(*it,m_problem->getDomainSize(*it));
+  assert( vs == F.vars() );
+
+  mex::vector<mex::Var> ord(F.vars().begin(),F.vars().end());
+  mex::permuteIndex pi(ord,true);
+  for (size_t j=0;j<F.numel();j++) m_table[pi.convert(j)] = F[j]; //m_table[j] = F[pi.convertLinearIndex(j)];
 }
 
 

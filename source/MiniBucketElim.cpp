@@ -897,7 +897,10 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
     //vector<MiniBucket> minibuckets;
     vector<Scope*> minibuckets;
 //    vector<Function*>::iterator itF; bool placed;
+
+    set<int> intersectionScope;
     for (vector<Scope*>::iterator itF = funs.begin(); itF!=funs.end(); ++itF) {
+      intersectionScope.insert((*itF)->getScope().begin(), (*itF)->getScope().end());
       bool placed = false;
       for (vector<Scope*>::iterator itB=minibuckets.begin();
             !placed && itB!=minibuckets.end(); ++itB)
@@ -931,6 +934,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
         minibuckets.push_back(new Scope(-(*itV), (*itF)->getScope()));
       }
     }
+    m_subproblemWidth[var] = max(m_subproblemWidth[var], int(intersectionScope.size() - 1));
     for (unsigned i = 0; i < funs.size(); ++i) {
         delete funs[i];
     }
@@ -971,6 +975,53 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
   }
 
   //return m_mbCountSubtree[var][var];
+}
+
+// reparameterize problem using mplp on the original factors
+bool MiniBucketElim::doFGLP() {
+  bool changedFunctions = false;
+
+  if (m_options!=NULL && (m_options->mplp > 0 || m_options->mplps > 0)) {
+    mex::mplp _mplp( copyFactors() );  // copyFactors()
+    _mplp.setProperties("Schedule=Fixed,Update=Var,StopIter=100,StopObj=-1,StopMsg=-1,StopTime=-1");
+    _mplp.init();
+    char opt[50];
+    if (m_options->mplp > 0)  { sprintf(opt,"StopIter=%d",m_options->mplp); _mplp.setProperties(opt); }
+    if (m_options->mplps > 0) { sprintf(opt,"StopTime=%f",m_options->mplps); _mplp.setProperties(opt); }
+
+    _mplp.run();
+    rewriteFactors( _mplp.beliefs() );
+    _mbe.setModel( _mplp.beliefs() );
+
+    changedFunctions = true;
+  }
+
+  return changedFunctions;
+}
+
+bool MiniBucketElim::doJGLP() {
+    return false;
+}
+
+// Copy DaoOpt Function class into mex::Factor class structures
+mex::vector<mex::Factor> MiniBucketElim::copyFactors( void ) {
+  mex::vector<mex::Factor> fs(m_problem->getC());
+  for (int i=0;i<m_problem->getC(); ++i) fs[i] = m_problem->getFunctions()[i]->asFactor().exp();
+  return fs;
+}
+
+// Mini-bucket may have re-parameterized the original functions; if so, replace them
+void MiniBucketElim::rewriteFactors( const vector<mex::Factor>& factors) {
+  vector<Function*> newFunctions(factors.size()); // to hold replacement, reparameterized functions
+  for (size_t f=0;f<factors.size();++f) {         // allocate memory, copy variables into std::set
+    double* tablePtr = new double[ factors[f].nrStates() ];
+    std::set<int> scope;
+    for (mex::VarSet::const_iterator v=factors[f].vars().begin(); v!=factors[f].vars().end(); ++v)
+      scope.insert(v->label());
+    newFunctions[f] = new FunctionBayes(f,m_problem,scope,tablePtr,factors[f].nrStates());
+    newFunctions[f]->fromFactor( log(factors[f]) );    // write in log factor functions
+  }
+  m_problem->replaceFunctions( newFunctions );                // replace them in the problem definition
 }
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)
