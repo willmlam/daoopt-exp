@@ -49,6 +49,7 @@ public:
   int gNodes; // Computation granularity for dynamic heuristics
   int dhDepth; // Maximum depth to compute dynamic heuristics
   int depthInterval; // compute dynamic heuristics only at depths that are multiples of depthInterval
+  bool depthOnly; // Used with dhDepth, sets depthInterval = dhDepth
   int maxDupe; // maximum number of duplicate varibles allowed for skipping dynamic heuristic computation
   int dupeRed; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
   int maxDynHeur; // maximum number of times to compute dynamic heuristics
