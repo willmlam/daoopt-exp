@@ -48,7 +48,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
       ("gNodes,g", po::value<int>()->default_value(1), "computation granularity for dynamic mini-bucket heuristics")
       ("dhDepth", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum depth to compute dynamic heuristics")
-      ("depthInterval", po::value<int>()->default_value(1), "compute heuristics only at these depth intervals")
+      ("depthInterval", po::value<int>()->default_value(1), "recompute heuristics only at these depth intervals")
+      ("depthOnly", "recompute heuristics only at the depth specified by the maximum depth parameter")
       ("maxDupe", po::value<int>()->default_value(0), "maximum number of duplicate varibles allowed for skipping dynamic heuristic computation")
       ("dupeRed", po::value<int>()->default_value(0), "minimum amount of reduction of duplicated variables to heuristic needed for recomputation") 
       ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
@@ -167,11 +168,13 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("gNodes")) {
       opt->gNodes = vm["gNodes"].as<int>();
     }
-    if (vm.count("dhDepth")) {
-      opt->dhDepth = vm["dhDepth"].as<int>(); 
-    }
     if (vm.count("depthInterval")) {
       opt->depthInterval = vm["depthInterval"].as<int>();
+    }
+    if (vm.count("dhDepth")) {
+      opt->dhDepth = vm["dhDepth"].as<int>(); 
+      if (vm.count("depthOnly"))
+          opt->depthInterval = opt->dhDepth;
     }
     if (vm.count("maxDupe")) {
       opt->maxDupe = vm["maxDupe"].as<int>();

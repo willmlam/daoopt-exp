@@ -132,7 +132,7 @@ protected:
 
   bool meetsComputeConditions(int var, int varAncestor, int depth) {
       return m_numHeuristics < m_maxDynHeur &&
-          m_options->dhDepth > depth &&
+          (depth > 0 && m_options->dhDepth >= depth) &&
           depth % m_options->depthInterval == 0 &&
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
           (numberOfDuplicateVariables(varAncestor,var) -
