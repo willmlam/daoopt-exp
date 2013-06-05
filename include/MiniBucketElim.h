@@ -435,13 +435,17 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             */
             if (m_options->strictDupeRed > 0) {
                 buildDominanceMatrix();
+                /*
                 for (int i = 0; i < p->getN(); ++i) {
                     cout << pt->getNode(i)->getVar() << " " << pt->getNode(i)->getDepth() << " " << m_heuristicDominates[pt->getRoot()->getVar()][i] << endl;
                 }
+                */
             }
+            /*
             for (int i = 0; i < p->getN(); ++i) {
                 cout << pt->getNode(i)->getVar() << " " << pt->getNode(i)->getDepth() << " " << m_mbCountSubtree[pt->getRoot()->getVar()][i] << " " << m_mbCountSubtree[i][i] << endl;
             }
+            */
 
 
         }

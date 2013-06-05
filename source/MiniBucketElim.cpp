@@ -537,11 +537,13 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   m_heurCompTime += difftime(heurCompEnd,heurCompStart);
   m_numHeuristics++;
 
+  /*
   cout << "Root heuristic computed. " << endl;
   for (int i = 0; i < m_problem->getN(); ++i) {
       cout << i << "," << m_pseudotree->getNode(i)->getDepth() << "," << m_rootHeurInstance->getNumValues()[i] << "," << m_rootHeurInstance->getNumZeroValues()[i] << "," << m_rootHeurInstance->getConstrainedness(i) << endl;
   }
   cout << endl;
+  */
   return memSize;
 }
 
