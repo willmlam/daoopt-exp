@@ -74,6 +74,8 @@ class MBEHeuristicInstance {
     static int currentNumActive;
     int m_var;
     int m_depth;
+    vector<int> m_numValues;
+    vector<int> m_numZeroValues;
     vector<vector<Function*> > m_augmented;
     vector<vector<Function*> > m_intermediate;
     vector<ConditionedMessages*> m_computedMessages;
@@ -87,6 +89,12 @@ class MBEHeuristicInstance {
 
     // Parent heursitic
     MBEHeuristicInstance *m_parent;
+
+    // UB at the root of this heuristic
+    double m_upperBound;
+
+    // Stores the most recent decrease in the UB relative to a particular conditioning
+    double m_mostRecentDecrease;
 
     public:
     MBEHeuristicInstance(int nVars, int var, MBEHeuristicInstance *parent);
@@ -108,6 +116,28 @@ class MBEHeuristicInstance {
 
     inline void setDepth(int depth) {
         m_depth = depth;
+    }
+    
+    inline const vector<int> &getNumValues() const {
+        return m_numValues;
+    }
+
+    inline const vector<int> &getNumZeroValues() const {
+        return m_numZeroValues;
+    }
+
+    inline vector<int> &getNumValues() {
+        return m_numValues;
+    }
+
+    inline vector<int> &getNumZeroValues() {
+        return m_numZeroValues;
+    }
+
+
+    inline double getConstrainedness(int i) const {
+        if (getNumValues()[i] == 0) return 0;
+        return double(getNumZeroValues()[i]) / getNumValues()[i];
     }
 
     inline vector< vector<Function*> > &getAugmented() {
@@ -138,6 +168,23 @@ class MBEHeuristicInstance {
         m_owner = owner;
     }
 
+
+    inline double getUpperBound() const {
+        return m_upperBound;
+    }
+
+    inline void setUpperBound(double ub) {
+        m_upperBound = ub;
+    }
+
+    inline double getMostRecentDecrease() const {
+        return m_mostRecentDecrease;
+    }
+
+    inline void setMostRecentDecrease(double d) {
+        m_mostRecentDecrease = d;
+    }
+
     /*
     inline const map<int,val_t> &getAssignment() const {
         return m_assignment;
@@ -165,9 +212,11 @@ class MBEHeuristicInstance {
 };
 
 inline MBEHeuristicInstance::MBEHeuristicInstance(int nVars, int var, MBEHeuristicInstance *parent) 
-: m_var(var), m_depth(-1), m_accurateHeurIn(nVars, true), m_parent(parent) {
+: m_var(var), m_depth(-1), m_accurateHeurIn(nVars, true), m_parent(parent), m_mostRecentDecrease(0) {
     m_augmented.resize(nVars);
     m_intermediate.resize(nVars);
+    m_numValues.resize(nVars);
+    m_numZeroValues.resize(nVars);
     m_computedMessages.resize(nVars, NULL);
     ++currentNumActive;
     if (currentNumActive > maxNumActive) maxNumActive = currentNumActive;

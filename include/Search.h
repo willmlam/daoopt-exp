@@ -48,6 +48,7 @@ protected:
   Pseudotree* m_pseudotree;     // Pseudo tree
   SearchSpace* m_space;         // Search space (incl. cache table)
   Heuristic* m_heuristic;       // Heuristic for search
+  ProgramOptions * m_options;    // Program options instance
 #ifdef PARALLEL_DYNAMIC
   Subproblem* m_nextSubprob;    // Next subproblem for external solving
 #endif
@@ -65,6 +66,8 @@ protected:
   vector<SearchNode*> m_expand;  // Reusable vector for node expansions (to avoid repeated
                                  // (de)allocation of memory)
   vector<double>      m_costTmp; // Reusable vector for cost calculations
+
+  bool m_foundFirstPartialSolution;       // Used to know if some lower bound exists for some part of the problem
 
 #ifdef PARALLEL_DYNAMIC
   /* keeps tracks up lower/upper bound on first OR node generated for
@@ -200,7 +203,7 @@ protected:
 
 protected:
   virtual bool isMaster() const = 0;
-  Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h) ;
+  Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, ProgramOptions *po);
 public:
   virtual ~Search() {}
 

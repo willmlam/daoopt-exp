@@ -128,8 +128,8 @@ void BranchAndBoundRotate::printStats() const {
 }
 
 
-BranchAndBoundRotate::BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur) :
-   Search(prob,pt,space,heur), m_reasonCnt(3,0) {
+BranchAndBoundRotate::BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions* po) :
+   Search(prob,pt,space,heur, po), m_reasonCnt(3,0) {
 #ifndef NO_CACHING
   // Init context cache table
   if (!m_space->cache)

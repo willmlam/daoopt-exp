@@ -299,8 +299,8 @@ void BestFirst::synchAssignment(SearchNode* cur) {
 }
 
 
-BestFirst::BestFirst(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur) :
-  Search(prob,pt,space,heur) {
+BestFirst::BestFirst(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions* po) :
+  Search(prob,pt,space,heur,po) {
 
   cerr << "Best-first implementation incomplete!" << endl;
   assert(false);

@@ -274,6 +274,8 @@ bool Main::initDataStructs() {
   m_space.reset( new SearchSpaceMaster(m_pseudotree.get(), m_options.get()) );
 #else
   m_space.reset( new SearchSpace(m_pseudotree.get(), m_options.get()) );
+  m_space->stats.numORVar.resize(m_pseudotree->getN());
+  m_space->stats.numANDVar.resize(m_pseudotree->getN());
 #endif
 
   // Heuristic is initialized here, built later in compileHeuristic()
@@ -302,10 +304,10 @@ bool Main::initDataStructs() {
 #else
   if (m_options->rotate) {
     m_search.reset(new BranchAndBoundRotate(
-        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get()));
+        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(), m_options.get()));
   } else {
     m_search.reset(new BranchAndBound(
-        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get()));
+        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(), m_options.get()));
   }
 #endif
 
@@ -438,7 +440,7 @@ bool Main::runLDS() {
     cout << "Running LDS with limit " << m_options->lds << endl;
     scoped_ptr<SearchSpace> spaceLDS(new SearchSpace(m_pseudotree.get(), m_options.get()));
     LimitedDiscrepancy lds(m_problem.get(), m_pseudotree.get(), spaceLDS.get(),
-                           m_heuristic.get(), m_options->lds);
+                           m_heuristic.get(), m_options.get(), m_options->lds);
     if (!m_options->in_subproblemFile.empty()) {
       if (!lds.restrictSubproblem(m_options->in_subproblemFile)) {
         err_txt("Subproblem restriction for LDS failed.");
@@ -662,6 +664,14 @@ bool Main::outputStats() const {
   cout << "# Heuristics:  " << m_heuristic->getNumHeuristics() << endl;
   cout << "Max active:    " << m_heuristic->getMaxNumActive() << endl;
   cout << "-------------------------------" << endl;
+
+  // More node count information
+  /*
+  const vector<size_t> &numORVar = m_space->stats.numORVar;
+  for (unsigned i = 0; i < numORVar.size(); ++i) {
+      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << numORVar[i] << endl;
+  }
+  */
 
 #ifdef PARALLEL_STATIC
   if (!m_options->par_preOnly || m_solved) { // parallel static: only output if solved

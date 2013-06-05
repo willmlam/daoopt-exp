@@ -96,6 +96,9 @@ protected:
   // (Mostly a mechanism to properly free memory)
   vector<MBEHeuristicInstance*> m_heurCollection;
 
+  // Stores all number of times a variable is visited
+  vector<unsigned int> m_countVarVisited;
+
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
   void findDfsOrder(vector<int>&) const;
@@ -157,6 +160,7 @@ protected:
       findBfsOrder(ordering);
       vector<int>::iterator it = ordering.begin();
       for (; it != ordering.end(); ++it) {
+          cout << "var: " << *it << ", depth: " << m_pseudotree->getNode(*it)->getDepth() << endl;
           PseudotreeNode *n = m_pseudotree->getNode(*it);
           m_heuristicDominates[*it][*it] = EQUAL;
           vector<bool> processed(ordering.size(),false);
@@ -169,14 +173,28 @@ protected:
               vector<int>::iterator vit = m_elimOrder[*it].begin();
               bool allEqualOrLess = true;
               int countStrictlyLess = 0;
+              int countGreater = 0;
               for (; vit != m_elimOrder[*it].end(); ++vit) {
                   if (*vit == m_pseudotree->getRoot()->getVar()) continue;
                   else if (m_dupeCount[*it][*vit] > m_dupeCount[v2][*vit]) {
+                      countGreater++;
+                      /*
+                      cout << "dupe this: " << m_dupeCount[*it][*vit] 
+                          << ", parent: " << m_dupeCount[v2][*vit] << endl;
+                          */
+                      //cout << " increase on " << *vit << endl;
                       allEqualOrLess = false;
                       break;
                   }
                   if (m_dupeCount[*it][*vit] < m_dupeCount[v2][*vit]) countStrictlyLess++;
               }
+              /*
+              if (n == m_pseudotree->getRoot()) {
+                  cout << "buckets increased: " << countGreater << endl;
+                  cout << "buckets decreased: " << countStrictlyLess << endl;
+              }
+              */
+              allEqualOrLess = countGreater == 0;
               if (allEqualOrLess) {
                   PseudotreeNode *n2 = m_pseudotree->getNode(v2);
                   if (countStrictlyLess >= m_options->strictDupeRed) {
@@ -275,7 +293,6 @@ public:
   virtual ~MiniBucketElim();
 
 protected:
-  mex::mbe _mbe;
   mex::vector<mex::Factor> copyFactors(void);
   void rewriteFactors(const vector<mex::Factor>& factors);
 
@@ -390,7 +407,8 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_currentGIter(0), 
     m_maxDynHeur(po->maxDynHeur),
     m_numHeuristics(0),
-    _mbe() { 
+    m_countVarVisited(p->getN())
+    { 
 
         m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
       
@@ -415,7 +433,17 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                 delete temp;
             }
             */
-            if (m_options->strictDupeRed > 0) buildDominanceMatrix();
+            if (m_options->strictDupeRed > 0) {
+                buildDominanceMatrix();
+                for (int i = 0; i < p->getN(); ++i) {
+                    cout << pt->getNode(i)->getVar() << " " << pt->getNode(i)->getDepth() << " " << m_heuristicDominates[pt->getRoot()->getVar()][i] << endl;
+                }
+            }
+            for (int i = 0; i < p->getN(); ++i) {
+                cout << pt->getNode(i)->getVar() << " " << pt->getNode(i)->getDepth() << " " << m_mbCountSubtree[pt->getRoot()->getVar()][i] << " " << m_mbCountSubtree[i][i] << endl;
+            }
+
+
         }
         else {
             m_elimOrder.resize(1);
