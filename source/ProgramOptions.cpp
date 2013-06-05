@@ -56,6 +56,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("reuseLevel", po::value<int>()->default_value(0), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets")
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
+      ("relGapDec", po::value<double>()->default_value(1), "Threshold based on UB-LB gap for heuristic recomputation")
       ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
       ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
       ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
@@ -201,6 +202,13 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     }
     else {
         opt->useSimpleHeurSelection = false;
+    }
+    if (vm.count("relGapDec")) {
+        opt->relGapDecrease = vm["relGapDec"].as<double>();
+        opt->useRelGapDecrease = true;
+    }
+    else {
+        opt->useRelGapDecrease = false;
     }
 
     if (vm.count("mplp"))

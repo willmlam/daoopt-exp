@@ -252,6 +252,8 @@ protected:
 #endif
 
   MBEHeuristicInstance *m_hNode;     // pointer to the heuristic used for this node
+  bool m_heuristicLocked;              // flag to prevent further heuristic computation
+                                     // on the entire subproblem rooted by this node
 
 public:
   int getType() const { return NODE_OR; }
@@ -305,8 +307,14 @@ public:
   double* getHeurCache() const { return m_heurCache; }
   void clearHeurCache();
 
-  void setHeurInstance(MBEHeuristicInstance *hNode) { m_hNode = hNode; }
+  void setHeurInstance(MBEHeuristicInstance *hNode) { 
+      assert(!m_heuristicLocked);
+      m_hNode = hNode; 
+  }
   MBEHeuristicInstance *getHeurInstance() const { return m_hNode; }
+
+  void setHeuristicLocked(bool locked) { m_heuristicLocked = locked; }
+  bool isHeuristicLocked() const { return m_heuristicLocked; }
 
 public:
   SearchNodeOR(SearchNode* parent, int var, int depth);
@@ -396,7 +404,8 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 
 
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
-  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(NULL), m_hNode(NULL) 
+  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(NULL), m_hNode(NULL), 
+    m_heuristicLocked(false)
     //, m_cacheContext(NULL)
 #if defined PARALLE_STATIC || defined PARALLEL_DYNAMIC
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)

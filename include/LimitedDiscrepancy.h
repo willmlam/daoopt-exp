@@ -48,7 +48,7 @@ protected:
 
 public:
   void reset(SearchNode*);
-  LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, size_t disc);
+  LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po, size_t disc);
   virtual ~LimitedDiscrepancy() {}
 
   // to compare pair<double,size_t>

@@ -45,7 +45,7 @@ protected:
 
 public:
   void reset(SearchNode* p = NULL);
-  BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur) ;
+  BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po) ;
   virtual ~BranchAndBound() {}
 };
 

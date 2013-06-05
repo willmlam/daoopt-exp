@@ -57,6 +57,8 @@ public:
   int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
   int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
   bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
+  double relGapDecrease; // Threshold for whether the UB/LB gap has decreased sufficiently to stop dynamic heuristic computation
+  bool useRelGapDecrease; // Used with above
   int mplp;  // enables MPLP in Alex Ihler's MBE library (# iters)
   double mplps;  // enables MPLP in Alex Ihler's MBE library (# sec)
   int jglp;  // enables JGLP tightening in Alex Ihler's MBE library (# iters)

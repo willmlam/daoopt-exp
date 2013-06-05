@@ -74,7 +74,7 @@ public:
   void setStackLimit(size_t s) { m_stackLimit = s; }
 
 public:
-  BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur);
+  BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions* po);
   virtual ~BranchAndBoundRotate() {}
 };
 

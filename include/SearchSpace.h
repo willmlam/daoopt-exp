@@ -65,6 +65,9 @@ struct SearchStats {
   size_t numExpAND;              // number of AND nodes expanded
   size_t numProcOR;           // number of OR nodes processed
   size_t numProcAND;          // number of AND nodes processed
+
+  vector<size_t> numORVar;    // number of OR nodes expanded by variable
+  vector<size_t> numANDVar;   // number of AND nodes expanded by variable
 #ifdef PARALLEL_STATIC
   size_t numORext;            // number of OR nodes from external problems
   size_t numANDext;           // number of OR nodes from external problems

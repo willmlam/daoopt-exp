@@ -94,6 +94,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
     cout << "var :" << var << endl;
     cout << "Width subproblem: " << getWidthSubproblem(var) << endl;
     */
+    m_countVarVisited[var]++;
 
     SearchNodeOR *sNode = dynamic_cast<SearchNodeOR*>(n);
     assert(sNode);
@@ -114,7 +115,13 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
 
   // Rebuild heuristic with conditioning if dynamic
   if (m_options->dynamic) {
+      /*
+      if (sNode->isHeuristicLocked()) {
+          cout << "Heuristic is locked." << endl;
+      }
+      */
       if (m_pseudotree->getRoot()->getVar() != var &&
+              !(sNode->isHeuristicLocked()) &&
               !(m_options->reuseLevel != 0 && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
               meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)) {
           MBEHeuristicInstance *newHeur = 
@@ -175,6 +182,46 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
     (*itF)->getValues(assignment, var, funVals);
     for (size_t i=0; i<out.size(); ++i)
       out[i] OP_TIMESEQ funVals[i];
+  }
+
+  // Check bound if the parent was used instead if this was a newly computed heuristic
+  MBEHeuristicInstance *parentHeur = curHeur->getParent();
+  if (!sNode->isHeuristicLocked() && parentHeur) {
+      vector<double> tempOut;
+      tempOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
+      const vector<vector<Function*> >&augmentedAnc = parentHeur->getAugmented();
+      const vector<vector<Function*> >&intermediateAnc = parentHeur->getIntermediate();
+      for (itF = augmentedAnc[var].begin(); itF!=augmentedAnc[var].end(); ++itF) {
+          (*itF)->getValues(assignment, var, funVals);
+          for (size_t i=0; i<tempOut.size(); ++i)
+              tempOut[i] OP_TIMESEQ funVals[i];
+      }
+      for (itF = intermediateAnc[var].begin(); itF!=intermediateAnc[var].end(); ++itF) {
+          (*itF)->getValues(assignment, var, funVals);
+          for (size_t i=0; i<tempOut.size(); ++i)
+              tempOut[i] OP_TIMESEQ funVals[i];
+      }
+      vector<double> diff;
+      bool printResults = false;
+      diff.resize(m_problem->getDomainSize(var));
+      for (size_t i=0; i<diff.size(); ++i) {
+          if (isinf(out[i]) && isinf(tempOut[i])) 
+              diff[i] = 0;
+          else 
+              diff[i] = out[i] - tempOut[i];
+          if (diff[i] != 0) printResults = true;
+      }
+
+      double maxDecrease = diff[0];
+      for (size_t i=1; i<diff.size(); ++i) {
+          maxDecrease = min(maxDecrease, diff[i]);
+      }
+      curHeur->setMostRecentDecrease(maxDecrease);
+      if (false && printResults && m_pseudotree->getNode(var)->getDepth() <= 30) {
+          cout << "var,depth: " << var << "," << m_pseudotree->getNode(var)->getDepth() << endl;
+          cout << "Maximum decrease: " << maxDecrease << endl;
+          cout << endl;
+      }
   }
 
   if (m_options->useSimpleHeurSelection) {
@@ -310,6 +357,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
         cout << "    MBE-ALL  = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
         m_globalUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
         cout << "    MBE-ROOT = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
+        m_rootHeurInstance->setUpperBound(m_globalUB);
       }
       continue; // skip the dummy variable's bucket
     }
@@ -435,6 +483,8 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       }
       // matching bucket found OR root of pseudo tree reached
       path->push_back(n->getVar());
+      m_rootHeurInstance->getNumValues()[n->getVar()] += newf->getTableSize();
+      m_rootHeurInstance->getNumZeroValues()[n->getVar()] += newf->getTableSize() - newf->getTightness();
       /*
       m_accurateHeuristicIn[n->getVar()] = 
           m_accurateHeuristicIn[n->getVar()] && m_accurateHeuristic[*itV];
@@ -486,6 +536,12 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd,heurCompStart);
   m_numHeuristics++;
+
+  cout << "Root heuristic computed. " << endl;
+  for (int i = 0; i < m_problem->getN(); ++i) {
+      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << "," << m_rootHeurInstance->getNumValues()[i] << "," << m_rootHeurInstance->getNumZeroValues()[i] << "," << m_rootHeurInstance->getConstrainedness(i) << endl;
+  }
+  cout << endl;
   return memSize;
 }
 
@@ -494,8 +550,11 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
         MBEHeuristicInstance *curHeur, bool computeTables) {
     time_t heurCompStart, heurCompEnd;
     time(&heurCompStart);
-    //if (m_buildSubCalled % 1 == 0) cout << m_buildSubCalled << endl;
 
+    /*
+    cout << "buildsub called: " << m_numHeuristics << endl;
+    cout << "var,depth: " << var << ", " << m_pseudotree->getNode(var)->getDepth() << endl;
+    */
 
 #ifdef DEBUG
   cout << "$ Building MBE(" << m_ibound << ")" << endl;
@@ -537,6 +596,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   vector<bool> &accurateHeurIn = curHeur->getAccurateHeurIn();
 
 
+
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
   for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
 
@@ -555,6 +615,16 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
     if (!forceUpdate[*itV] && meetsReuseCondition(var,ancHeur->getVar(),*itV)) {
             computedMessages[*itV] = ancHeur->getComputedMessages()[*itV];   
             curHeur->populateMessages(*itV,visited);
+            const vector<Function*> &funs = computedMessages[*itV]->getFunctions();
+            const vector<vector <int> *> &paths = computedMessages[*itV]->getPaths();
+            for (unsigned i = 0 ; i < funs.size(); ++i) {
+                    int destVar = paths[i]->back();
+                    curHeur->getNumValues()[destVar] += 
+                        funs[i]->getTableSize();
+                    curHeur->getNumValues()[destVar] += 
+                        funs[i]->getTableSize() - funs[i]->getTightness();
+            }
+
             continue;
     }
 
@@ -622,16 +692,15 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 
     // compute global upper bound for root (dummy) bucket
     if (*itV == elimOrder[0]) {// variable is dummy root variable
-        /*
       if (computeTables) { // compute upper bound if assignment is given
-        m_globalUB = ELEM_ONE;
+        double subproblemUB = ELEM_ONE;
         for (vector<pair<int,Function*> >::iterator itF=funs.begin(); itF!=funs.end(); ++itF)
-          m_globalUB OP_TIMESEQ (itF->second)->getValue(vAssn);
+          subproblemUB OP_TIMESEQ (itF->second)->getValue(vAssn);
 //        cout << "    MBE-ALL  = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
-        m_globalUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
+        subproblemUB OP_DIVIDEEQ m_problem->globalConstInfo();  // for backwards compatibility of output
 //        cout << "    MBE-ROOT = " << SCALE_LOG(m_globalUB) << " (" << SCALE_NORM(m_globalUB) << ")" << endl;
+        curHeur->setUpperBound(subproblemUB);
       }
-      */
       continue; // skip the dummy variable's bucket
     }
 
@@ -775,6 +844,8 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
       }
       // matching bucket found OR root of pseudo tree reached
       path->push_back(n->getVar());
+      curHeur->getNumValues()[n->getVar()] += newf->getTableSize();
+      curHeur->getNumZeroValues()[n->getVar()] += newf->getTableSize() - newf->getTightness();
       forceUpdate[n->getVar()] = true;
       computedMessages[*itV]->addFunction(newf, path);
     }
@@ -814,6 +885,15 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd, heurCompStart);
   m_numHeuristics++;
+
+  /*
+  cout << "Heuristic computed. " << endl;
+  cout << "var,depth: " << var << "," << m_pseudotree->getNode(var)->getDepth() << endl;
+  for (int i = 0; i < m_problem->getN(); ++i) {
+      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << "," << curHeur->getNumValues()[i] << "," << curHeur->getNumZeroValues()[i] << "," << curHeur->getConstrainedness(i) << endl;
+  }
+  cout << endl;
+  */
 
   return memSize;
 }
@@ -991,7 +1071,7 @@ bool MiniBucketElim::doFGLP() {
 
     _mplp.run();
     rewriteFactors( _mplp.beliefs() );
-    _mbe.setModel( _mplp.beliefs() );
+    //_mbe.setModel( _mplp.beliefs() );
 
     changedFunctions = true;
   }

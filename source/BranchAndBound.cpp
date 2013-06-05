@@ -112,8 +112,8 @@ bool BranchAndBound::doExpand(SearchNode* n) {
 }
 
 
-BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur) :
-   Search(prob,pt,space,heur) {
+BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po) :
+   Search(prob,pt,space,heur,po) {
 #ifndef NO_CACHING
   // Init context cache table
   if (!m_space->cache)

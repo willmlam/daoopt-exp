@@ -50,7 +50,7 @@ all: daooptW
 daooptW: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	ccache g++  -o "daooptW" $(OBJS) $(USER_OBJS) $(LIBS)
+	ccache g++  -static -o "daooptW" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

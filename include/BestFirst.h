@@ -56,7 +56,7 @@ protected:
   void synchAssignment(SearchNode* cur);
 
 public:
-  BestFirst(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur) ;
+  BestFirst(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur,ProgramOptions* po) ;
 
 };
 

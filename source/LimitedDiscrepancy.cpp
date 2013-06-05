@@ -123,8 +123,8 @@ bool LimitedDiscrepancy::doExpand(SearchNode* node) {
 } // LimitedDiscrepancy::doExpand
 
 
-LimitedDiscrepancy::LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, size_t disc)
-  : Search(prob,pt,space,heur), m_maxDisc(disc)
+LimitedDiscrepancy::LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po, size_t disc)
+  : Search(prob,pt,space,heur,po), m_maxDisc(disc)
 {
 
   SearchNode* first = this->initSearch();
