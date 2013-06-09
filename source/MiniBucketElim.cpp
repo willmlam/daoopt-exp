@@ -111,6 +111,8 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
       for (unsigned i = 0; i < relVars.size(); ++i) {
           mAssn[relVars[i]] = assignment[relVars[i]];
       }
+      cout << "Assignment: " << mAssn << endl;
+      cout << "Assignment: " << assignment << endl;
       */
 
   // Rebuild heuristic with conditioning if dynamic

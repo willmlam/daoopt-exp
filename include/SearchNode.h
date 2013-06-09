@@ -309,6 +309,10 @@ public:
 
   void setHeurInstance(MBEHeuristicInstance *hNode) { 
       assert(!m_heuristicLocked);
+      if (m_hNode == hNode) return;
+      if (m_hNode && this == m_hNode->getOwner()) {
+          delete m_hNode;
+      }
       m_hNode = hNode; 
   }
   MBEHeuristicInstance *getHeurInstance() const { return m_hNode; }

@@ -439,9 +439,9 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 double Search::assignCostsOR(SearchNode* n) {
 
   // Inherit the heuristic and lock status from its parent
-  SearchNodeOR *nn = dynamic_cast<SearchNodeOR*>(n);
+  SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
   if (n->getParent()) {
-      SearchNodeOR* nParent = dynamic_cast<SearchNodeOR*>(n->getParent()->getParent());
+      SearchNodeOR* nParent = static_cast<SearchNodeOR*>(n->getParent()->getParent());
       assert(nParent);
       nn->setHeurInstance(nParent->getHeurInstance());
       nn->setHeuristicLocked(nParent->isHeuristicLocked());
@@ -453,6 +453,11 @@ double Search::assignCostsOR(SearchNode* n) {
   for (int i=0; i<vDomain; ++i) dv[2*i+1] = ELEM_ONE;
   double h = ELEM_ZERO; // the new OR nodes h value
   const vector<Function*>& funs = m_pseudotree->getFunctions(v);
+
+  /*
+  cout << "assignCostsOR: ";
+  cout << "var,depth: " << v << ", " << n->getDepth() << endl;
+  */
 
   if (m_options->useRelGapDecrease && !nn->isHeuristicLocked()) {
 
@@ -497,7 +502,7 @@ double Search::assignCostsOR(SearchNode* n) {
                 NodeP *andChildren = children[i]->getChildren();
                 for (int j=0; j<children[i]->getChildCountAct(); ++j) {
                     //cout << "Child(" << i << "," << j << "): " << andChildren[j] << endl;
-                    SearchNodeOR *temp = dynamic_cast<SearchNodeOR*>(andChildren[j]);
+                    SearchNodeOR *temp = static_cast<SearchNodeOR*>(andChildren[j]);
                     if (!temp->isHeuristicLocked()) {
                         temp->setHeurInstance(bestHeur);
                         temp->setHeuristicLocked(true);
@@ -506,7 +511,7 @@ double Search::assignCostsOR(SearchNode* n) {
               }
 
               
-              curOR = dynamic_cast<SearchNodeOR*>(curOR->getParent()->getParent());
+              curOR = static_cast<SearchNodeOR*>(curOR->getParent()->getParent());
           }
           m_foundFirstPartialSolution = true;
       }
@@ -521,8 +526,18 @@ double Search::assignCostsOR(SearchNode* n) {
     for (int i=0; i<vDomain; ++i)
       dv[2*i+1] OP_TIMESEQ m_costTmp[i];
   }
+  if (nn->getHeurInstance()) {
+      /*
+      cout << "heuristic before possible recomputation used: ";
+      cout << "var,depth: " << nn->getHeurInstance()->getVar() << ", " << nn->getHeurInstance()->getDepth() << endl;
+      */
+  }
 
   m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
+  /*
+  cout << "heuristic actually used: ";
+  cout << "var,depth: " << nn->getHeurInstance()->getVar() << ", " << nn->getHeurInstance()->getDepth() << endl;
+  */
   for (int i=0; i<vDomain; ++i) {
     dv[2*i] = dv[2*i+1] OP_TIMES m_costTmp[i];
     h = max(h, dv[2*i]);
@@ -556,8 +571,8 @@ double Search::assignCostsOR(SearchNode* n) {
       ub = n->getHeur();
       gap = ub - lb;
       decrease = -nn->getHeurInstance()->getMostRecentDecrease();
+      /*
       if (n->getDepth() <= 999) {
-          /*
           if (nn->getParent()) {
               SearchNodeOR *temp = dynamic_cast<SearchNodeOR*>(nn->getParent()->getParent());
               while (temp && temp->getParent()) {
@@ -565,17 +580,15 @@ double Search::assignCostsOR(SearchNode* n) {
                   temp = dynamic_cast<SearchNodeOR*>(temp->getParent()->getParent());
               }
           }
-          */
 
-/*
           cout << "depth " << n->getDepth() << endl;
           cout << "heuristic depth " << nn->getHeurInstance()->getDepth() << endl;
           cout << "Lower bound: " << lb << endl;
           cout << "Upper bound: " << ub << endl;
           cout << "Gap: " << gap << endl;
           cout << "Decrease: " << decrease << endl;
-          */
       }
+      */
       relDecrease = gap / (gap+decrease);
       //cout << "Relative Decrease: " << relDecrease << endl;
       // parameterize this later
