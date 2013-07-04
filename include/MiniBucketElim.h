@@ -61,8 +61,6 @@ protected:
   vector<vector<Function*> > m_intermediate;
   */
 
-  vector<stack<ConditionedMessages*> > m_cMessages;
-
   vector<vector<int> > m_mbCountSubtree; // cumulative on entire subtree
   vector<vector<int> > m_dupeCount; // number of mini buckets for each bucket
 
@@ -398,7 +396,6 @@ inline bool MiniBucketElim::isAccurate() {
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 				      ProgramOptions* po, int ib) :
     Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), 
-    m_cMessages(p->getN()), 
     m_mbCountSubtree(p->getN(),vector<int>(p->getN(), 0)),
     m_dupeCount(p->getN(),vector<int>(p->getN(), 0)),
     m_heuristicDominates(p->getN(),vector<DomRel>(p->getN(),INDETERMINATE)),

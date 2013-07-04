@@ -282,13 +282,9 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
 
 
 void MiniBucketElim::reset() {
+    if (m_rootHeurInstance) delete m_rootHeurInstance;
+    m_rootHeurInstance = new MBEHeuristicInstance(m_problem->getN(), m_pseudotree->getRoot()->getVar(), NULL);
 
-  for (int i = 0; i < m_problem->getN(); ++i) {
-      while (!m_cMessages[i].empty()) {
-          delete m_cMessages[i].top();
-          m_cMessages[i].pop();
-      }
-  }
 //  m_miniBucketFunctions.push(MiniBucketFunctions());
 
 /*
@@ -525,8 +521,8 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   */
 
   // adaptively set maxDynHeur
-  if (m_options->memlimit > 0) {
-      cout << memSize << endl;
+  if (m_options->dynamic && m_options->memlimit > 0) {
+      //cout << memSize << endl;
       int maxDynHeur = m_options->memlimit / (memSize / (1024*1024.0)) * sizeof(double);
       if (maxDynHeur < m_maxDynHeur) {
           cout << "Cannot fit " << m_maxDynHeur << " heuristics in memory." << endl;
@@ -1174,6 +1170,7 @@ size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignme
 
   cout << "Adjusting mini bucket i-bound..." << endl;
   this->setIbound(ibound);
+  
   size_t mem = this->build(assignment, false);
   cout << " i=" << ibound << " -> " << ((mem / (1024*1024.0)) * sizeof(double) )
        << " MBytes" << endl;
