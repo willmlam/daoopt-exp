@@ -101,7 +101,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
     // Handle initial root search node
     if (sNode->getHeurInstance() == NULL) {
         sNode->setHeurInstance(m_rootHeurInstance);
-        m_rootHeurInstance->setOwner(sNode);
+        //m_rootHeurInstance->setOwner(sNode);
     }
     int currentDepth = m_pseudotree->getNode(var)->getDepth();
 
@@ -142,9 +142,9 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
              */
       }
       m_currentGIter = (m_currentGIter + 1) % m_options->gNodes;
+      assert(sNode->getHeurInstance()->getDepth() <= currentDepth);
   }
 
-  assert(sNode->getHeurInstance()->getDepth() <= currentDepth);
   /*
   const vector<vector<Function*> >&augmented = sNode->getHeurInstance()->getAugmented();
   const vector<vector<Function*> >&intermediate = sNode->getHeurInstance()->getIntermediate();
@@ -400,7 +400,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     // messages are accurate if no partitioning and incoming messages were also accurate
     bool accurateHeur = accurateHeurIn[*itV] && minibuckets.size() == 1;
     
-    if (m_options->match && minibuckets.size() > 1) {
+    if (computeTables && m_options->match && minibuckets.size() > 1) {
         // Find intersection of scopes (the scope of all max-marginals)
         vector<MiniBucket>::iterator itB=minibuckets.begin();
         set<int> intersectScope(itB->getJointScope());
@@ -451,7 +451,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
       // Replace this to generate moment-matched version if #minibuckets > 1
       Function* newf;
-      if (!m_options->match || minibuckets.size() <= 1)
+      if (!computeTables || !m_options->match || minibuckets.size() <= 1)
           newf = itB->eliminate(computeTables); // process the minibucket
       else {
           newf = itB->eliminateMM(computeTables,
@@ -487,6 +487,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       m_accurateHeuristicIn[n->getVar()] = 
           m_accurateHeuristicIn[n->getVar()] && m_accurateHeuristic[*itV];
       */
+      if (*itV == 190) {
+          cout << newf;
+      }
       computedMessages[*itV]->addFunction(newf, path);
     }
     m_rootHeurInstance->populateMessages(*itV,visited);

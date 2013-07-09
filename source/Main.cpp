@@ -439,6 +439,8 @@ bool Main::runLDS() {
   if (m_options->lds != NONE) {
     cout << "Running LDS with limit " << m_options->lds << endl;
     scoped_ptr<SearchSpace> spaceLDS(new SearchSpace(m_pseudotree.get(), m_options.get()));
+    spaceLDS->stats.numORVar.resize(m_pseudotree->getN());
+    spaceLDS->stats.numANDVar.resize(m_pseudotree->getN());
     LimitedDiscrepancy lds(m_problem.get(), m_pseudotree.get(), spaceLDS.get(),
                            m_heuristic.get(), m_options.get(), m_options->lds);
     if (!m_options->in_subproblemFile.empty()) {
