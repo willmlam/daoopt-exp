@@ -487,9 +487,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       m_accurateHeuristicIn[n->getVar()] = 
           m_accurateHeuristicIn[n->getVar()] && m_accurateHeuristic[*itV];
       */
-      if (*itV == 190) {
-          cout << newf;
-      }
       computedMessages[*itV]->addFunction(newf, path);
     }
     m_rootHeurInstance->populateMessages(*itV,visited);
@@ -536,7 +533,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd,heurCompStart);
-  m_numHeuristics++;
+  if (computeTables) m_numHeuristics++;
 
   /*
   cout << "Root heuristic computed. " << endl;
@@ -887,7 +884,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   */
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd, heurCompStart);
-  m_numHeuristics++;
+  if (computeTables) m_numHeuristics++;
 
   /*
   cout << "Heuristic computed. " << endl;
