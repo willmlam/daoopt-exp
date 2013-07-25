@@ -132,7 +132,8 @@ protected:
   }
 
   bool meetsComputeConditions(int var, int varAncestor, int depth) {
-      return m_numHeuristics < m_maxDynHeur &&
+      return m_numHeuristics < m_options->maxDynHeur &&
+          MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur &&
           (depth > 0 && m_options->dhDepth >= depth) &&
           depth % m_options->depthInterval == 0 &&
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
@@ -402,7 +403,6 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_mbCountAccurate(p->getN()),
     m_subproblemWidth(p->getN(),-1),
     m_currentGIter(0), 
-    m_maxDynHeur(po->maxDynHeur),
     m_numHeuristics(0),
     m_countVarVisited(p->getN())
     { 
@@ -423,13 +423,13 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             for (int i = 0; i < p->getN(); ++i) {
                 cout << i << ", " << m_pseudotree->getNode(i)->getDepth() << ", " << m_subproblemWidth[i] << endl;
             }
+            */
             for (int i = 0; i < p->getN(); ++i) {
                 Pseudotree *temp = new Pseudotree(*m_pseudotree);
                 int depth = temp->restrictSubproblem(i);
                 cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
                 delete temp;
             }
-            */
             if (m_options->strictDupeRed > 0) {
                 buildDominanceMatrix();
                 /*

@@ -53,7 +53,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("maxDupe", po::value<int>()->default_value(0), "maximum number of duplicate varibles allowed for skipping dynamic heuristic computation")
       ("dupeRed", po::value<int>()->default_value(0), "minimum amount of reduction of duplicated variables to heuristic needed for recomputation") 
       ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
-      ("reuseLevel", po::value<int>()->default_value(0), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets")
+      ("maxPathHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of heuristics allowed on a single path")
+      ("reuseLevel", po::value<int>()->default_value(2), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets (default)")
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
       ("relGapDec", po::value<double>(), "Threshold based on UB-LB gap for heuristic recomputation")
@@ -185,6 +186,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     }
     if (vm.count("maxDynHeur")) {
       opt->maxDynHeur = vm["maxDynHeur"].as<int>();
+    }
+    if (vm.count("maxPathHeur")) {
+      opt->maxPathHeur = vm["maxPathHeur"].as<int>();
     }
     if (vm.count("randDyn")) {
       opt->randDyn = vm["randDyn"].as<double>();
