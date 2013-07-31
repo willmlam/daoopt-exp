@@ -54,6 +54,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("dupeRed", po::value<int>()->default_value(0), "minimum amount of reduction of duplicated variables to heuristic needed for recomputation") 
       ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
       ("maxPathHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of heuristics allowed on a single path")
+      ("computeExactFrontier", "compute dynamic heuristics when subproblem with = i-bound")
       ("reuseLevel", po::value<int>()->default_value(2), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets (default)")
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
@@ -189,6 +190,12 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     }
     if (vm.count("maxPathHeur")) {
       opt->maxPathHeur = vm["maxPathHeur"].as<int>();
+    }
+    if (vm.count("computeExactFrontier")) {
+      opt->computeExactFrontier = true;
+    }
+    else {
+      opt->computeExactFrontier = false;
     }
     if (vm.count("randDyn")) {
       opt->randDyn = vm["randDyn"].as<double>();

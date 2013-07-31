@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lz -lpthread
+LIBS := -lz -lpthread -lboost_program_options-mt
 

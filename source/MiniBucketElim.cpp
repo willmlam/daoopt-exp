@@ -1080,7 +1080,33 @@ bool MiniBucketElim::doFGLP() {
 }
 
 bool MiniBucketElim::doJGLP() {
-    return false;
+  assert(m_pseudotree);
+  bool changedFunctions = false;
+
+  if (m_options!=NULL && (m_options->jglp > 0 || m_options->jglps > 0)) {
+    mex::mbe _jglp( copyFactors() );
+    mex::VarOrder ord(m_pseudotree->getElimOrder().begin(), --m_pseudotree->getElimOrder().end());
+    _jglp.setOrder(ord);
+
+    mex::VarOrder parents(m_problem->getN());              // copy pseudotree information
+    for (int i=0;i<m_problem->getN() - 1;++i) {
+      int par = m_pseudotree->getNode(i)->getParent()->getVar();
+      parents[i]= (par==m_pseudotree->getRoot()->getVar()) ? -1 : par;
+    }
+    _jglp.setPseudotree(parents);
+    _jglp.setIBound(m_ibound / 2);
+    _jglp.setProperties("DoMatch=1,DoFill=0,DoJG=1,DoMplp=0");
+
+    _jglp.init();
+
+    int iter; if (m_options->jglp>0) iter = m_options->jglp; else iter=100;
+    _jglp.tighten(iter, m_options->jglps);
+    rewriteFactors( _jglp.factors() );
+
+    changedFunctions = true;
+
+  }
+  return changedFunctions;
 }
 
 // Copy DaoOpt Function class into mex::Factor class structures

@@ -133,7 +133,8 @@ protected:
 
   bool meetsComputeConditions(int var, int varAncestor, int depth) {
       return m_numHeuristics < m_options->maxDynHeur &&
-          MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur &&
+          (MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur ||
+          (m_options->computeExactFrontier && m_subproblemWidth[var] == m_options->ibound)) &&
           (depth > 0 && m_options->dhDepth >= depth) &&
           depth % m_options->depthInterval == 0 &&
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
@@ -453,6 +454,11 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
 
         if (m_options->mplp > 0 || m_options->mplps > 0) {
             doFGLP();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
+
+        if (m_options->jglp > 0 || m_options->jglps > 0) {
+            doJGLP();
             m_pseudotree->addFunctionInfo(m_problem->getFunctions());
         }
 }

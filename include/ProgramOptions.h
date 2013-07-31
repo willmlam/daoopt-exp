@@ -54,6 +54,7 @@ public:
   int dupeRed; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
   int maxDynHeur; // maximum number of times to compute dynamic heuristics
   int maxPathHeur; // maximum number of heuristics on a single path
+  bool computeExactFrontier; // compute dynamic heuristics when subproblem with = i-bound
   double randDyn; // probability based schedule of computing dynamic heuristics
   int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
   int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets

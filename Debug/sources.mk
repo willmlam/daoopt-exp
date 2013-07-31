@@ -27,9 +27,6 @@ source \
 lib/zlib \
 lib/sls4mpe \
 lib \
-lib/boost.src/thread/src \
-lib/boost.src/thread/src/pthread \
-lib/boost.src/program_options/src \
 include \
 . \
 
