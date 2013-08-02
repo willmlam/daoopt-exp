@@ -452,15 +452,6 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             findDfsOrder(m_elimOrder[0]);
         }
 
-        if (m_options->mplp > 0 || m_options->mplps > 0) {
-            doFGLP();
-            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
-        }
-
-        if (m_options->jglp > 0 || m_options->jglps > 0) {
-            doJGLP();
-            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
-        }
 }
 
 inline MiniBucketElim::~MiniBucketElim() {

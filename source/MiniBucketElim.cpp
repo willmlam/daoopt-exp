@@ -307,6 +307,18 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   this->reset();
 
+  if (computeTables) {
+        if (m_options->mplp > 0 || m_options->mplps > 0) {
+            doFGLP();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
+
+        if (m_options->jglp > 0 || m_options->jglps > 0) {
+            doJGLP();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
+  }
+
   time_t heurCompStart, heurCompEnd;
   time(&heurCompStart);
 
