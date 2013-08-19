@@ -83,7 +83,7 @@ void Problem::removeEvidence() {
       new_funs.push_back(new_fn); // record new function
       new_r = max(new_r, (int) new_fn->getScopeVec().size());
     }
-    delete fn; // delete old function
+    if (!m_is_copy) delete fn; // delete old function (only if this is not a copy)
 
   }
   m_functions = new_funs;
@@ -748,6 +748,20 @@ void Problem::replaceFunctions(const vector<Function*>& newFunctions) {
   m_functions = newFunctions;
   m_c = m_functions.size();
   // update function scopes???
+}
+
+void Problem::addEvidence(const map<int,val_t> &evid) {
+  map<int,val_t>::const_iterator eit = evid.begin();
+  for (; eit != evid.end(); ++eit) {
+    int x = eit->first;
+    val_t v = eit->second;
+    if (v >= m_domains[x] || m_evidence.find(x) != m_evidence.end()) {
+        cerr << "WARNING: bad evidence in input, skipping" << endl;
+        continue;
+    }
+    m_e++;
+    m_evidence.insert(make_pair(x,v));
+  }
 }
 
 

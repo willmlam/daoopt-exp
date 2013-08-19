@@ -255,6 +255,7 @@ protected:
   bool m_heuristicLocked;              // flag to prevent further heuristic computation
                                      // on the entire subproblem rooted by this node
 
+  Problem *m_problemCond;          // Conditioned version of the problem
 public:
   int getType() const { return NODE_OR; }
   int getVar() const { return m_var; }
@@ -319,6 +320,9 @@ public:
 
   void setHeuristicLocked(bool locked) { m_heuristicLocked = locked; }
   bool isHeuristicLocked() const { return m_heuristicLocked; }
+
+  Problem *getProblemCond() const { return m_problemCond; }
+  void setProblemCond(Problem *p)  { m_problemCond = p; }
 
 public:
   SearchNodeOR(SearchNode* parent, int var, int depth);

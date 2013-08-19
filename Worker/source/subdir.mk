@@ -20,6 +20,7 @@ CPP_SRCS += \
 ../source/MBEHeuristicInstance.cpp \
 ../source/MiniBucket.cpp \
 ../source/MiniBucketElim.cpp \
+../source/MiniBucketElimMplp.cpp \
 ../source/ParallelManager.cpp \
 ../source/Problem.cpp \
 ../source/ProgramOptions.cpp \
@@ -52,6 +53,7 @@ OBJS += \
 ./source/MBEHeuristicInstance.o \
 ./source/MiniBucket.o \
 ./source/MiniBucketElim.o \
+./source/MiniBucketElimMplp.o \
 ./source/MiniBucketElimDynMM.o \
 ./source/ParallelManager.o \
 ./source/Problem.o \
@@ -85,6 +87,7 @@ CPP_DEPS += \
 ./source/MBEHeuristicInstance.d \
 ./source/MiniBucket.d \
 ./source/MiniBucketElim.d \
+./source/MiniBucketElimMplp.d \
 ./source/MiniBucketElimDynMM.d \
 ./source/ParallelManager.d \
 ./source/Problem.d \

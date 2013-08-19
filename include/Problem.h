@@ -92,7 +92,11 @@ public:
   // (pseudo tree compatibility is implicitly assumed)
   void replaceFunctions(const vector<Function*>& newFunctions);
 
+  // Adds additional evidence to the problem (for mid-search conditioning of the original problem)
+  void addEvidence(const map<int,val_t> &evid);
+
   bool hasDummy() const { return m_hasDummy; }
+
 
 public:
 

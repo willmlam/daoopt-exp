@@ -290,8 +290,16 @@ bool Main::initDataStructs() {
   else {
   }
   */
-  m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-              m_options.get(), m_options->ibound) );
+//  if (m_options->dynamic) {
+      m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
+                  m_options.get(), m_options->ibound) );
+//  }
+  /*
+  else {
+      m_heuristic.reset(new MiniBucketElimMplp(m_problem.get(), m_pseudotree.get(),
+                  m_options.get(), m_options->ibound) );
+  }
+  */
 #endif
 
   // Main search engine

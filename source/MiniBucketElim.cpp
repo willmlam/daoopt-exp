@@ -308,11 +308,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   this->reset();
 
   if (computeTables) {
-        if (m_options->mplp > 0 || m_options->mplps > 0) {
-            doFGLP();
-            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
-        }
-
         if (m_options->jglp > 0 || m_options->jglps > 0) {
             doJGLP();
             m_pseudotree->addFunctionInfo(m_problem->getFunctions());
@@ -505,7 +500,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     // all minibuckets processed and resulting functions placed
 
     // free up memory used by max-marginals
-    if (m_options->match && minibuckets.size() > 1) {
+    if (computeTables && m_options->match && minibuckets.size() > 1) {
       for (unsigned int i = 0; i < maxMarginals.size(); ++i)
         delete maxMarginals[i];
       maxMarginals.clear();
@@ -1098,9 +1093,11 @@ bool MiniBucketElim::doJGLP() {
   if (m_options!=NULL && (m_options->jglp > 0 || m_options->jglps > 0)) {
     mex::mbe _jglp( copyFactors() );
     mex::VarOrder ord(m_pseudotree->getElimOrder().begin(), --m_pseudotree->getElimOrder().end());
+    cout << m_pseudotree->getElimOrder().size() << endl;
     _jglp.setOrder(ord);
 
-    mex::VarOrder parents(m_problem->getN());              // copy pseudotree information
+    cout << m_problem->getN() << endl;
+    mex::VarOrder parents(m_problem->getN() - 1);              // copy pseudotree information
     for (int i=0;i<m_problem->getN() - 1;++i) {
       int par = m_pseudotree->getNode(i)->getParent()->getVar();
       parents[i]= (par==m_pseudotree->getRoot()->getVar()) ? -1 : par;
@@ -1123,8 +1120,8 @@ bool MiniBucketElim::doJGLP() {
 
 // Copy DaoOpt Function class into mex::Factor class structures
 mex::vector<mex::Factor> MiniBucketElim::copyFactors( void ) {
-  mex::vector<mex::Factor> fs(m_problem->getC());
-  for (int i=0;i<m_problem->getC(); ++i) fs[i] = m_problem->getFunctions()[i]->asFactor().exp();
+  mex::vector<mex::Factor> fs(m_problemCurrent->getC());
+  for (int i=0;i<m_problemCurrent->getC(); ++i) fs[i] = m_problemCurrent->getFunctions()[i]->asFactor().exp();
   return fs;
 }
 
@@ -1136,10 +1133,10 @@ void MiniBucketElim::rewriteFactors( const vector<mex::Factor>& factors) {
     std::set<int> scope;
     for (mex::VarSet::const_iterator v=factors[f].vars().begin(); v!=factors[f].vars().end(); ++v)
       scope.insert(v->label());
-    newFunctions[f] = new FunctionBayes(f,m_problem,scope,tablePtr,factors[f].nrStates());
+    newFunctions[f] = new FunctionBayes(f,m_problemCurrent,scope,tablePtr,factors[f].nrStates());
     newFunctions[f]->fromFactor( log(factors[f]) );    // write in log factor functions
   }
-  m_problem->replaceFunctions( newFunctions );                // replace them in the problem definition
+  m_problemCurrent->replaceFunctions( newFunctions );                // replace them in the problem definition
 }
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)

@@ -59,11 +59,12 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
       ("relGapDec", po::value<double>(), "Threshold based on UB-LB gap for heuristic recomputation")
+      ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
       ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
       ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
       ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
       ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
-      ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
+      ("ndfglp", po::value<int>()->default_value(-1), "compute FGLP at every node")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -231,6 +232,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("jglps"))
         opt->jglps = vm["jglps"].as<double>();
 
+    if (vm.count("ndfglp"))
+        opt->ndfglp = vm["ndfglp"].as<int>();
 
     if (vm.count("cbound-worker"))
       opt->cbound_worker = vm["cbound-worker"].as<int>();

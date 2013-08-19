@@ -97,6 +97,9 @@ protected:
   // Stores all number of times a variable is visited
   vector<unsigned int> m_countVarVisited;
 
+  // Stores the current form of the problem
+  Problem *m_problemCurrent;
+
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
   void findDfsOrder(vector<int>&) const;
@@ -409,6 +412,12 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     { 
 
         m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
+
+        // Perform FGLP to preprocess problem original problem first
+        if (m_options->mplp > 0 || m_options->mplps > 0) {
+            doFGLP();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
       
         // If dynamic, precomupute all DFS elimination orders for each node
         // and precompute number of minibuckets used in each subproblem 
@@ -451,6 +460,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             m_elimOrder.resize(1);
             findDfsOrder(m_elimOrder[0]);
         }
+
 
 }
 

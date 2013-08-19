@@ -445,6 +445,8 @@ double Search::assignCostsOR(SearchNode* n) {
       assert(nParent);
       nn->setHeurInstance(nParent->getHeurInstance());
       nn->setHeuristicLocked(nParent->isHeuristicLocked());
+      if (m_options->ndfglp > 0)
+          nn->setProblemCond(nParent->getProblemCond());
   }
 
   int v = n->getVar();
@@ -518,7 +520,9 @@ double Search::assignCostsOR(SearchNode* n) {
   }
 
 
-#ifdef GET_VALUE_BULK
+//#ifdef GET_VALUE_BULK
+// Get in bulk if using Lars's code
+if (m_options->dynamic) {
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
   for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it) {
@@ -526,12 +530,12 @@ double Search::assignCostsOR(SearchNode* n) {
     for (int i=0; i<vDomain; ++i)
       dv[2*i+1] OP_TIMESEQ m_costTmp[i];
   }
-  if (nn->getHeurInstance()) {
       /*
+  if (nn->getHeurInstance()) {
       cout << "heuristic before possible recomputation used: ";
       cout << "var,depth: " << nn->getHeurInstance()->getVar() << ", " << nn->getHeurInstance()->getDepth() << endl;
-      */
   }
+      */
 
   m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
   /*
@@ -542,7 +546,10 @@ double Search::assignCostsOR(SearchNode* n) {
     dv[2*i] = dv[2*i+1] OP_TIMES m_costTmp[i];
     h = max(h, dv[2*i]);
   }
-#else
+}
+//#else
+// Using Alex's code (bulk not implemented)
+else {
   double d;
   for (val_t i=0;i<m_problem->getDomainSize(v);++i) {
     m_assignment[v] = i;
@@ -559,12 +566,13 @@ double Search::assignCostsOR(SearchNode* n) {
     if (dv[2*i] > h)
         h = dv[2*i]; // keep max. for OR node heuristic
   }
-#endif
+}
+//#endif
 
   n->setHeur(h);
   n->setHeurCache(dv);
 
-  if (m_options->useRelGapDecrease && !nn->isHeuristicLocked()) {
+  if (m_options->dynamic && m_options->useRelGapDecrease && !nn->isHeuristicLocked()) {
       double lb, ub, gap, decrease, relDecrease;
 
       lb = lowerBound(n);
