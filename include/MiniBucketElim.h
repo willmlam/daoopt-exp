@@ -423,7 +423,6 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             m_pseudotree->addFunctionInfo(m_problem->getFunctions());
         }
 
-      
         // If dynamic, precomupute all DFS elimination orders for each node
         // and precompute number of minibuckets used in each subproblem 
         // rooted by each node
