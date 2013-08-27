@@ -70,7 +70,7 @@ protected:
   vector<val_t> m_curSolution;       // Current best solution
 
 public:
-  void setCopy() { m_is_copy = true; }
+  void setCopy(bool isCopy = true) { m_is_copy = isCopy; }
 
   val_t getDomainSize(int i) const;
   double globalConstInfo() const;
@@ -93,6 +93,7 @@ public:
   void replaceFunctions(const vector<Function*>& newFunctions);
 
   // Adds additional evidence to the problem (for mid-search conditioning of the original problem)
+  // Ignores inconsistent assignments or illegal assignments
   void addEvidence(const map<int,val_t> &evid);
 
   bool hasDummy() const { return m_hasDummy; }
@@ -112,7 +113,7 @@ public:
   void saveOrdering(const string& file, const vector<int>& elim) const;
 
   /* removes evidence and unary-domain variables */
-  void removeEvidence();
+  void removeEvidence(bool clearEvid=false);
 
   /* retrieve the current optimal solution */
   double getSolutionCost() const { return m_curCost; }

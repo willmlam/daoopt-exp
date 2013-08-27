@@ -321,7 +321,7 @@ public:
   void setHeuristicLocked(bool locked) { m_heuristicLocked = locked; }
   bool isHeuristicLocked() const { return m_heuristicLocked; }
 
-  Problem *getProblemCond() const { return m_problemCond; }
+  Problem *getProblemCond() { return m_problemCond; }
   void setProblemCond(Problem *p)  { m_problemCond = p; }
 
 public:

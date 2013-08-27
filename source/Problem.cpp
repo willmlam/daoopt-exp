@@ -28,7 +28,7 @@
 
 //extern time_t time_start;
 
-void Problem::removeEvidence() {
+void Problem::removeEvidence(bool clearEvid) {
 
   assert(m_n!=UNKNOWN);
 
@@ -58,6 +58,8 @@ void Problem::removeEvidence() {
   }
 
   // Identify variables not covered by any function
+  cout << m_evidence;
+  cout << "#vars: " << m_n << endl;
   vector<bool> covered(m_n, false);
   BOOST_FOREACH(Function * f, m_functions) {
     BOOST_FOREACH(int i, f->getScopeVec()) {
@@ -159,6 +161,8 @@ void Problem::removeEvidence() {
 
   // update function information
   m_c = m_functions.size();
+
+  if (clearEvid) m_evidence.clear();
 }
 
 
@@ -741,7 +745,8 @@ void Problem::addDummy() {
 
 void Problem::replaceFunctions(const vector<Function*>& newFunctions) {
   // delete current functions
-  for (vector<Function*>::iterator it = m_functions.begin(); it!= m_functions.end(); ++it) {
+  for (vector<Function*>::iterator it = m_functions.begin(); 
+          !m_is_copy && it!= m_functions.end(); ++it) {
     if (*it) delete (*it);
   }
   // store new functions
@@ -755,6 +760,9 @@ void Problem::addEvidence(const map<int,val_t> &evid) {
   for (; eit != evid.end(); ++eit) {
     int x = eit->first;
     val_t v = eit->second;
+    cout << int(v) << " " << int(m_domains[x]) << endl;
+    cout << (v >= m_domains[x]) << endl;
+    cout << (m_evidence.find(x) != m_evidence.end()) << endl << endl;
     if (v >= m_domains[x] || m_evidence.find(x) != m_evidence.end()) {
         cerr << "WARNING: bad evidence in input, skipping" << endl;
         continue;

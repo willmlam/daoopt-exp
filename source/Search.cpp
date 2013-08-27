@@ -445,8 +445,12 @@ double Search::assignCostsOR(SearchNode* n) {
       assert(nParent);
       nn->setHeurInstance(nParent->getHeurInstance());
       nn->setHeuristicLocked(nParent->isHeuristicLocked());
-      if (m_options->ndfglp > 0)
+      if (m_options->ndfglp > 0) {
           nn->setProblemCond(nParent->getProblemCond());
+      }
+  }
+  else {
+      nn->setProblemCond(m_problem);
   }
 
   int v = n->getVar();
