@@ -291,6 +291,9 @@ public:
   bool doFGLP();
   bool doJGLP();
 
+  // Copies and conditions the problem in the root.
+  bool doNodeFGLP(SearchNode *n, const vector<val_t> &assignment);
+
 public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
   virtual ~MiniBucketElim();
@@ -408,7 +411,8 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_subproblemWidth(p->getN(),-1),
     m_currentGIter(0), 
     m_numHeuristics(0),
-    m_countVarVisited(p->getN())
+    m_countVarVisited(p->getN()),
+    m_problemCurrent(p)
     { 
 
         m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
@@ -417,6 +421,14 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
         if (m_options->mplp > 0 || m_options->mplps > 0) {
             doFGLP();
             m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
+
+        if (m_options->jglp > 0 || m_options->jglps > 0) {
+            bool sizeChanged = doJGLP();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+            // Also size may have changed
+            if (m_options->memlimit && sizeChanged)
+                limitSize(m_options->memlimit, NULL);
         }
       
         // If dynamic, precomupute all DFS elimination orders for each node
