@@ -445,8 +445,12 @@ double Search::assignCostsOR(SearchNode* n) {
       assert(nParent);
       nn->setHeurInstance(nParent->getHeurInstance());
       nn->setHeuristicLocked(nParent->isHeuristicLocked());
-      if (m_options->ndfglp > 0)
+      if (m_options->ndfglp > 0) {
           nn->setProblemCond(nParent->getProblemCond());
+      }
+  }
+  else {
+      nn->setProblemCond(m_problem);
   }
 
   int v = n->getVar();
@@ -520,9 +524,7 @@ double Search::assignCostsOR(SearchNode* n) {
   }
 
 
-//#ifdef GET_VALUE_BULK
-// Get in bulk if using Lars's code
-if (m_options->dynamic) {
+#ifdef GET_VALUE_BULK
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
   for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it) {
@@ -546,10 +548,7 @@ if (m_options->dynamic) {
     dv[2*i] = dv[2*i+1] OP_TIMES m_costTmp[i];
     h = max(h, dv[2*i]);
   }
-}
-//#else
-// Using Alex's code (bulk not implemented)
-else {
+#else
   double d;
   for (val_t i=0;i<m_problem->getDomainSize(v);++i) {
     m_assignment[v] = i;
@@ -566,8 +565,7 @@ else {
     if (dv[2*i] > h)
         h = dv[2*i]; // keep max. for OR node heuristic
   }
-}
-//#endif
+#endif
 
   n->setHeur(h);
   n->setHeurCache(dv);

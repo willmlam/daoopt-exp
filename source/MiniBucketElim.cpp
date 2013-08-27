@@ -130,6 +130,12 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
               new MBEHeuristicInstance(m_problem->getN(),var,sNode->getHeurInstance());
           newHeur->setDepth(currentDepth);
           m_heurCollection.push_back(newHeur);
+          
+          if (m_options->ndfglp > 0) {
+              doNodeFGLP(n,assignment);
+              m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+          }
+          
           buildSubproblem(var, 
                   assignment, 
                   sNode->getHeurInstance(), 
@@ -306,12 +312,15 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 #endif
 
   this->reset();
-
-  if (computeTables) {
-        if (m_options->jglp > 0 || m_options->jglps > 0) {
-            doJGLP();
-            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
-        }
+  
+  if (computeTables && (m_options->jglp > 0 || m_options->jglps > 0)) {
+      bool sizeChanged = doJGLP();
+      assert(m_problemCurrent == m_problem);
+      m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+      // Also size may have changed
+      if (m_options->memlimit && sizeChanged)
+          limitSize(m_options->memlimit, NULL);
+      this->reset();
   }
 
   time_t heurCompStart, heurCompEnd;
@@ -520,10 +529,12 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   // clean up for estimation mode
   /*
   if (!computeTables) {
-    for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
-      for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB)
+    for (vector<vector<Function*> >::iterator itA = augmented.begin(); itA!=augmented.end(); ++itA)
+      for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB) {
+        cout << **itB << endl;
         delete *itB;
-    m_augmented.clear();
+      }
+    augmented.clear();
   }
   */
 
@@ -582,6 +593,10 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
       assignment[relVars[i]] = vAssn[relVars[i]];
   }
   const vector<int> &elimOrder = m_elimOrder[var];// will hold dfs order
+
+  if (m_options->ndfglp > 0) {
+
+  }
   /*
   cout << elimOrder << endl;
   //cout << "Assignment: " << assignment << endl;
@@ -976,7 +991,6 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
       continue; // skip the dummy variable's bucket
     }
 
-
     // sort functions by decreasing scope size
     sort(funs.begin(), funs.end(), scopeIsLargerS);
 
@@ -1093,10 +1107,10 @@ bool MiniBucketElim::doJGLP() {
   if (m_options!=NULL && (m_options->jglp > 0 || m_options->jglps > 0)) {
     mex::mbe _jglp( copyFactors() );
     mex::VarOrder ord(m_pseudotree->getElimOrder().begin(), --m_pseudotree->getElimOrder().end());
-    cout << m_pseudotree->getElimOrder().size() << endl;
+    //cout << m_pseudotree->getElimOrder().size() << endl;
     _jglp.setOrder(ord);
 
-    cout << m_problem->getN() << endl;
+    //cout << m_problem->getN() << endl;
     mex::VarOrder parents(m_problem->getN() - 1);              // copy pseudotree information
     for (int i=0;i<m_problem->getN() - 1;++i) {
       int par = m_pseudotree->getNode(i)->getParent()->getVar();
@@ -1116,6 +1130,27 @@ bool MiniBucketElim::doJGLP() {
 
   }
   return changedFunctions;
+}
+
+bool MiniBucketElim::doNodeFGLP(SearchNode *n, const vector<val_t> &assignment) {
+    SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
+    nn->setProblemCond(new Problem(*(nn->getProblemCond())));
+    Problem *pCond = nn->getProblemCond();
+    pCond->setCopy(true);
+
+    const vector<int> &relVars = 
+        m_pseudotree->getNode(nn->getVar())->getFullContextVec();
+    map<int,val_t> cond;
+    for (unsigned i = 0; i < relVars.size(); ++i) {
+        cond[relVars[i]] = assignment[relVars[i]];
+        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
+    }
+    pCond->addEvidence(cond);
+    pCond->removeEvidence(true);
+    pCond->setCopy(false);
+    m_problemCurrent = pCond;
+
+    return doFGLP();
 }
 
 // Copy DaoOpt Function class into mex::Factor class structures
