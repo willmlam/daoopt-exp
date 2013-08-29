@@ -1232,9 +1232,15 @@ void MiniBucketElim::findBfsOrder(vector<int>& order) const {
 }
 
 size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignment) {
-    if (m_options->dynamic) return 0;
   // convert to bits
   memlimit *= 1024 *1024 / sizeof(double);
+
+  // Still need to think about what needs to be done for BRAOBB
+  if (m_options->dynamic) {
+      memlimit /= m_options->maxPathHeur;
+      cout << "Adjusted memlimit to " << (memlimit / (1024*1024.0) * sizeof(double) )
+          << " MBytes per heuristic" << endl;
+  }
 
   int ibound = m_options->ibound;
 
