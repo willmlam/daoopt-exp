@@ -315,12 +315,16 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   
   if (computeTables && (m_options->jglp > 0 || m_options->jglps > 0)) {
       bool sizeChanged = doJGLP();
+      size_t sz = 0;
       assert(m_problemCurrent == m_problem);
       m_pseudotree->addFunctionInfo(m_problem->getFunctions());
       // Also size may have changed
       if (m_options->memlimit && sizeChanged)
-          limitSize(m_options->memlimit, NULL);
+          sz = limitSize(m_options->memlimit, NULL);
       this->reset();
+      sz *= sizeof(double) / (1024*1024.0);
+      cout << "Enforcing memory limit resulted in i-bound " << m_ibound
+          << " with " << sz << " MByte." << endl;
   }
 
   time_t heurCompStart, heurCompEnd;

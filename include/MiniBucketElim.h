@@ -441,7 +441,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             for (int i = 0; i < p->getN(); ++i) {
                 Pseudotree *temp = new Pseudotree(*m_pseudotree);
                 int depth = temp->restrictSubproblem(i);
-                cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
+            //    cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
                 delete temp;
             }
             if (m_options->strictDupeRed > 0) {
