@@ -147,14 +147,44 @@ protected:
           rand::next() < int(m_options->randDyn * rand::max());
   }
 
-  bool meetsReuseCondition(int var, int varAncestor, int bucket) {
+  // Higher level does more reuse
+  bool meetsReuseCondition(int var, int varAncestor, int bucket,
+          MBEHeuristicInstance *curHeur) {
+      bool conditionMet = false;
       switch(m_options->reuseLevel) {
+          case 2: {
+              // Check which are the new conditioning variables
+              vector<int> vars;
+              PseudotreeNode *n = m_pseudotree->getNode(var);
+              do {
+                  n = n->getParent();
+                  vars.push_back(n->getVar());
+              } while (n->getVar() != varAncestor);
+
+              bool found = false;
+              // Check if any exist in the original functions or incoming messages
+              for (unsigned int i = 0; i < vars.size() && !found; ++i) {
+                  const vector<Function*>& fnlist = m_pseudotree->getFunctions(bucket);
+                  vector<Function*>::const_iterator itF = fnlist.begin();
+                  for (; itF != fnlist.end() && !found; ++itF) {
+                      if ((*itF)->hasInScope(vars[i]))
+                          found = true;
+                  }
+                  const vector<Function*>& auglist = curHeur->getAugmented()[bucket];
+                  itF = auglist.begin();
+                  for (; itF != auglist.end() && !found; ++itF) {
+                      if ((*itF)->hasInScope(vars[i]))
+                          found = true;
+                  }
+              }
+              conditionMet = conditionMet || !found;
+
+          }
+            
           case 1:
-              //return m_dupeCount[varAncestor][bucket] == m_dupeCount[var][bucket];
-          case 2:
-              return m_dupeCount[varAncestor][bucket] == 1;
+              conditionMet = conditionMet || (m_dupeCount[varAncestor][bucket] == 1);
           default:
-              return false;
+              return conditionMet;
       }
   }
 
@@ -438,12 +468,14 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                 cout << i << ", " << m_pseudotree->getNode(i)->getDepth() << ", " << m_subproblemWidth[i] << endl;
             }
             */
+            /*
             for (int i = 0; i < p->getN(); ++i) {
                 Pseudotree *temp = new Pseudotree(*m_pseudotree);
                 int depth = temp->restrictSubproblem(i);
-            //    cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
+                cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
                 delete temp;
             }
+            */
             if (m_options->strictDupeRed > 0) {
                 buildDominanceMatrix();
                 /*

@@ -521,7 +521,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     }
   }
 
-#ifdef DEBUG
+#ifndef DEBUG
   // output augmented and intermediate buckets
   vector<vector<Function*> > &intermediate = m_rootHeurInstance->getIntermediate();
   if (computeTables)
@@ -638,7 +638,9 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 #endif
 
     // reuse if child messages were not updated and conditions met
-    if (!forceUpdate[*itV] && meetsReuseCondition(var,ancHeur->getVar(),*itV)) {
+    // additional condition: if the ancestor messages do not contain any of the 
+    // conditioning variables, we can reuse it.
+    if (!forceUpdate[*itV] && meetsReuseCondition(var,ancHeur->getVar(),*itV,curHeur)) {
             computedMessages[*itV] = ancHeur->getComputedMessages()[*itV];   
             curHeur->populateMessages(*itV,visited);
             const vector<Function*> &funs = computedMessages[*itV]->getFunctions();
