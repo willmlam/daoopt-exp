@@ -225,7 +225,9 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
           maxDecrease = min(maxDecrease, diff[i]);
       }
       curHeur->setMostRecentDecrease(maxDecrease);
-      if (false && printResults && m_pseudotree->getNode(var)->getDepth() <= 30) {
+      if (printResults && m_pseudotree->getNode(var)->getDepth() <= 1) {
+          cout << out << endl;
+          cout << tempOut << endl;
           cout << "var,depth: " << var << "," << m_pseudotree->getNode(var)->getDepth() << endl;
           cout << "Maximum decrease: " << maxDecrease << endl;
           cout << endl;
