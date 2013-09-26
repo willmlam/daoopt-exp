@@ -194,7 +194,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
 
   // Check bound if the parent was used instead if this was a newly computed heuristic
   MBEHeuristicInstance *parentHeur = curHeur->getParent();
-  if (!sNode->isHeuristicLocked() && parentHeur) {
+  if (m_options->useRelGapDecrease && !sNode->isHeuristicLocked() && parentHeur) {
       vector<double> tempOut;
       tempOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
       const vector<vector<Function*> >&augmentedAnc = parentHeur->getAugmented();
@@ -225,7 +225,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
           maxDecrease = min(maxDecrease, diff[i]);
       }
       curHeur->setMostRecentDecrease(maxDecrease);
-      if (printResults && m_pseudotree->getNode(var)->getDepth() <= 1) {
+      if (false && printResults && m_pseudotree->getNode(var)->getDepth() <= 1) {
           cout << out << endl;
           cout << tempOut << endl;
           cout << "var,depth: " << var << "," << m_pseudotree->getNode(var)->getDepth() << endl;
@@ -523,7 +523,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     }
   }
 
-#ifndef DEBUG
+#ifdef DEBUG
   // output augmented and intermediate buckets
   vector<vector<Function*> > &intermediate = m_rootHeurInstance->getIntermediate();
   if (computeTables)
