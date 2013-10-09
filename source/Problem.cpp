@@ -27,6 +27,47 @@
 #include <fstream>
 
 //extern time_t time_start;
+//
+
+void Problem::condition(const map<int,val_t> &cond) {
+  assert(m_n!=UNKNOWN);
+
+  vector<Function*> new_funs;
+
+  m_globalConstant = ELEM_ONE;
+
+  cout << "Conditioning: " << cond << endl;
+  cout << "Before: " << endl;
+  for (unsigned i = 0; i < m_functions.size(); ++i) {
+    cout << *(m_functions[i]) << endl; 
+  }
+  vector<Function*>::iterator fi = m_functions.begin();
+  for(; fi != m_functions.end(); ++fi) {
+      Function *fn = (*fi);
+      // Substitute evidence variables
+      Function *new_fn = fn->substitute(cond);
+      if (new_fn->isConstant()) {
+        m_globalConstant OP_TIMESEQ new_fn->getTable()[0];
+        delete new_fn;
+      } else {
+        new_funs.push_back(new_fn);
+      }
+  }
+
+  double *table1 = new double[1];
+  table1[0] = m_globalConstant;
+  Function *constFun = new FunctionBayes(new_funs.size(), this, set<int>(), table1, 1);
+  new_funs.push_back(constFun);
+  m_functions = new_funs;
+
+  cout << "After: " << endl;
+  for (unsigned i = 0; i < m_functions.size(); ++i) {
+    cout << *(m_functions[i]) << endl; 
+  }
+
+  m_c = m_functions.size();
+
+}
 
 void Problem::removeEvidence(bool clearEvid) {
 
@@ -58,11 +99,8 @@ void Problem::removeEvidence(bool clearEvid) {
   }
 
   // Identify variables not covered by any function
-  /*
-  cout << m_evidence;
-  cout << "#vars: " << m_n << endl;
-  */
   vector<bool> covered(m_n, false);
+  cout << m_functions.size() << endl;
   BOOST_FOREACH(Function * f, m_functions) {
     BOOST_FOREACH(int i, f->getScopeVec()) {
       covered.at(i) = true;
@@ -757,6 +795,7 @@ void Problem::replaceFunctions(const vector<Function*>& newFunctions) {
   // update function scopes???
 }
 
+/*
 void Problem::addEvidence(const map<int,val_t> &evid) {
   map<int,val_t>::const_iterator eit = evid.begin();
   for (; eit != evid.end(); ++eit) {
@@ -773,6 +812,7 @@ void Problem::addEvidence(const map<int,val_t> &evid) {
     m_evidence.insert(make_pair(x,v));
   }
 }
+*/
 
 
 #ifndef NO_ASSIGNMENT

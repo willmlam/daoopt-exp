@@ -133,7 +133,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
           
           if (m_options->ndfglp > 0) {
               doNodeFGLP(n,assignment);
-              m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+              m_pseudotree->addFunctionInfo(m_problemCurrent->getFunctions());
           }
           
           buildSubproblem(var, 
@@ -1141,21 +1141,19 @@ bool MiniBucketElim::doJGLP() {
 }
 
 bool MiniBucketElim::doNodeFGLP(SearchNode *n, const vector<val_t> &assignment) {
+    m_options->mplp = m_options->ndfglp;
     SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
-    nn->setProblemCond(new Problem(*(nn->getProblemCond())));
-    Problem *pCond = nn->getProblemCond();
-    pCond->setCopy(true);
+    Problem *pCond = new Problem(*(nn->getProblemCond()));
+    nn->setProblemCond(pCond);
 
     const vector<int> &relVars = 
         m_pseudotree->getNode(nn->getVar())->getFullContextVec();
     map<int,val_t> cond;
     for (unsigned i = 0; i < relVars.size(); ++i) {
         cond[relVars[i]] = assignment[relVars[i]];
-        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
+//        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
     }
-    pCond->addEvidence(cond);
-    pCond->removeEvidence(true);
-    pCond->setCopy(false);
+    pCond->condition(cond);
     m_problemCurrent = pCond;
 
     return doFGLP();
@@ -1177,8 +1175,10 @@ void MiniBucketElim::rewriteFactors( const vector<mex::Factor>& factors) {
     for (mex::VarSet::const_iterator v=factors[f].vars().begin(); v!=factors[f].vars().end(); ++v)
       scope.insert(v->label());
     newFunctions[f] = new FunctionBayes(f,m_problemCurrent,scope,tablePtr,factors[f].nrStates());
+    cout << *newFunctions[f] << endl;
     newFunctions[f]->fromFactor( log(factors[f]) );    // write in log factor functions
   }
+
   m_problemCurrent->replaceFunctions( newFunctions );                // replace them in the problem definition
 }
 

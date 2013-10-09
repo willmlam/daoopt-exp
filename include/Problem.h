@@ -92,10 +92,6 @@ public:
   // (pseudo tree compatibility is implicitly assumed)
   void replaceFunctions(const vector<Function*>& newFunctions);
 
-  // Adds additional evidence to the problem (for mid-search conditioning of the original problem)
-  // Ignores inconsistent assignments or illegal assignments
-  void addEvidence(const map<int,val_t> &evid);
-
   bool hasDummy() const { return m_hasDummy; }
 
 
@@ -114,6 +110,10 @@ public:
 
   /* removes evidence and unary-domain variables */
   void removeEvidence(bool clearEvid=false);
+
+  /* condition problem */
+  /* note that this does not re-index the variables */
+  void condition(const map<int,val_t> &cond);
 
   /* retrieve the current optimal solution */
   double getSolutionCost() const { return m_curCost; }

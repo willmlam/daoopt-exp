@@ -58,6 +58,8 @@ void Function::fromFactor(const mex::Factor& F) {
 
   mex::vector<mex::Var> ord(F.vars().begin(),F.vars().end());
   mex::permuteIndex pi(ord,true);
+  cout << F.numel() << endl;
+  for (size_t j=0;j<F.numel();++j) cout << F[j] << endl;
   for (size_t j=0;j<F.numel();j++) m_table[pi.convert(j)] = F[j]; //m_table[j] = F[pi.convertLinearIndex(j)];
 }
 
