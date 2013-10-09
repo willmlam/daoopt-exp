@@ -100,7 +100,7 @@ void Problem::removeEvidence(bool clearEvid) {
 
   // Identify variables not covered by any function
   vector<bool> covered(m_n, false);
-  cout << m_functions.size() << endl;
+  //cout << m_functions.size() << endl;
   BOOST_FOREACH(Function * f, m_functions) {
     BOOST_FOREACH(int i, f->getScopeVec()) {
       covered.at(i) = true;
