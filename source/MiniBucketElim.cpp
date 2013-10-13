@@ -335,8 +335,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
           m_options->memlimit != NONE && 
           (sizeChanged || m_options->maxPathHeur > 1)) {
       double mlimit = m_options->memlimit;
-      mlimit /= m_options->maxPathHeur;
-      cout << "Adjusted memlimit to " << (mlimit / (1024*1024.0) * sizeof(double) )
+      if (m_options->maxPathHeur > 1)
+          mlimit /= m_options->maxPathHeur;
+      cout << "Adjusted memlimit to " << mlimit 
                   << " MBytes per heuristic" << endl;
       sz = limitSize(mlimit, NULL);
       this->reset();

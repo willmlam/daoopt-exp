@@ -136,7 +136,7 @@ protected:
 
   bool meetsComputeConditions(int var, int varAncestor, int depth) {
       return m_numHeuristics < m_options->maxDynHeur &&
-          (MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur ||
+          ((m_options->maxPathHeur > 0 && MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur) ||
           (m_options->computeExactFrontier && m_subproblemWidth[var] == m_options->ibound)) &&
           (depth > 0 && m_options->dhDepth >= depth) &&
           depth % m_options->depthInterval == 0 &&
