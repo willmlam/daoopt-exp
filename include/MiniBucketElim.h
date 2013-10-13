@@ -144,7 +144,7 @@ protected:
           (numberOfDuplicateVariables(varAncestor,var) -
            numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
           (m_options->strictDupeRed <= 0 || m_heuristicDominates[var][varAncestor] == DOMINATES) &&
-          rand::next() < int(m_options->randDyn * rand::max());
+          (m_options->randDyn >= 1.0 || rand::next() < int(m_options->randDyn * rand::max()));
   }
 
   // Higher level does more reuse

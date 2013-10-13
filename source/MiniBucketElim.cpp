@@ -122,6 +122,13 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
           cout << "Heuristic is locked." << endl;
       }
       */
+      /* 
+       * Must not satisfy any the following conditions for recomputation:
+       * - The variable is at the root (already computed)
+       * - It was decided that no further computation would be done for the path
+       * - If reusing messages, the messages we need are accurate in the ancestor
+       * - Other parameterized conditions.
+       */
       if (m_pseudotree->getRoot()->getVar() != var &&
               !(sNode->isHeuristicLocked()) &&
               !(m_options->reuseLevel != 0 && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
@@ -315,14 +322,23 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   this->reset();
   
+  bool sizeChanged = false;
+  size_t sz = 0;
   if (computeTables && (m_options->jglp > 0 || m_options->jglps > 0)) {
-      bool sizeChanged = doJGLP();
-      size_t sz = 0;
+      cout << "Running JGLP with i-bound " << m_ibound / 2 << endl;
+      sizeChanged = doJGLP();
       assert(m_problemCurrent == m_problem);
       m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+  }
       // Also size may have changed
-      if (m_options->memlimit && sizeChanged)
-          sz = limitSize(m_options->memlimit, NULL);
+  if (computeTables && 
+          m_options->memlimit != NONE && 
+          (sizeChanged || m_options->maxPathHeur > 1)) {
+      double mlimit = m_options->memlimit;
+      mlimit /= m_options->maxPathHeur;
+      cout << "Adjusted memlimit to " << (mlimit / (1024*1024.0) * sizeof(double) )
+                  << " MBytes per heuristic" << endl;
+      sz = limitSize(mlimit, NULL);
       this->reset();
       sz *= sizeof(double) / (1024*1024.0);
       cout << "Enforcing memory limit resulted in i-bound " << m_ibound
@@ -1244,11 +1260,6 @@ size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignme
   memlimit *= 1024 *1024 / sizeof(double);
 
   // Still need to think about what needs to be done for BRAOBB
-  if (m_options->dynamic) {
-      memlimit /= m_options->maxPathHeur;
-      cout << "Adjusted memlimit to " << (memlimit / (1024*1024.0) * sizeof(double) )
-          << " MBytes per heuristic" << endl;
-  }
 
   int ibound = m_options->ibound;
 
