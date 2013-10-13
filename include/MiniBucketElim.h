@@ -270,6 +270,10 @@ public:
   // it accordingly.
   size_t limitSize(size_t memlimit, const vector<val_t> * assignment);
 
+  // checks if the given i-bound would exceed the memlimit and lowers
+  // it accordingly. (for JGLP)
+  size_t limitJGLPIBound(size_t memlimit, const vector<val_t> * assignment);
+
   // builds the heuristic, limited to the relevant subproblem, if applicable.
   // if computeTables=false, only returns size estimate (no tables computed)
   size_t build(const vector<val_t>* assignment = NULL, bool computeTables = true);

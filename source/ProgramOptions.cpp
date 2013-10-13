@@ -64,6 +64,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
       ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
       ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
+      ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
       ("ndfglp", po::value<int>()->default_value(-1), "compute FGLP at every node")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
@@ -231,6 +232,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->jglp = vm["jglp"].as<int>();
     if (vm.count("jglps"))
         opt->jglps = vm["jglps"].as<double>();
+    if (vm.count("jglpi"))
+        opt->jglpi = vm["jglpi"].as<int>();
 
     if (vm.count("ndfglp"))
         opt->ndfglp = vm["ndfglp"].as<int>();

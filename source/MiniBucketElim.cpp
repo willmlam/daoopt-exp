@@ -325,7 +325,15 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   bool sizeChanged = false;
   size_t sz = 0;
   if (computeTables && (m_options->jglp > 0 || m_options->jglps > 0)) {
-      cout << "Running JGLP with i-bound " << m_ibound / 2 << endl;
+      if (m_options->jglpi > 0 && m_options->memlimit != NONE) {
+          cout << "Adjusting JGLP ibound to maximum ibound / 2" << endl;
+          limitJGLPIBound(m_options->memlimit, NULL);
+          m_options->jglpi /= 2;
+      }
+      else {
+          m_options->jglpi = m_ibound / 2;
+      }
+      cout << "Running JGLP with i-bound " << m_options->jglpi << endl;
       sizeChanged = doJGLP();
       assert(m_problemCurrent == m_problem);
       m_pseudotree->addFunctionInfo(m_problem->getFunctions());
@@ -1142,7 +1150,9 @@ bool MiniBucketElim::doJGLP() {
       parents[i]= (par==m_pseudotree->getRoot()->getVar()) ? -1 : par;
     }
     _jglp.setPseudotree(parents);
-    _jglp.setIBound(m_ibound / 2);
+
+    _jglp.setIBound(m_options->jglpi);
+
     _jglp.setProperties("DoMatch=1,DoFill=0,DoJG=1,DoMplp=0");
 
     _jglp.init();
@@ -1281,6 +1291,31 @@ size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignme
   m_options->ibound = ibound;
   return mem;
 }
+
+size_t MiniBucketElim::limitJGLPIBound(size_t memlimit, const vector<val_t> * assignment) {
+  memlimit *= 1024 *1024 / sizeof(double);
+
+  int ibound = m_options->jglpi;
+  int originalIBound = this->getIbound();
+  this->setIbound(ibound);
+
+  size_t mem = this->build(assignment, false);
+  cout << " i=" << ibound << " -> " << ((mem / (1024*1024.0)) * sizeof(double) )
+       << " MBytes" << endl;
+
+  while (mem > memlimit && ibound > 1) {
+    this->setIbound(--ibound);
+    mem = this->build(assignment, false);
+    cout << " i=" << ibound << " -> " << ((mem / (1024*1024.0)) * sizeof(double) )
+         << " MBytes" << endl;
+  }
+  this->setIbound(originalIBound);
+
+  m_options->jglpi = ibound;
+
+  return mem;
+}
+
 
 
 size_t MiniBucketElim::getSize() const {
