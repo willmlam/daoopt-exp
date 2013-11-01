@@ -51,6 +51,8 @@ protected:
   int m_ibound;                  // The ibound for this MB instance
   double m_globalUB;             // The global upper bound
 
+  vector<double> tempOut;        // Used for temporary storage of heuristic values
+
 
 /*
   // The augmented buckets that will store the minibucket functions (but not the original ones)
@@ -320,6 +322,14 @@ public:
 
   int getMaxNumActive() const {
       return MBEHeuristicInstance::getMaxNumActive();
+  }
+
+  double getCurrentMemory() const {
+      return MBEHeuristicInstance::getCurrentMemory();
+  }
+
+  double getMaxMemory() const {
+      return MBEHeuristicInstance::getMaxMemory();
   }
 
   // Preprocess problem using FGLP/JGLP

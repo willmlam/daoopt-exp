@@ -59,6 +59,7 @@ public:
   int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
   int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
   bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
+  bool useRootAndCurrent; // takes the tightest bound between the current heuristic and the heuristic at the root
   double relGapDecrease; // Threshold for whether the UB/LB gap has decreased sufficiently to stop dynamic heuristic computation
   bool useRelGapDecrease; // Used with above
   int mplp;  // enables MPLP in Alex Ihler's MBE library (# iters)
@@ -68,6 +69,7 @@ public:
   int jglpi;  // specifies the i-bound used for JGLP
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   int ibound; // bucket elim. i-bound
+  int subibound; // bucket elim. i-bound for dynamic heuristics (subproblem)
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes
   int threads; // max. number of parallel subproblems

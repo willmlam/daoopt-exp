@@ -108,6 +108,8 @@ public:
 
   virtual int getCurrentNumActive() const = 0;
   virtual int getMaxNumActive() const = 0;
+  virtual double getCurrentMemory() const = 0;
+  virtual double getMaxMemory() const = 0;
   
 protected:
   Heuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) :

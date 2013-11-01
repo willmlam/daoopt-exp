@@ -45,6 +45,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("suborder,r",po::value<int>()->default_value(0), "subproblem order (0:width-inc 1:width-dec 2:heur-inc 3:heur-dec)")
       ("sol-file,c", po::value<string>(), "path to output optimal solution to")
       ("ibound,i", po::value<int>()->default_value(10), "i-bound for mini bucket heuristics")
+      ("subibound", po::value<int>()->default_value(-1), "i-bound for dynamic minibucket heuristics")
       ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
       ("gNodes,g", po::value<int>()->default_value(1), "computation granularity for dynamic mini-bucket heuristics")
       ("dhDepth", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum depth to compute dynamic heuristics")
@@ -58,6 +59,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("reuseLevel", po::value<int>()->default_value(2), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets (default)")
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
+      ("useRootAndCurrent","use the tightest bound between the root and current heuristic")
       ("relGapDec", po::value<double>(), "Threshold based on UB-LB gap for heuristic recomputation")
       ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
       ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
@@ -166,6 +168,12 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("ibound"))
       opt->ibound = vm["ibound"].as<int>();
 
+    if (vm.count("subibound"))
+      opt->subibound = vm["subibound"].as<int>();
+    if (opt->subibound < 0)
+      opt->subibound = vm["ibound"].as<int>();
+
+
     if (vm.count("cbound")) {
       opt->cbound = vm["cbound"].as<int>();
       opt->cbound_worker = vm["cbound"].as<int>();
@@ -212,6 +220,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
 
     if (vm.count("useSimpleHeurSelection")) {
         opt->useSimpleHeurSelection = true;
+    }
+    if (vm.count("useRootAndCurrent")) {
+        opt->useRootAndCurrent = true;
     }
     else {
         opt->useSimpleHeurSelection = false;

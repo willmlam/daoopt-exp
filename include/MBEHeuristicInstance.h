@@ -72,6 +72,12 @@ class ConditionedMessages {
 class MBEHeuristicInstance {
     static int maxNumActive;
     static int currentNumActive;
+    static double currentMemory;
+    static double maxMemory;
+
+    int m_ibound;
+    size_t m_mem;
+
     int m_var;
     int m_depth;
     vector<int> m_numValues;
@@ -104,6 +110,28 @@ class MBEHeuristicInstance {
     }
     inline static int getMaxNumActive() {
         return maxNumActive;
+    }
+
+    inline static int getCurrentMemory() {
+        return currentMemory;
+    }
+    inline static int getMaxMemory() {
+        return maxMemory;
+    }
+
+    inline size_t setMem() const {
+        return m_mem;
+    }
+    inline void setMem(size_t mem) {
+        m_mem = mem;
+    }
+
+    inline int getIBound() const {
+        return m_ibound;
+    }
+    
+    inline void setIBound(int ib) {
+        m_ibound = ib;
     }
 
     inline int getVar() const {
@@ -208,11 +236,29 @@ class MBEHeuristicInstance {
 
     void populateMessages(int var, vector<bool> &visited);
 
+    void addToCurrentTotalMemory() {
+        /*
+        cout << m_mem << endl;
+        cout << ((m_mem / (1024*1024.0)) * sizeof(double) ) << endl;
+        */
+        currentMemory += ((m_mem / (1024*1024.0)) * sizeof(double) );
+//        cout << "Current: " << currentMemory << endl;
+        if (currentMemory > maxMemory) maxMemory = currentMemory;
+//        cout << "Max: " << maxMemory << endl;
+    }
+    void subtractFromCurrentTotalMemory() {
+        currentMemory -= ((m_mem / (1024*1024.0)) * sizeof(double) );
+    }
+
     ~MBEHeuristicInstance();
 };
 
 inline MBEHeuristicInstance::MBEHeuristicInstance(int nVars, int var, MBEHeuristicInstance *parent) 
 : m_var(var), m_depth(-1), m_accurateHeurIn(nVars, true), m_parent(parent), m_mostRecentDecrease(0) {
+
+    if (parent) m_ibound = parent->getIBound();
+    m_mem = 0;
+
     m_augmented.resize(nVars);
     m_intermediate.resize(nVars);
     m_numValues.resize(nVars);
@@ -226,6 +272,7 @@ inline MBEHeuristicInstance::~MBEHeuristicInstance() {
         if (m_computedMessages[i] && this == m_computedMessages[i]->getOwner())
             delete m_computedMessages[i];
     }
+    subtractFromCurrentTotalMemory();
     --currentNumActive;
 }
 

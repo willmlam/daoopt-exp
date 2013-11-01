@@ -128,11 +128,22 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
        * - It was decided that no further computation would be done for the path
        * - If reusing messages, the messages we need are accurate in the ancestor
        * - Other parameterized conditions.
+       * Exception if this is satisfied, then always compute
+       * - If the current instance is the root and the subibound is different
+
        */
       if (m_pseudotree->getRoot()->getVar() != var &&
+              (
+              (
               !(sNode->isHeuristicLocked()) &&
               !(m_options->reuseLevel != 0 && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
-              meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)) {
+              meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)
+              ) /*||
+              (sNode->getHeurInstance() == m_rootHeurInstance && m_rootHeurInstance->getIBound() != m_options->subibound)
+              */
+              )
+         )
+               {
           MBEHeuristicInstance *newHeur = 
               new MBEHeuristicInstance(m_problem->getN(),var,sNode->getHeurInstance());
           newHeur->setDepth(currentDepth);
@@ -242,7 +253,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   }
 
   if (m_options->useSimpleHeurSelection) {
-      vector<double> tempOut;
+      tempOut.clear();
       tempOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
       // modified to look at all parent heuristics as well
       // guarantees heuristic computed dominates
@@ -263,6 +274,26 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
               out[i] = min(out[i],tempOut[i]);
               tempOut[i] = ELEM_ONE;
           }
+      }
+  }
+  else if (m_options->useRootAndCurrent && curHeur != m_rootHeurInstance) {
+      tempOut.clear();
+      tempOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
+
+      const vector<vector<Function*> >&augmentedAnc = m_rootHeurInstance->getAugmented();
+      const vector<vector<Function*> >&intermediateAnc = m_rootHeurInstance->getIntermediate();
+      for (itF = augmentedAnc[var].begin(); itF!=augmentedAnc[var].end(); ++itF) {
+          (*itF)->getValues(assignment, var, funVals);
+          for (size_t i=0; i<tempOut.size(); ++i)
+              tempOut[i] OP_TIMESEQ funVals[i];
+      }
+      for (itF = intermediateAnc[var].begin(); itF!=intermediateAnc[var].end(); ++itF) {
+          (*itF)->getValues(assignment, var, funVals);
+          for (size_t i=0; i<tempOut.size(); ++i)
+              tempOut[i] OP_TIMESEQ funVals[i];
+      }
+      for (size_t i=0; i<out.size(); ++i) {
+          out[i] = min(out[i],tempOut[i]);
       }
   }
 
@@ -299,6 +330,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
 void MiniBucketElim::reset() {
     if (m_rootHeurInstance) delete m_rootHeurInstance;
     m_rootHeurInstance = new MBEHeuristicInstance(m_problem->getN(), m_pseudotree->getRoot()->getVar(), NULL);
+    m_rootHeurInstance->setIBound(m_ibound);
 
 //  m_miniBucketFunctions.push(MiniBucketFunctions());
 
@@ -315,6 +347,8 @@ void MiniBucketElim::reset() {
 
 // Computes the root heuristic instance
 size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTables) {
+
+  cout << "Current before build: " << getCurrentMemory() << endl;
 
 #ifdef DEBUG
   cout << "$ Building MBE(" << m_ibound << ")" << endl;
@@ -591,6 +625,8 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   }
   cout << endl;
   */
+  m_rootHeurInstance->setMem(memSize);
+  m_rootHeurInstance->addToCurrentTotalMemory();
   return memSize;
 }
 
@@ -606,12 +642,14 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
     */
 
 #ifdef DEBUG
-  cout << "$ Building MBE(" << m_ibound << ")" << endl;
+  cout << "$ Building MBE(" << m_options->subibound << ")" << endl;
 #endif
+  curHeur->setIBound(m_options->subibound);
 
 
   // should only be here if heuristic is not accurate or if not reusing messages
-  assert(m_options->reuseLevel == 0 || !ancHeur->getAccurateHeurIn()[var]); 
+  // or if the ancestor heuristic's ibound is not the same
+  assert(m_options->reuseLevel == 0 || !ancHeur->getAccurateHeurIn()[var] || ancHeur->getIBound() != m_options->subibound); 
 
   // should never be recomputing the root heuristic
   assert(var != m_pseudotree->getRoot()->getVar());
@@ -643,6 +681,12 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 
   vector<bool> visited(m_problem->getN(), false);
   vector<bool> forceUpdate(m_problem->getN(), false);
+
+  // force updates on everything if the ancestor heuristic uses
+  // a different ibound
+  if (ancHeur->getIBound() != curHeur->getIBound()) {
+      forceUpdate.resize(m_problem->getN(), true);
+  }
 
   vector<vector<Function*> > &augmented = curHeur->getAugmented();
   vector<ConditionedMessages*> &computedMessages = curHeur->getComputedMessages();
@@ -776,28 +820,12 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
           //cout << "Trying bucket " << bcount << endl;
         if (itB->allowsFunction(itF->second,context)) { // checks if function fits into bucket
           itB->addFunction(itF->second);
-          //cout << itF->first << " " << itF->second->getArity() << endl;
-          /*
-          if (!ancHeur->getComputedMessages()[*itV]->isAccurate()) {
-              cout << itF->first << endl;
-              cout << *(itF->second) << endl;
-              cout << "(placed in bucket " << bcount << ") " << endl;
-          }
-          */
           placed = true;
         }
       }
       if (!placed) { // no fit, need to create new bucket
-        MiniBucket mb(*itV,m_ibound,m_problem);
+        MiniBucket mb(*itV,m_options->subibound,m_problem);
         mb.addFunction(itF->second);
-          //cout << itF->first << " " << itF->second->getArity() << endl;
-          /*
-          if (!ancHeur->getComputedMessages()[*itV]->isAccurate()) {
-              cout << itF->first << endl;
-              cout << *(itF->second) << endl;
-              cout << "(placed in bucket " << bcount << ") " << endl;
-          }
-          */
           
         minibuckets.push_back(mb);
       }
@@ -940,6 +968,8 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd, heurCompStart);
   if (computeTables) m_numHeuristics++;
+  curHeur->setMem(memSize);
+  curHeur->addToCurrentTotalMemory();
 
   /*
   cout << "Heuristic computed. " << endl;

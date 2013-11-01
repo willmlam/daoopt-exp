@@ -678,6 +678,7 @@ bool Main::outputStats() const {
   cout << "Heur. time:    " << int(m_heuristic->getHeurCompTime()) << " seconds" << endl;
   cout << "# Heuristics:  " << m_heuristic->getNumHeuristics() << endl;
   cout << "Max active:    " << m_heuristic->getMaxNumActive() << endl;
+  cout << "Max memory:    " << m_heuristic->getMaxMemory() << " MB" << endl;
   cout << "-------------------------------" << endl;
 
   // More node count information
