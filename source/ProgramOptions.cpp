@@ -60,6 +60,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
       ("useRootAndCurrent","use the tightest bound between the root and current heuristic")
+      ("subwidthDistance", po::value<int>()->default_value(numeric_limits<int>::max()), "compute a dynamic heuristic when the i-bound used is within this amount")
       ("relGapDec", po::value<double>(), "Threshold based on UB-LB gap for heuristic recomputation")
       ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
       ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
@@ -173,6 +174,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (opt->subibound < 0)
       opt->subibound = vm["ibound"].as<int>();
 
+    if (vm.count("subwidthDistance"))
+      opt->subwidthDistance = vm["subwidthDistance"].as<int>();
+
 
     if (vm.count("cbound")) {
       opt->cbound = vm["cbound"].as<int>();
@@ -221,11 +225,14 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("useSimpleHeurSelection")) {
         opt->useSimpleHeurSelection = true;
     }
+    else {
+        opt->useSimpleHeurSelection = false;
+    }
     if (vm.count("useRootAndCurrent")) {
         opt->useRootAndCurrent = true;
     }
     else {
-        opt->useSimpleHeurSelection = false;
+        opt->useRootAndCurrent = false;
     }
     if (vm.count("relGapDec")) {
         opt->relGapDecrease = vm["relGapDec"].as<double>();

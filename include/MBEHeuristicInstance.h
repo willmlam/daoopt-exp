@@ -72,8 +72,8 @@ class ConditionedMessages {
 class MBEHeuristicInstance {
     static int maxNumActive;
     static int currentNumActive;
-    static double currentMemory;
-    static double maxMemory;
+    static size_t currentMemory;
+    static size_t maxMemory;
 
     int m_ibound;
     size_t m_mem;
@@ -112,14 +112,14 @@ class MBEHeuristicInstance {
         return maxNumActive;
     }
 
-    inline static int getCurrentMemory() {
+    inline static size_t getCurrentMemory() {
         return currentMemory;
     }
-    inline static int getMaxMemory() {
+    inline static size_t getMaxMemory() {
         return maxMemory;
     }
 
-    inline size_t setMem() const {
+    inline size_t getMem() const {
         return m_mem;
     }
     inline void setMem(size_t mem) {
@@ -241,13 +241,13 @@ class MBEHeuristicInstance {
         cout << m_mem << endl;
         cout << ((m_mem / (1024*1024.0)) * sizeof(double) ) << endl;
         */
-        currentMemory += ((m_mem / (1024*1024.0)) * sizeof(double) );
+        currentMemory += m_mem;
 //        cout << "Current: " << currentMemory << endl;
         if (currentMemory > maxMemory) maxMemory = currentMemory;
 //        cout << "Max: " << maxMemory << endl;
     }
     void subtractFromCurrentTotalMemory() {
-        currentMemory -= ((m_mem / (1024*1024.0)) * sizeof(double) );
+        currentMemory -= m_mem;
     }
 
     ~MBEHeuristicInstance();

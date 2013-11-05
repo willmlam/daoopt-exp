@@ -44,24 +44,6 @@ public:
   bool par_postOnly; // static parallel: postprocessing only (read solution files)
   bool rotate; // enables breadth-rotating AOBB
   bool match; // uses moment matching during MBE
-  bool dynamic; // uses dynamic mini-bucket heuristics
-  bool dynmm; // uses dynamic moment-matching heuristic that maintains the tree structure
-  int gNodes; // Computation granularity for dynamic heuristics
-  int dhDepth; // Maximum depth to compute dynamic heuristics
-  int depthInterval; // compute dynamic heuristics only at depths that are multiples of depthInterval
-  bool depthOnly; // Used with dhDepth, sets depthInterval = dhDepth
-  int maxDupe; // maximum number of duplicate varibles allowed for skipping dynamic heuristic computation
-  int dupeRed; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
-  int maxDynHeur; // maximum number of times to compute dynamic heuristics
-  int maxPathHeur; // maximum number of heuristics on a single path
-  bool computeExactFrontier; // compute dynamic heuristics when subproblem with = i-bound
-  double randDyn; // probability based schedule of computing dynamic heuristics
-  int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
-  int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
-  bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
-  bool useRootAndCurrent; // takes the tightest bound between the current heuristic and the heuristic at the root
-  double relGapDecrease; // Threshold for whether the UB/LB gap has decreased sufficiently to stop dynamic heuristic computation
-  bool useRelGapDecrease; // Used with above
   int mplp;  // enables MPLP in Alex Ihler's MBE library (# iters)
   double mplps;  // enables MPLP in Alex Ihler's MBE library (# sec)
   int jglp;  // enables JGLP tightening in Alex Ihler's MBE library (# iters)
@@ -69,7 +51,6 @@ public:
   int jglpi;  // specifies the i-bound used for JGLP
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   int ibound; // bucket elim. i-bound
-  int subibound; // bucket elim. i-bound for dynamic heuristics (subproblem)
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes
   int threads; // max. number of parallel subproblems
@@ -94,6 +75,32 @@ public:
   int slsIter; // number of SLS iterations for initial lower bound
   int slsTime; // time per SLS iteration (in seconds)
   int aobbLookahead;  // max. number of nodes for parallel static AOBB subproblem lookahead
+
+  /* 
+   * DYNAMIC HEURISTIC OPTIONS
+   */
+  bool dynamic; // uses dynamic mini-bucket heuristics
+  bool dynmm; // uses dynamic moment-matching heuristic that maintains the tree structure
+  int gNodes; // Computation granularity for dynamic heuristics
+  int dhDepth; // Maximum depth to compute dynamic heuristics
+  int depthInterval; // compute dynamic heuristics only at depths that are multiples of depthInterval
+  bool depthOnly; // Used with dhDepth, sets depthInterval = dhDepth
+  int maxDupe; // maximum number of duplicate varibles allowed for skipping dynamic heuristic computation
+  int dupeRed; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
+  int maxDynHeur; // maximum number of times to compute dynamic heuristics
+  int maxPathHeur; // maximum number of heuristics on a single path
+  bool computeExactFrontier; // compute dynamic heuristics when subproblem with = i-bound
+  double randDyn; // probability based schedule of computing dynamic heuristics
+  int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
+  int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
+  bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
+  bool useRootAndCurrent; // takes the tightest bound between the current heuristic and the heuristic at the root
+  double relGapDecrease; // Threshold for whether the UB/LB gap has decreased sufficiently to stop dynamic heuristic computation
+  bool useRelGapDecrease; // Used with above
+  int subibound; // bucket elim. i-bound for dynamic heuristics (subproblem)
+  int subwidthDistance; // compute dynamic heuristics if the remaining width is within this amount of the i-bound
+
+
 
   double initialBound; // initial lower bound
 

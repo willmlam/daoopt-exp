@@ -43,6 +43,45 @@ class Scope;
 
 enum DomRel { DOMINATES = 10, NEG_DOMINATES = -10, EQUAL = 1, INDETERMINATE = 0 };
 
+/*
+
+class ComputeCondition {
+    friend MiniBucketElim;
+    MiniBucketElim *m_mbe;
+    bool met(int var, int varAncestor, int depth) = 0;
+    ComputeCondition() : m_mbe(NULL) {}
+    ComputeCondition(MiniBucketElim *mbe) : m_mbe(mbe) {}
+};
+
+class MaxPathCondition : public ComputeCondition {
+    bool met(int var, int varAncestor, int depth) {
+        return MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur;
+    }
+};
+
+class ExactFrontierCondition : public ComputeCondition {
+};
+
+class DepthCondition : public ComputeCondition {
+};
+
+class DepthIntervalCondition : public ComputeCondition {
+};
+
+class EveryNodesCondition : public ComputeCondtion {
+};
+
+class DuplicateVarsCondition : public ComputeCondition {
+};
+
+class StrictDuplicateVarsCondition : public ComputeCondition {
+};
+
+class RandComputeCondition : public ComputeCondition {
+};
+*/
+
+
 class MiniBucketElim : public Heuristic {
 
   friend class MiniBucket;
@@ -102,6 +141,9 @@ protected:
   // Stores the current form of the problem
   Problem *m_problemCurrent;
 
+  // Statistics: counts if the heuristic at this variable was better
+  vector<int> m_heurBetter;
+
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
   void findDfsOrder(vector<int>&) const;
@@ -137,6 +179,7 @@ protected:
   }
 
   bool meetsComputeConditions(int var, int varAncestor, int depth) {
+      /*
       return m_numHeuristics < m_options->maxDynHeur &&
           (m_options->maxPathHeur == -1 || 
            (m_options->maxPathHeur > 0 && MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur) ||
@@ -148,6 +191,16 @@ protected:
            numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
           (m_options->strictDupeRed <= 0 || m_heuristicDominates[var][varAncestor] == DOMINATES) &&
           (m_options->randDyn >= 1.0 || rand::next() < int(m_options->randDyn * rand::max()));
+          */
+      /*
+      cout << "Subproblem width of " << var << " : " << m_subproblemWidth[var] << endl;
+      cout << "Subibound : " << m_options->subibound << endl;
+      cout << "Subibound distance : " << m_options->subwidthDistance << endl;
+      */
+      return (m_options->maxPathHeur == -1 || MBEHeuristicInstance::getCurrentNumActive() < m_options->maxPathHeur) && 
+        (m_options->subwidthDistance == numeric_limits<int>::max() || 
+         (m_subproblemWidth[var] - m_options->subibound <= m_options->subwidthDistance &&
+         m_subproblemWidth[var] < m_subproblemWidth[m_pseudotree->getNode(var)->getParent()->getVar()]));
   }
 
   // Higher level does more reuse
@@ -325,11 +378,15 @@ public:
   }
 
   double getCurrentMemory() const {
-      return MBEHeuristicInstance::getCurrentMemory();
+      return (MBEHeuristicInstance::getCurrentMemory() / (1024*1024.0)) * sizeof(double);
   }
 
   double getMaxMemory() const {
-      return MBEHeuristicInstance::getMaxMemory();
+      return (MBEHeuristicInstance::getMaxMemory() / (1024*1024.0)) * sizeof(double);
+  }
+
+  const vector<int> &getHeurBetter() const {
+      return m_heurBetter;
   }
 
   // Preprocess problem using FGLP/JGLP
@@ -457,7 +514,8 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     m_currentGIter(0), 
     m_numHeuristics(0),
     m_countVarVisited(p->getN()),
-    m_problemCurrent(p)
+    m_problemCurrent(p),
+    m_heurBetter(p->getN(), 0)
     { 
 
         m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
@@ -483,14 +541,12 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                 cout << i << ", " << m_pseudotree->getNode(i)->getDepth() << ", " << m_subproblemWidth[i] << endl;
             }
             */
-            /*
             for (int i = 0; i < p->getN(); ++i) {
                 Pseudotree *temp = new Pseudotree(*m_pseudotree);
-                int depth = temp->restrictSubproblem(i);
-                cout << i << ", " << depth << ", " << temp->getWidthCond() << endl;
+                temp->restrictSubproblem(i);
+                m_subproblemWidth[i] = temp->getWidthCond();
                 delete temp;
             }
-            */
             if (m_options->strictDupeRed > 0) {
                 buildDominanceMatrix();
                 /*

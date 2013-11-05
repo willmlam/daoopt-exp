@@ -134,14 +134,12 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
        */
       if (m_pseudotree->getRoot()->getVar() != var &&
               (
-              (
               !(sNode->isHeuristicLocked()) &&
               !(m_options->reuseLevel != 0 && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
               meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)
               ) /*||
               (sNode->getHeurInstance() == m_rootHeurInstance && m_rootHeurInstance->getIBound() != m_options->subibound)
               */
-              )
          )
                {
           MBEHeuristicInstance *newHeur = 
@@ -292,9 +290,12 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
           for (size_t i=0; i<tempOut.size(); ++i)
               tempOut[i] OP_TIMESEQ funVals[i];
       }
+      bool oneBetter = false;
       for (size_t i=0; i<out.size(); ++i) {
+          if (tempOut[i] > out[i]) oneBetter = true;
           out[i] = min(out[i],tempOut[i]);
       }
+      if (oneBetter) m_heurBetter[var]++;
   }
 
 
@@ -1098,7 +1099,6 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
         minibuckets.push_back(new Scope(-(*itV), (*itF)->getScope()));
       }
     }
-    m_subproblemWidth[var] = max(m_subproblemWidth[var], int(intersectionScope.size() - 1));
     for (unsigned i = 0; i < funs.size(); ++i) {
         delete funs[i];
     }

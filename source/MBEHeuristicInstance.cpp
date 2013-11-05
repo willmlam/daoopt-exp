@@ -2,8 +2,8 @@
 
 int MBEHeuristicInstance::currentNumActive = 0;
 int MBEHeuristicInstance::maxNumActive = 0;
-double MBEHeuristicInstance::currentMemory = 0.0;
-double MBEHeuristicInstance::maxMemory = 0.0;
+size_t MBEHeuristicInstance::currentMemory = 0;
+size_t MBEHeuristicInstance::maxMemory = 0;
 
 void MBEHeuristicInstance::populateMessages(int var, vector<bool> &visited) {
     ConditionedMessages *cm = m_computedMessages[var];

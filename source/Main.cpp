@@ -681,6 +681,16 @@ bool Main::outputStats() const {
   cout << "Max memory:    " << m_heuristic->getMaxMemory() << " MB" << endl;
   cout << "-------------------------------" << endl;
 
+  /*
+  const vector<int> &better = m_heuristic->getHeurBetter();
+  for (int i = 0; i < better.size(); ++i) {
+      Pseudotree *temp = new Pseudotree(*m_pseudotree);
+      int depth = temp->restrictSubproblem(i);
+      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << temp->getWidthCond() << "," << better[i] << endl;
+      delete temp;
+  }
+  */
+
   // More node count information
   /*
   const vector<size_t> &numORVar = m_space->stats.numORVar;
