@@ -36,11 +36,14 @@ void Problem::condition(const map<int,val_t> &cond) {
 
   m_globalConstant = ELEM_ONE;
 
+  /*
   cout << "Conditioning: " << cond << endl;
   cout << "Before: " << endl;
   for (unsigned i = 0; i < m_functions.size(); ++i) {
     cout << *(m_functions[i]) << endl; 
   }
+  */
+  cout << cond << endl;
   vector<Function*>::iterator fi = m_functions.begin();
   for(; fi != m_functions.end(); ++fi) {
       Function *fn = (*fi);
@@ -48,22 +51,28 @@ void Problem::condition(const map<int,val_t> &cond) {
       Function *new_fn = fn->substitute(cond);
       if (new_fn->isConstant()) {
         m_globalConstant OP_TIMESEQ new_fn->getTable()[0];
+        if (fn->getArity() > 0)
+            cout << "cond cost: " << new_fn->getTable()[0] << endl;
         delete new_fn;
       } else {
         new_funs.push_back(new_fn);
       }
+      delete fn;
   }
 
   double *table1 = new double[1];
+  cout << "GConst(cond): " << m_globalConstant << endl;
   table1[0] = m_globalConstant;
-  Function *constFun = new FunctionBayes(new_funs.size(), this, set<int>(), table1, 1);
+  Function *constFun = new FunctionBayes(new_funs.back()->getId()+1, this, set<int>(), table1, 1);
   new_funs.push_back(constFun);
   m_functions = new_funs;
 
+  /*
   cout << "After: " << endl;
   for (unsigned i = 0; i < m_functions.size(); ++i) {
-    cout << *(m_functions[i]) << endl; 
+    cout << i << "\t" << *(m_functions[i]) << endl; 
   }
+  */
 
   m_c = m_functions.size();
 
@@ -135,6 +144,7 @@ void Problem::removeEvidence(bool clearEvid) {
   // it should never get used in actual computations.
   double* table1 = new double[1];
   table1[0] = m_globalConstant;
+  cout << "Applied evidence -- global constant: " << m_globalConstant << endl;
   Function* constFun = new FunctionBayes(m_nOrg, this, set<int>(), table1, 1);
   m_functions.push_back(constFun);
 

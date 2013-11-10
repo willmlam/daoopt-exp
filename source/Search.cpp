@@ -445,12 +445,6 @@ double Search::assignCostsOR(SearchNode* n) {
       assert(nParent);
       nn->setHeurInstance(nParent->getHeurInstance());
       nn->setHeuristicLocked(nParent->isHeuristicLocked());
-      if (m_options->ndfglp > 0) {
-          nn->setProblemCond(nParent->getProblemCond());
-      }
-  }
-  else {
-      nn->setProblemCond(m_problem);
   }
 
   int v = n->getVar();
@@ -525,6 +519,8 @@ double Search::assignCostsOR(SearchNode* n) {
 
 
 #ifdef GET_VALUE_BULK
+
+  // Need to get correct costs for function after shifting
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
   for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it) {

@@ -96,11 +96,9 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
     */
     m_countVarVisited[var]++;
 
-    SearchNodeOR *sNode = dynamic_cast<SearchNodeOR*>(n);
-    assert(sNode);
     // Handle initial root search node
-    if (sNode->getHeurInstance() == NULL) {
-        sNode->setHeurInstance(m_rootHeurInstance);
+    if (n->getHeurInstance() == NULL) {
+        n->setHeurInstance(m_rootHeurInstance);
         //m_rootHeurInstance->setOwner(sNode);
     }
     int currentDepth = m_pseudotree->getNode(var)->getDepth();
@@ -134,44 +132,58 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
        */
       if (m_pseudotree->getRoot()->getVar() != var &&
               (
-              !(sNode->isHeuristicLocked()) &&
-              !(m_options->reuseLevel != 0 && sNode->getHeurInstance()->getAccurateHeurIn()[var]) &&
-              meetsComputeConditions(var, sNode->getHeurInstance()->getVar(), currentDepth)
+              !(n->isHeuristicLocked()) &&
+              !(m_options->reuseLevel != 0 && n->getHeurInstance()->getAccurateHeurIn()[var]) &&
+              meetsComputeConditions(var, n->getHeurInstance()->getVar(), currentDepth)
               ) /*||
               (sNode->getHeurInstance() == m_rootHeurInstance && m_rootHeurInstance->getIBound() != m_options->subibound)
               */
          )
                {
           MBEHeuristicInstance *newHeur = 
-              new MBEHeuristicInstance(m_problem->getN(),var,sNode->getHeurInstance());
+              new MBEHeuristicInstance(m_problem->getN(),var,n->getHeurInstance());
           newHeur->setDepth(currentDepth);
           m_heurCollection.push_back(newHeur);
           
-          if (m_options->ndfglp > 0) {
+          /*
+          if (m_options->ndfglp > 0 || m_options->ndfglps > 0) {
+              cout << "Function scopes before:" << endl;
+              const vector<Function*> &funs = m_problemCurrent->getFunctions();
+              for (size_t i = 0; i < funs.size(); ++i) {
+                  cout << *funs[i] << endl;
+              }
+//              cout << "Calling doNodeFGLP" << endl;
               doNodeFGLP(n,assignment);
               m_pseudotree->addFunctionInfo(m_problemCurrent->getFunctions());
+              cout << "Function scopes after conditioning:" << endl;
+              const vector<Function*> &funs2 = m_problemCurrent->getFunctions();
+              for (size_t i = 0; i < funs2.size(); ++i) {
+                  cout << *funs2[i] << endl;
+              }
+              cin.get();
           }
+          */
           
           buildSubproblem(var, 
                   assignment, 
-                  sNode->getHeurInstance(), 
+                  n->getHeurInstance(), 
                   newHeur);
-          sNode->setHeurInstance(newHeur);
-          newHeur->setOwner(sNode);
+          n->setHeurInstance(newHeur);
+          newHeur->setOwner(n);
           /*
              cout << "Compiled heuristic at (var,depth): " 
              << "(" << var << "," << currentDepth << ")" << endl;
              */
       }
       m_currentGIter = (m_currentGIter + 1) % m_options->gNodes;
-      assert(sNode->getHeurInstance()->getDepth() <= currentDepth);
+      assert(n->getHeurInstance()->getDepth() <= currentDepth);
   }
 
   /*
   const vector<vector<Function*> >&augmented = sNode->getHeurInstance()->getAugmented();
   const vector<vector<Function*> >&intermediate = sNode->getHeurInstance()->getIntermediate();
   */
-  MBEHeuristicInstance *curHeur = sNode->getHeurInstance();
+  MBEHeuristicInstance *curHeur = n->getHeurInstance();
   /*
   if (curHeur->getParent()) 
       curHeur = curHeur->getParent();
@@ -210,7 +222,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
 
   // Check bound if the parent was used instead if this was a newly computed heuristic
   MBEHeuristicInstance *parentHeur = curHeur->getParent();
-  if (m_options->useRelGapDecrease && !sNode->isHeuristicLocked() && parentHeur) {
+  if (m_options->useRelGapDecrease && !n->isHeuristicLocked() && parentHeur) {
       vector<double> tempOut;
       tempOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
       const vector<vector<Function*> >&augmentedAnc = parentHeur->getAugmented();
@@ -299,6 +311,22 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   }
 
 
+  // Generates FGLP heuristics in parallel if activated
+  // FOR DEBUG PURPOSES FOR NOW
+  // Can be integrated actually only if the model used in FGLP is conditioned 
+  // before ANY reparameterization
+  // It may be a good idea to write a separate FGLP heuristic class.
+  
+  if (m_options->ndfglp > 0 || m_options->ndfglps > 0) {
+      vector<double> fglpOut;
+      fglpOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
+      getNodeFGLPHeur(n,assignment,fglpOut);
+      cout << "var: " << var << endl;
+      cout << m_elimOrder[var] << endl;
+      cout << "MBE:\t" << out << endl;
+      cout << "FGLP:\t" << fglpOut << endl << endl;
+  }
+
 
   /*
   const vector<vector<Function*> >&augmentedR = m_rootHeurInstance->getAugmented();
@@ -370,7 +398,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       }
       cout << "Running JGLP with i-bound " << m_options->jglpi << endl;
       sizeChanged = doJGLP();
-      assert(m_problemCurrent == m_problem);
       m_pseudotree->addFunctionInfo(m_problem->getFunctions());
   }
       // Also size may have changed
@@ -393,7 +420,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   time(&heurCompStart);
 
   const vector<int> &elimOrder = 
-      (m_options->dynamic ? 
+      ((m_options->dynamic || m_options->ndfglp > 0 || m_options->ndfglps > 0) ? 
        m_elimOrder[m_pseudotree->getRoot()->getVar()] :
        m_elimOrder[0]);
 
@@ -617,7 +644,11 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd,heurCompStart);
-  if (computeTables) m_numHeuristics++;
+  if (computeTables) {
+      m_numHeuristics++;
+      m_rootHeurInstance->setMem(memSize);
+      m_rootHeurInstance->addToCurrentTotalMemory();
+  }
 
   /*
   cout << "Root heuristic computed. " << endl;
@@ -626,8 +657,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   }
   cout << endl;
   */
-  m_rootHeurInstance->setMem(memSize);
-  m_rootHeurInstance->addToCurrentTotalMemory();
   return memSize;
 }
 
@@ -684,8 +713,8 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   vector<bool> forceUpdate(m_problem->getN(), false);
 
   // force updates on everything if the ancestor heuristic uses
-  // a different ibound
-  if (ancHeur->getIBound() != curHeur->getIBound()) {
+  // a different ibound or if performing fglp on each node
+  if (ancHeur->getIBound() != curHeur->getIBound() || m_options->ndfglp > 0) {
       forceUpdate.resize(m_problem->getN(), true);
   }
 
@@ -968,9 +997,11 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   */
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd, heurCompStart);
-  if (computeTables) m_numHeuristics++;
-  curHeur->setMem(memSize);
-  curHeur->addToCurrentTotalMemory();
+  if (computeTables) {
+      m_numHeuristics++;
+      curHeur->setMem(memSize);
+      curHeur->addToCurrentTotalMemory();
+  }
 
   /*
   cout << "Heuristic computed. " << endl;
@@ -1146,6 +1177,10 @@ bool MiniBucketElim::doFGLP() {
   bool changedFunctions = false;
 
   if (m_options!=NULL && (m_options->mplp > 0 || m_options->mplps > 0)) {
+
+
+    /* Calling Alex's version of MPLP */
+      /*
     mex::mplp _mplp( copyFactors() );  // copyFactors()
     _mplp.setProperties("Schedule=Fixed,Update=Var,StopIter=100,StopObj=-1,StopMsg=-1,StopTime=-1");
     _mplp.init();
@@ -1156,7 +1191,12 @@ bool MiniBucketElim::doFGLP() {
     _mplp.run();
     rewriteFactors( _mplp.beliefs() );
     //_mbe.setModel( _mplp.beliefs() );
+    */
 
+      // My version of FGLP
+    m_fglpRoot = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), m_problem->getFunctions(),m_elimOrder.back());
+    m_fglpRoot->run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps);
+    m_problem->replaceFunctions(m_fglpRoot->getFactors());
     changedFunctions = true;
   }
 
@@ -1197,23 +1237,56 @@ bool MiniBucketElim::doJGLP() {
   return changedFunctions;
 }
 
-bool MiniBucketElim::doNodeFGLP(SearchNode *n, const vector<val_t> &assignment) {
-    m_options->mplp = m_options->ndfglp;
+bool MiniBucketElim::getNodeFGLPHeur(SearchNode *n, const vector<val_t> &assignment, vector<double> &out) {
     SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
-    Problem *pCond = new Problem(*(nn->getProblemCond()));
-    nn->setProblemCond(pCond);
+        //    Problem *pCond = nn->getProblemCond();
 
-    const vector<int> &relVars = 
-        m_pseudotree->getNode(nn->getVar())->getFullContextVec();
-    map<int,val_t> cond;
-    for (unsigned i = 0; i < relVars.size(); ++i) {
-        cond[relVars[i]] = assignment[relVars[i]];
-//        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
+//        const vector<int> &relVars = 
+//            m_pseudotree->getNode(nn->getVar())->getFullContextVec();
+        map<int,val_t> cond;
+
+
+        // Need to get the correct set of conditioning variables
+
+        /*
+           for (unsigned i = 0; i < relVars.size(); ++i) {
+           cond[relVars[i]] = assignment[relVars[i]];
+        //        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
+        }
+        for (unsigned i = 0; i < assignment.size(); ++i) {
+        if (assignment[i] != -1)
+        cond[i] = assignment[i];
+        //        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
+        }
+        */
+
+        // May need to change this later, depending on the FGLP parent instances
+        if (nn->getParent()) {
+            int parentVar = nn->getParent()->getParent()->getVar();
+            assert(assignment[parentVar] != -1);
+            cond[parentVar] = assignment[parentVar];
+        }
+
+    FGLP *fglp = NULL;
+    if (!nn->getParent()) {
+        fglp = m_fglpRoot;
+        if (m_fglpRoot) {
+            fglp->getUB(nn->getVar(),out);
+            return false;
+        }
     }
-    pCond->condition(cond);
-    m_problemCurrent = pCond;
+    FGLP *fglpParent = nn->getParent()->getParent()->getFglpProblem();
 
-    return doFGLP();
+    fglp = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), fglpParent->getFactors(),m_elimOrder[nn->getVar()],cond);
+
+    nn->setFglpProblem(fglp);
+    fglp->setOwner(nn);
+
+    fglp->run(m_options->ndfglp < 0 ? 5 : m_options->ndfglp, m_options->ndfglps);
+    fglp->getUB(nn->getVar(),out);
+
+    return true;
+
 }
 
 // Copy DaoOpt Function class into mex::Factor class structures
@@ -1225,18 +1298,19 @@ mex::vector<mex::Factor> MiniBucketElim::copyFactors( void ) {
 
 // Mini-bucket may have re-parameterized the original functions; if so, replace them
 void MiniBucketElim::rewriteFactors( const vector<mex::Factor>& factors) {
-  vector<Function*> newFunctions(factors.size()); // to hold replacement, reparameterized functions
+//  vector<Function*> newFunctions(factors.size()); // to hold replacement, reparameterized functions
+  vector<Function*> newFunctions;
   for (size_t f=0;f<factors.size();++f) {         // allocate memory, copy variables into std::set
     double* tablePtr = new double[ factors[f].nrStates() ];
     std::set<int> scope;
     for (mex::VarSet::const_iterator v=factors[f].vars().begin(); v!=factors[f].vars().end(); ++v)
       scope.insert(v->label());
-    newFunctions[f] = new FunctionBayes(f,m_problemCurrent,scope,tablePtr,factors[f].nrStates());
-//    cout << *newFunctions[f] << endl;
+    if (scope.size() > 0 && factors[f].nrStates() == 1) continue;
+    newFunctions.push_back(new FunctionBayes(f,m_problem,scope,tablePtr,factors[f].nrStates()));
     newFunctions[f]->fromFactor( log(factors[f]) );    // write in log factor functions
   }
 
-  m_problemCurrent->replaceFunctions( newFunctions );                // replace them in the problem definition
+  m_problem->replaceFunctions( newFunctions );                // replace them in the problem definition
 }
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)

@@ -113,7 +113,7 @@ public:
 
   /* restricts search to a subproblem rooted at 'rootVar'. Context instantiation
    * is extracted from 'assig', ancestral partial solution tree from 'pst' vector.
-   * pst containst [OR value, AND label] top-down.
+   * pst contains [OR value, AND label] top-down.
    * returns the (original) depth of the new root node */
   int restrictSubproblem(int rootVar, const vector<val_t>& assig, const vector<double>& pst);
 

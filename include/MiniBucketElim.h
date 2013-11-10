@@ -35,6 +35,7 @@
 #include "MBEHeuristicInstance.h"
 
 #include "mex/mbe.h"
+#include "FGLP.h"
 
 
 /* The overall minibucket elimination */
@@ -130,6 +131,9 @@ protected:
   // Stores the root instance of the heuristic
   // also used by static setup
   MBEHeuristicInstance* m_rootHeurInstance;
+
+  // Stores the root instance of FGLP if used
+  FGLP *m_fglpRoot;
 
   // Stores all conditioned heuristics
   // (Mostly a mechanism to properly free memory)
@@ -394,7 +398,7 @@ public:
   bool doJGLP();
 
   // Copies and conditions the problem in the root.
-  bool doNodeFGLP(SearchNode *n, const vector<val_t> &assignment);
+  bool getNodeFGLPHeur(SearchNode *n, const vector<val_t> &assignment, vector<double> &out);
 
 public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
@@ -519,20 +523,32 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     { 
 
         m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
-
-        // Perform FGLP to preprocess problem original problem first
-        if (m_options->mplp > 0 || m_options->mplps > 0) {
-            doFGLP();
-            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
-        }
+        m_fglpRoot = NULL;
 
         // If dynamic, precomupute all DFS elimination orders for each node
-        // and precompute number of minibuckets used in each subproblem 
-        // rooted by each node
-        if (m_options->dynamic) {
+        // Also if using node FGLP
+        // Otherwise, just compute one order for the entire problem
+        if (m_options->dynamic || m_options->ndfglp > 0 || m_options->ndfglps > 0) {
             m_elimOrder.resize(p->getN());
             for (int i = 0 ; i < p->getN(); ++i) {
                 findDfsOrder(m_elimOrder[i], i);
+            }
+        }
+        else {
+            m_elimOrder.resize(1);
+            findDfsOrder(m_elimOrder[0]);
+        }
+
+        // Perform FGLP to preprocess problem original problem first
+        if (m_options->mplp > 0 || m_options->mplps > 0) {
+            if (doFGLP())
+                m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+        }
+
+        // If dynamic, precompute number of minibuckets used in each subproblem 
+        // rooted by each node
+        if (m_options->dynamic) {
+            for (int i = 0 ; i < p->getN(); ++i) {
                 m_mbCountAccurate[i] = m_elimOrder[i].size() - (i==p->getN()-1 ? 1 : 2);
                 simulateBuildSubproblem(i, m_elimOrder[i]);
             }
@@ -562,10 +578,6 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
             */
 
 
-        }
-        else {
-            m_elimOrder.resize(1);
-            findDfsOrder(m_elimOrder[0]);
         }
 
 

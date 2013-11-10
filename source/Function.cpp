@@ -63,7 +63,6 @@ void Function::fromFactor(const mex::Factor& F) {
   for (size_t j=0;j<F.numel();j++) m_table[pi.convert(j)] = F[j]; //m_table[j] = F[pi.convertLinearIndex(j)];
 }
 
-
 /* returns the table entry for the assignment (input is vector of val_t) */
 double Function::getValue(const vector<val_t>& assignment) const {
 //  assert(isInstantiated(assignment)); // make sure scope is fully instantiated

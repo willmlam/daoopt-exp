@@ -31,6 +31,8 @@
 #include "_base.h"
 #include "gzstream.h"
 
+class SearchStats;
+
 /* holds a problem instance with variable domains and function tables */
 class Problem {
 
@@ -94,7 +96,6 @@ public:
 
   bool hasDummy() const { return m_hasDummy; }
 
-
 public:
 
   /* parses a UAI format input file */
@@ -114,6 +115,8 @@ public:
   /* condition problem */
   /* note that this does not re-index the variables */
   void condition(const map<int,val_t> &cond);
+
+   
 
   /* retrieve the current optimal solution */
   double getSolutionCost() const { return m_curCost; }
@@ -160,6 +163,7 @@ public:
 
 public:
   Problem();
+  Problem(Problem *p);
   virtual ~Problem();
 };
 
@@ -190,6 +194,32 @@ inline Problem::Problem() :
     m_globalConstant(ELEM_NAN),
     m_curCost(ELEM_NAN)
 { /* empty*/ }
+
+// Functions are owned by the copy of the problem
+inline Problem::Problem(Problem *p) :
+    m_is_copy(false),
+    m_subprobOnly(p->m_subprobOnly),
+    m_hasDummy(p->m_hasDummy),
+    m_prob(p->m_prob),
+    m_task(p->m_task),
+    m_n(p->m_n),
+    m_nOrg(p->m_nOrg),
+    m_k(p->m_k),
+    m_e(p->m_e),
+    m_c(p->m_c),
+    m_r(p->m_r),
+    m_globalConstant(p->m_globalConstant),
+    m_curCost(p->m_curCost),
+    m_name(p->m_name),
+    m_domains(p->m_domains),
+    m_evidence(p->m_evidence),
+    m_old2new(p->m_old2new),
+    m_curSolution(p->m_curSolution)
+{
+    for (size_t i = 0; i < p->m_functions.size(); ++i) {
+        m_functions.push_back(p->m_functions[i]->clone());
+    }
+}
 
 inline Problem::~Problem() {
   // delete functions

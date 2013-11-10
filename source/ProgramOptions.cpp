@@ -68,7 +68,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
       ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
       ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
-      ("ndfglp", po::value<int>()->default_value(-1), "compute FGLP at every node")
+      ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
+      ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -255,6 +256,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
 
     if (vm.count("ndfglp"))
         opt->ndfglp = vm["ndfglp"].as<int>();
+    if (vm.count("ndfglps")) {
+        opt->ndfglps = vm["ndfglps"].as<double>();
+    }
 
     if (vm.count("cbound-worker"))
       opt->cbound_worker = vm["cbound-worker"].as<int>();

@@ -357,6 +357,7 @@ bool Main::initDataStructs() {
 
 bool Main::compileHeuristic() {
   m_options->ibound = min(m_options->ibound, m_pseudotree->getWidthCond());
+  m_options->jglpi = min(m_options->jglpi, m_pseudotree->getWidthCond());
   size_t sz = 0;
   if (m_options->memlimit != NONE) {
     sz = m_heuristic->limitSize(m_options->memlimit,

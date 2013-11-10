@@ -50,6 +50,7 @@ public:
   double jglps;  // enables JGLP tightening in Alex Ihler's MBE library (# sec)
   int jglpi;  // specifies the i-bound used for JGLP
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
+  double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

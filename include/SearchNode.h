@@ -28,8 +28,9 @@
 #include "utils.h"
 #include "SubprobStats.h"  // only for PARALLEL_STATIC
 #include "MBEHeuristicInstance.h"
+#include "FGLP.h"
 
-class Problem;
+//class Problem;
 class PseudotreeNode;
 
 /* some constants for aggregating the boolean flags */
@@ -95,7 +96,6 @@ public:
 
   virtual void setCacheContext(const context_t&) = 0;
   virtual const context_t& getCacheContext() const = 0;
-#include "MBEHeuristicInstance.h"
 
   virtual void setCacheInst(size_t i) = 0;
   virtual size_t getCacheInst() const = 0;
@@ -167,6 +167,16 @@ public:
   virtual void setHeurCache(double* d) = 0;
   virtual double* getHeurCache() const = 0;
   virtual void clearHeurCache() = 0;
+  
+  virtual MBEHeuristicInstance *getHeurInstance() const = 0;
+  virtual void setHeurInstance(MBEHeuristicInstance *h) = 0;
+
+  virtual bool isHeuristicLocked() const = 0;
+  virtual void setHeuristicLocked(bool locked) = 0;
+
+  virtual FGLP *getFglpProblem() const = 0;
+  virtual void setFglpProblem(FGLP *fglpProblem) = 0;
+
 
 protected:
   SearchNode(SearchNode* parent);
@@ -224,6 +234,16 @@ public:
   double* getHeurCache() const { return NULL; }
   void clearHeurCache() {}
 
+  MBEHeuristicInstance *getHeurInstance() const { return NULL; }
+  void setHeurInstance(MBEHeuristicInstance *h) { }
+
+
+  FGLP *getFglpProblem() const { return NULL; }
+  void setFglpProblem(FGLP *fglpProblem) { }
+
+  bool isHeuristicLocked() const { return false; }
+  void setHeuristicLocked(bool locked) { }
+
 public:
   SearchNodeAND(SearchNode* p, val_t val, double label = ELEM_ONE);
   virtual ~SearchNodeAND() { /* empty */ }
@@ -255,7 +275,8 @@ protected:
   bool m_heuristicLocked;              // flag to prevent further heuristic computation
                                      // on the entire subproblem rooted by this node
 
-  Problem *m_problemCond;          // Conditioned version of the problem
+
+  FGLP *m_fglpProblem;              // FGLP object representing the problem at its current state
 public:
   int getType() const { return NODE_OR; }
   int getVar() const { return m_var; }
@@ -318,11 +339,15 @@ public:
   }
   MBEHeuristicInstance *getHeurInstance() const { return m_hNode; }
 
+  void setFglpProblem(FGLP *fglpProblem) {
+      m_fglpProblem = fglpProblem;
+  }
+
+  FGLP *getFglpProblem() const { return m_fglpProblem; }
+
   void setHeuristicLocked(bool locked) { m_heuristicLocked = locked; }
   bool isHeuristicLocked() const { return m_heuristicLocked; }
 
-  Problem *getProblemCond() { return m_problemCond; }
-  void setProblemCond(Problem *p)  { m_problemCond = p; }
 
 public:
   SearchNodeOR(SearchNode* parent, int var, int depth);
@@ -412,10 +437,12 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 
 
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
-  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(NULL), m_hNode(NULL), 
-    m_heuristicLocked(false)
+  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(NULL), 
+    m_hNode(NULL), 
+    m_heuristicLocked(false),
+    m_fglpProblem(NULL)
     //, m_cacheContext(NULL)
-#if defined PARALLE_STATIC || defined PARALLEL_DYNAMIC
+#if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)
 #endif
   { /* empty */ }
@@ -424,6 +451,9 @@ inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
 inline SearchNodeOR::~SearchNodeOR() {
   if (m_hNode && this == m_hNode->getOwner())
       delete m_hNode;
+  if (m_fglpProblem && this == m_fglpProblem->getOwner())
+      delete m_fglpProblem;
+
   this->clearHeurCache();
 }
 
