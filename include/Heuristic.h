@@ -51,6 +51,7 @@ protected:
   Pseudotree* m_pseudotree;      // The underlying pseudotree
   ProgramOptions* m_options;     // Program options instance
   double m_heurCompTime;         // Store the time spent computing heuristics
+  double m_heurRootCompTime;     // Store the time spent computing heuristics (root only)
 
 public:
 
@@ -103,6 +104,7 @@ public:
   virtual bool isAccurate() { return false; }
 
   virtual double getHeurCompTime() { return m_heurCompTime; }
+  virtual double getHeurRootCompTime() { return m_heurRootCompTime; }
 
   virtual int getNumHeuristics() const = 0;
 

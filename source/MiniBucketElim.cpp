@@ -644,6 +644,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   time(&heurCompEnd);
   m_heurCompTime += difftime(heurCompEnd,heurCompStart);
+  m_heurRootCompTime = m_heurCompTime;
   if (computeTables) {
       m_numHeuristics++;
       m_rootHeurInstance->setMem(memSize);

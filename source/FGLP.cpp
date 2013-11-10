@@ -250,7 +250,6 @@ void FGLP::run(int maxIter, double maxTime) {
             cout << "UB: " << m_UB << " (d=" << diff << ")" << endl;
     }
     time(&timeEnd);
-    difftime(timeEnd,timeStart);
     if (m_verbose)
         cout << "FGLP (" << iter << " iter, " << difftime(timeEnd,timeStart) << " sec): " << m_UB << endl;
 
