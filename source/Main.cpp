@@ -678,22 +678,22 @@ bool Main::outputStats() const {
   cout << "Preprocessing: " << time_passed << " seconds" << endl;
   cout << "-------------------------------" << endl;
 
-  if (m_options->dynamic) {
+
+  cout << endl;
+  cout << "Heuristic stats" << endl;
+  cout << "---------------" << endl;
+  cout << "# Heuristics:    " << m_heuristic->getNumHeuristics() << endl;
+  cout << "Max active:      " << m_heuristic->getMaxNumActive() << endl;
+  cout << "Total time:      " << int(m_heuristic->getHeurCompTime()) << " seconds" << endl;
+  cout << "Root time:       " << m_heuristic->getHeurRootCompTime() << " seconds" << endl;
+  if (m_options->dynamic && m_heuristic->getNumHeuristics() > 1) {
       double dynTime = m_heuristic->getHeurCompTime() - m_heuristic->getHeurRootCompTime();
       double avgTime = dynTime / (m_heuristic->getNumHeuristics() - 1);
-
-      cout << endl;
-      cout << "Dynamic heuristic stats" << endl;
-      cout << "-----------------------" << endl;
-      cout << "# Heuristics:    " << m_heuristic->getNumHeuristics() << endl;
-      cout << "Max active:      " << m_heuristic->getMaxNumActive() << endl;
-      cout << "Total time:      " << int(m_heuristic->getHeurCompTime()) << " seconds" << endl;
-      cout << "Root time:       " << m_heuristic->getHeurRootCompTime() << " seconds" << endl;
       cout << "Dynamic time:    " << dynTime << " seconds" << endl;
       cout << "Avg. time (dyn): " << avgTime << " seconds" << endl;
-      cout << "Max memory:      " << m_heuristic->getMaxMemory() << " MB" << endl;
-      cout << "-----------------------" << endl;
   }
+  cout << "Max memory:      " << m_heuristic->getMaxMemory() << " MB" << endl;
+  cout << "---------------" << endl;
 
   /*
   const vector<int> &better = m_heuristic->getHeurBetter();

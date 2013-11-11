@@ -557,12 +557,10 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                 cout << i << ", " << m_pseudotree->getNode(i)->getDepth() << ", " << m_subproblemWidth[i] << endl;
             }
             */
-            for (int i = 0; i < p->getN(); ++i) {
-                Pseudotree *temp = new Pseudotree(*m_pseudotree);
-                temp->restrictSubproblem(i);
-                m_subproblemWidth[i] = temp->getWidthCond();
-                delete temp;
+            for (int i = 0; i < int(m_subproblemWidth.size()); ++i) {
+                m_subproblemWidth[i] = m_pseudotree->computeSubproblemWidth(i);
             }
+
             if (m_options->strictDupeRed > 0) {
                 buildDominanceMatrix();
                 /*

@@ -127,6 +127,9 @@ public:
    * of var i in the overall pseudo tree */
   int restrictSubproblem(int i);
 
+  /* computes the width of a subproblem rooted at variable i */
+  int computeSubproblemWidth(int i);
+
 private:
   /* recursive helper function for outputToFile(...) below */
   void outputToFileNode(const PseudotreeNode*, ostringstream&) const;

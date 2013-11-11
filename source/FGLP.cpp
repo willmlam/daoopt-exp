@@ -195,6 +195,8 @@ void FGLP::run(int maxIter, double maxTime) {
             // update variable v this iteration
             int v = *rit;
 
+            if (v >= m_factorsByVariable.size()) continue;
+
             // Skip this variable, no factors have this variable
             if (m_factorsByVariable[v].size() == 0) continue;
 

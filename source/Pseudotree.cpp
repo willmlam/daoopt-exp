@@ -31,6 +31,7 @@ int Pseudotree::restrictSubproblem(int i) {
 
   if (m_root->getVar()==i) // root remains unchanged
     return m_root->getDepth();
+  m_widthConditioned = NONE;
 
   int rootOldDepth = m_nodes[i]->getDepth();
 
@@ -41,7 +42,7 @@ int Pseudotree::restrictSubproblem(int i) {
   m_root->updateSubprobVars(m_nodes.size());  // already includes dummy
   m_sizeConditioned = m_root->getSubprobSize()-1;  // -1 for dummy
 
-  // update subproblem height, substract -1 for bogus node
+  // update subproblem height, subtract -1 for bogus node
   m_heightConditioned = m_root->updateDepthHeight(-1) - 1;
 
   // compute subproblem width (when conditioning on subproblem context)
@@ -59,6 +60,24 @@ int Pseudotree::restrictSubproblem(int i) {
   }
 
   return rootOldDepth;
+}
+
+int Pseudotree::computeSubproblemWidth(int i) {
+  int width = NONE;
+  // compute subproblem width (when conditioning on subproblem context)
+  const vector<int>& condset = m_nodes[i]->m_contextV;
+  stack<PseudotreeNode*> stck;
+  stck.push(m_nodes[i]);
+  while (stck.size()) {
+    PseudotreeNode* n = stck.top();
+    stck.pop();
+    int x = setminusSize(n->m_contextV, condset);
+    width = max(width,x);
+    for (vector<PseudotreeNode*>:: const_iterator it=n->getChildren().begin(); it!=n->getChildren().end(); ++it) {
+      stck.push(*it);
+    }
+  }
+  return width;
 }
 
 void Pseudotree::addFunctionInfo(const vector<Function*>& fns) {
