@@ -45,11 +45,17 @@ private:
     // (computed by taking the product of the max values of each factor)
     double m_UB;
 
+    // Stores the upper bound for the non constant portion of the problem
+    double m_UBNonConstant;
+
+    // Stores the label induced by the conditioning
+    double m_label;
+
+    // Accumulates the cost for functions already conditioned
+    double m_ancestorCost;
+
     // Use verbose output (show bound progression)
     bool m_verbose;
-
-    // Search node owning this object
-    SearchNode* m_owner;
 
     // condition the functions in fns according to the assignment and fill them 
     // into m_factors. Also removes factors not in the subproblem
@@ -74,14 +80,20 @@ public:
     void run(int maxIter, double maxTime);
 
     // Get the upper bounds with respect to all assignments to a variable
-    void getUB(int var, vector<double> &out);
+    void getVarUB(int var, vector<double> &out);
+
+    // Get the upper bound produced directly from reparameterization
+    double getUB() const { return m_UB; }
+
+    // Get the upper bound produced directly from reparameterization for only 
+    // the non constant portion of the problem
+    double getUBNonConstant() const { return m_UBNonConstant; }
 
     void setVerbose(bool v) { m_verbose = v; }
 
-    inline SearchNode *getOwner() { return m_owner; }
-    inline void setOwner(SearchNode *n) { m_owner = n; }
-
     const vector<Function*> &getFactors() const { return m_factors; }
+
+    double getLabel() const { return m_label; }
 
     ~FGLP() {
         for (size_t i = 0; i < m_factors.size(); ++i)

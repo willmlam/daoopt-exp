@@ -1831,7 +1831,7 @@ void initFromVarsAndProbTables(){
 void printStats(){
 	if(verbose) {
 		fprintf(outfile, "========================================\n        BASIC INSTANCE STATS\n========================================\n");
-		if (network_filename) fprintf(outfile, "Instance: %s\n", network_filename);
+		if (network_filename[0] != '\0') fprintf(outfile, "Instance: %s\n", network_filename);
 		else fprintf(outfile, "Dealing with manually defined instance.\n");
 		fprintf(outfile, "Number of free variables: %d\n", num_vars);
 		fprintf(outfile, "Number of factors: %d\n", num_pots);
@@ -2151,7 +2151,7 @@ void print_parameters(){
 
 void print_start_problem(){
 	if(verbose) {
-		if(network_filename) fprintf(outfile, "Begin problem %s\n\n", network_filename);
+		if(network_filename != '\0') fprintf(outfile, "Begin problem %s\n\n", network_filename);
 		else fprintf(outfile, "Begin manually defined problem\n");
 	}
 }
@@ -2196,7 +2196,7 @@ void print_end_run(){
 
 void print_end_problem(){
 	if(verbose) {
-		if(network_filename) fprintf(outfile, "end problem %s\n\n", network_filename);
+		if(network_filename != '\0') fprintf(outfile, "end problem %s\n\n", network_filename);
 		else fprintf(outfile, "End manually defined problem\n\n");
 
 		fprintf(outfile, "begin further_global_infos 1\n");

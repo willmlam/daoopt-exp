@@ -49,6 +49,7 @@ public:
   int jglp;  // enables JGLP tightening in Alex Ihler's MBE library (# iters)
   double jglps;  // enables JGLP tightening in Alex Ihler's MBE library (# sec)
   int jglpi;  // specifies the i-bound used for JGLP
+  bool fglpHeur; // use pure FGLP heuristic
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
   int ibound; // bucket elim. i-bound
@@ -93,7 +94,6 @@ public:
   bool computeExactFrontier; // compute dynamic heuristics when subproblem with = i-bound
   double randDyn; // probability based schedule of computing dynamic heuristics
   int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
-  int strictDupeRed; // minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets
   bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
   bool useRootAndCurrent; // takes the tightest bound between the current heuristic and the heuristic at the root
   double relGapDecrease; // Threshold for whether the UB/LB gap has decreased sufficiently to stop dynamic heuristic computation

@@ -98,22 +98,25 @@ public:
   virtual void getHeurAll(int var, const std::vector<val_t>& assignment, SearchNode* node,
       std::vector<double>& out) = 0;
 
+  /* gets the label value of for a node 
+   * (mainly for heuristics which reparameterize the problem) */
+  virtual double getLabel(int var, const std::vector<val_t>& assignment, SearchNode* node) = 0;
+
+  /* same as above, but for all instantiations 
+   * (mainly for heuristics which reparameterize the problem) */
+  virtual void getLabelAll(int var, const std::vector<val_t>& assignment, SearchNode* node,
+      std::vector<double>& out) = 0;
+
   /* Returns true if the heuristic is provably accurate. Default false,
    * override in child class.
    */
   virtual bool isAccurate() { return false; }
 
-  virtual double getHeurCompTime() { return m_heurCompTime; }
-  virtual double getHeurRootCompTime() { return m_heurRootCompTime; }
+  virtual double getHeurCompTime() const { return m_heurCompTime; }
+  virtual double getHeurRootCompTime() const { return m_heurRootCompTime; }
 
-  virtual int getNumHeuristics() const = 0;
+  virtual void printExtraStats() const = 0;
 
-  virtual int getCurrentNumActive() const = 0;
-  virtual int getMaxNumActive() const = 0;
-  virtual double getCurrentMemory() const = 0;
-  virtual double getMaxMemory() const = 0;
-  virtual const vector<int> &getHeurBetter() const = 0;
-  
 protected:
   Heuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) :
       m_problem(p), m_pseudotree(pt), m_options(po), m_heurCompTime(0) { /* nothing */ }

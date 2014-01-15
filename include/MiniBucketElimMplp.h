@@ -73,24 +73,12 @@ public:
   bool writeToFile(string fn) const { return true; }
   bool readFromFile(string fn)			{ return false; }
 
-  // Dynamic MBE required functions
-  int getNumHeuristics() const {
-      return 1;
-  }
-
-  int getCurrentNumActive() const {
-      return 1;
-  }
-
-  int getMaxNumActive() const {
-      return 1;
-  }
-
-
 
   // added functionality
   bool doJGLP();
   bool doMPLP();
+
+  void printExtraStats() const {}
 
 public:
   MiniBucketElimMplp(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);

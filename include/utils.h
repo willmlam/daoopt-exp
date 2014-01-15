@@ -250,6 +250,14 @@ inline int setminusSize(const vector<int>& a, const vector<int>& b) {
   return s;
 }
 
+// Check if a is a subset of b
+inline bool isSubset(const set<int> &a, const set<int> &b) {
+    for (auto e : a) {
+        if (b.find(e) == b.end()) return false;
+    }
+    return true;
+}
+
 
 /* hex output of values (e.g., doubles) */
 template<typename _T>

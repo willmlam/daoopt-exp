@@ -32,8 +32,8 @@ using namespace std;
 
 void printFunction(Function *f) {
     cout << "Scope: ";
-    for (unsigned int k = 0; k < f->getArity(); ++k) {
-        cout << f->getScopeVec()[k] << " ";
+    for (auto k : f->getScopeVec()) {
+        cout << k << " ";
     }
     cout << endl << endl;
     for (unsigned int k = 0; k < f->getTableSize(); ++k) {

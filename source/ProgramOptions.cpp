@@ -57,7 +57,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("maxPathHeur", po::value<int>()->default_value(-1), "maximum number of heuristics allowed on a single path")
       ("computeExactFrontier", "compute dynamic heuristics when subproblem with = i-bound")
       ("reuseLevel", po::value<int>()->default_value(2), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets (default)")
-      ("strictDupeRed", po::value<int>()->default_value(-1), "minimum number of variables which strictly have less minibuckets while all other variables do not have more minibuckets")
       ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
       ("useRootAndCurrent","use the tightest bound between the root and current heuristic")
       ("subwidthDistance", po::value<int>()->default_value(numeric_limits<int>::max()), "compute a dynamic heuristic when the i-bound used is within this amount")
@@ -68,6 +67,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
       ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
       ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
+      ("fglpHeur","use pure FGLP heuristic")
       ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
       ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
@@ -219,9 +219,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->reuseLevel = vm["reuseLevel"].as<int>();
         if (opt->reuseLevel > 2) opt->reuseLevel = 0;
     }
-    if (vm.count("strictDupeRed")) {
-        opt->strictDupeRed = vm["strictDupeRed"].as<int>();
-    }
 
     if (vm.count("useSimpleHeurSelection")) {
         opt->useSimpleHeurSelection = true;
@@ -253,6 +250,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->jglps = vm["jglps"].as<double>();
     if (vm.count("jglpi"))
         opt->jglpi = vm["jglpi"].as<int>();
+
+    if (vm.count("fglpHeur"))
+        opt->fglpHeur = true;
+    else
+        opt->fglpHeur = false;
 
     if (vm.count("ndfglp"))
         opt->ndfglp = vm["ndfglp"].as<int>();

@@ -67,14 +67,17 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
       if (prop) {
         // optimal solution to previously solved and deleted child OR nodes
         double d = cur->getSubSolved();
+        DIAG( ostringstream ss; ss << "value stored (subsolved only): " << d << endl; myprint(ss.str()); )
         // current best solution to yet-unsolved OR child nodes
         NodeP* children = cur->getChildren();
         for (size_t i = 0; i < cur->getChildCountFull(); ++i) {
+          DIAG( ostringstream ss; ss << children[i] << endl; myprint(ss.str()); )
           if (children[i])
             d OP_TIMESEQ children[i]->getValue();
         }
 
         // store into value (thus includes cost of subSolved)
+        DIAG( ostringstream ss; ss << "value stored : " << d << endl; myprint(ss.str()); )
         cur->setValue(d);
 
         if ( ISNAN(d) ) {// || d == ELEM_ZERO ) { // not all OR children solved yet, propagation stops here
@@ -150,6 +153,8 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
 
       if (prop) {
         double d = prev->getValue() OP_TIMES prev->getLabel(); // getValue includes subSolved
+        DIAG( ostringstream ss; ss << "value to prop : " 
+                << prev->getValue() << " + " << prev->getLabel() << " = " << d << endl; myprint(ss.str()); )
 #ifdef LIKELIHOOD
         if ( ISNAN( cur->getValue() ) || cur->getValue() == ELEM_ZERO )
           cur->setValue(d);

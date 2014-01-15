@@ -12,6 +12,7 @@ option(DAOOPT_MASTER_DYNAMIC "Force dynamic master binary" OFF)
 # To enable static linking of the final daoopt binary
 option(DAOOPT_LINK_STATIC "Link binary statically" OFF)
 
+
 # General Compiler flags
 add_definitions(-Wall)
 
@@ -31,6 +32,21 @@ set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -g3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
+# Check for C++11 support
+include(CheckCXXCompilerFlag) 
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11) 
+CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X) 
+if(COMPILER_SUPPORTS_CXX11) 
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++11")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
+elseif(COMPILER_SUPPORTS_CXX0X) 
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++0x")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++0x")
+else() 
+        message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.") 
+endif() 
+
+
 if(DAOOPT_LINK_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "-static")
 endif()
@@ -45,8 +61,12 @@ else()
   if(DAOOPT_MASTER_DYNAMIC AND NOT DAOOPT_MASTER_STATIC)
     add_definitions(-DPARALLEL_DYNAMIC)
     find_package(Threads)  # includes pthread
+    find_package( Boost REQUIRED COMPONENTS system )
   endif()
 endif()
+
+find_package( Boost REQUIRED COMPONENTS program_options thread )
+include_directories( ${Boost_INCLUDE_DIRS} )
 
 # Included folders for header files
 include_directories(
@@ -56,7 +76,7 @@ include_directories(
 
 # Libraries in the lib folder via recursive CMakeLists.txt
 add_subdirectory(lib)
-set(LIBS Gzstream Sls4mpe BoostProgOpt BoostThread)
+set(LIBS Gzstream Sls4mpe Mex)
 
 # Main daoopt source files
 set(FILES
@@ -68,11 +88,14 @@ set(FILES
   ./source/BranchAndBoundRotate.cpp
   ./source/BranchAndBoundSampler.cpp
   ./source/CacheTable.cpp
+  ./source/FGLP.cpp
+  ./source/FGLPHeuristic.cpp
   ./source/Function.cpp
   ./source/Graph.cpp
   ./source/LearningEngine.cpp
   ./source/LimitedDiscrepancy.cpp
   ./source/Main.cpp
+  ./source/MBEHeuristicInstance.cpp
   ./source/MiniBucket.cpp
   ./source/MiniBucketElim.cpp
   ./source/ParallelManager.cpp
@@ -93,4 +116,5 @@ set(FILES
 
 # Main executable and library dependencies
 add_executable(daoopt daoopt.cpp ${FILES})
-target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+

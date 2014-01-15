@@ -11,6 +11,9 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     m_globalConstFactor(NULL),
     m_maxMarginals(nVars, vector<double*>()),
     m_UB(ELEM_ONE),
+    m_UBNonConstant(ELEM_ONE),
+    m_label(ELEM_ONE),
+    m_ancestorCost(ELEM_ONE),
     m_verbose(true) {
 
 
@@ -60,6 +63,8 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     m_globalConstFactor(NULL),
     m_maxMarginals(nVars, vector<double*>()),
     m_UB(ELEM_ONE),
+    m_label(ELEM_ONE),
+    m_ancestorCost(ELEM_ONE),
     m_verbose(false) {
 
     condition(fns,assignment);
@@ -86,6 +91,7 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
 double FGLP::updateUB() {
     double oldUB = m_UB;
     m_UB = ELEM_ONE;
+    m_UBNonConstant = ELEM_ONE;
     vector<Function*>::const_iterator itF = m_factors.begin();
     for (; itF != m_factors.end(); ++itF) {
        // Find the maximum value of the factor
@@ -94,16 +100,17 @@ double FGLP::updateUB() {
            z = max(z,(*itF)->getTable()[i]);
        }
        m_UB OP_TIMESEQ z;
+       if ((*itF)->getArity() > 0) m_UBNonConstant OP_TIMESEQ z;
     }
     return m_UB OP_DIVIDE oldUB;
 }
 
-void FGLP::getUB(int var, vector<double> &out) {
+void FGLP::getVarUB(int var, vector<double> &out) {
     vector<Function*>::const_iterator itF = m_factors.begin();
     set<int>::const_iterator itS;
     int i;
 
-    cout << endl;
+//    cout << endl;
     for (; itF != m_factors.end(); ++itF) {
         if ((*itF)->getArity() == 0) continue;
         // If var is not in the factor, take the maximum value
@@ -119,18 +126,20 @@ void FGLP::getUB(int var, vector<double> &out) {
             continue;
         }
 
-        // Skip if unary (would be pushed to the global constant in actual conditioning)
-        if ((*itF)->getArity() == 1) {
-            cout << "[ ";
+        // Skip if unary factor with the current variable scope (would be pushed to the global constant in actual conditioning)
+        if ((*itF)->getArity() == 1 && (*itF)->hasInScope(var)) {
+            /*
+            cout << " unary [ ";
             for (size_t k=0; k<(*itF)->getTableSize(); ++k) {
                 cout << (*itF)->getTable()[k] << " ";
             }
             cout << "]" << endl;
+            */
 
             continue;
         }
 
-        cout << **itF << endl;
+//        cout << **itF << endl;
         
 
         // Generate a tuple to iterate over the factor
@@ -170,7 +179,7 @@ void FGLP::getUB(int var, vector<double> &out) {
     }
 
     if(m_globalConstFactor) {
-        cout << "GConst: " << m_globalConstFactor->getTable()[0] << endl;
+//        cout << "GConst: " << m_globalConstFactor->getTable()[0] << endl;
     }
 }
 
@@ -179,8 +188,20 @@ void FGLP::run(int maxIter, double maxTime) {
     time(&timeStart);
 
     double diff = updateUB();
-    if (m_verbose)
+    if (m_verbose) {
         cout << "Initial UB: " << m_UB << endl;
+        /*
+        for(Function *f : m_factors) {
+            cout << *f << endl;
+            cout << f->getTableSize() << endl;
+            cout << " ";
+            for (size_t i=0; i<f->getTableSize(); ++i) {
+                cout << f->getTable()[i] << " ";
+            }
+            cout << endl;
+        }
+        */
+    }
 
     int iter;
     for (iter = 0; iter < maxIter || maxIter == -1; ++iter) {
@@ -195,7 +216,7 @@ void FGLP::run(int maxIter, double maxTime) {
             // update variable v this iteration
             int v = *rit;
 
-            if (v >= m_factorsByVariable.size()) continue;
+            if (v >= int(m_factorsByVariable.size())) continue;
 
             // Skip this variable, no factors have this variable
             if (m_factorsByVariable[v].size() == 0) continue;
@@ -248,12 +269,30 @@ void FGLP::run(int maxIter, double maxTime) {
             delete avgMaxMarginalTable;
         }
         diff = updateUB();
-        if (m_verbose)
+        if (m_verbose) {
             cout << "UB: " << m_UB << " (d=" << diff << ")" << endl;
+            /*
+            cout << "constant: " << m_globalConstFactor->getTable()[0] << endl;
+            cout << "non-const UB: " << m_UBNonConstant << endl;
+            cout << "label: " << m_label << endl;
+            */
+        }
     }
     time(&timeEnd);
-    if (m_verbose)
+    if (m_verbose) {
         cout << "FGLP (" << iter << " iter, " << difftime(timeEnd,timeStart) << " sec): " << m_UB << endl;
+        /*
+        for(Function *f : m_factors) {
+            cout << *f << endl;
+            cout << f->getTableSize() << endl;
+            cout << " ";
+            for (size_t i=0; i<f->getTableSize(); ++i) {
+                cout << f->getTable()[i] << " ";
+            }
+            cout << endl;
+        }
+        */
+    }
 
 }
     
@@ -324,7 +363,11 @@ void FGLP::reparameterize(Function *f, double *maxMarginal, double *averageMaxMa
 
     size_t idx = 0;
     do {
-        f->getTable()[idx] OP_TIMESEQ (averageMaxMarginal[*mmVal] OP_DIVIDE maxMarginal[*mmVal]);
+        // if the max-marginal value passed is -inf (0), then this is a hard constraint
+        if (isinf(averageMaxMarginal[*mmVal]))
+            f->getTable()[idx] = ELEM_ZERO;
+        else
+            f->getTable()[idx] OP_TIMESEQ (averageMaxMarginal[*mmVal] OP_DIVIDE maxMarginal[*mmVal]);
     } while(increaseTuple(idx,tuple,domains));
     delete [] tuple;
 
@@ -333,27 +376,40 @@ void FGLP::reparameterize(Function *f, double *maxMarginal, double *averageMaxMa
 void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignment) {
 
     double globalConstant = ELEM_ONE;
+    m_label = ELEM_ONE;
     int arityZeroFnIdx = -1;
+//    cout << assignment << endl;
     for (size_t i = 0; i < fns.size(); ++i) {
+        if (fns[i]->getArity() == 0) {
+            globalConstant OP_TIMESEQ fns[i]->getTable()[0];
+            arityZeroFnIdx = i;
+            continue;
+        }
 
+        /*
         // Check if factor exists in this subproblem
         bool factorExists = false;
         vector<int>::const_iterator it = m_ordering.begin();
         for (; it!=m_ordering.end(); ++it) {
             if (fns[i]->hasInScope(*it)) factorExists = true;
         }
-        if (fns[i]->getArity() == 0) {
-            globalConstant OP_TIMESEQ fns[i]->getTable()[0];
-            arityZeroFnIdx = i;
-        }
         
         if (!factorExists) {
             continue;
         }
+        */
 
+//        cout << *fns[i] << endl;
+        /*
+        for (int j=0; j<fns[i]->getTableSize(); ++j) {
+            cout << " " << fns[i]->getTable()[j] << endl;
+        }
+        cout << endl;
+        */
         Function *new_fn = fns[i]->substitute(assignment);
         if (new_fn->isConstant()) {
             globalConstant OP_TIMESEQ new_fn->getTable()[0];
+            m_label OP_TIMESEQ new_fn->getTable()[0];
             delete new_fn;
         } else {
             m_factors.push_back(new_fn);

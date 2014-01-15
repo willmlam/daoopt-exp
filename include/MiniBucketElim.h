@@ -42,7 +42,9 @@
 //class MiniBucketFunctions;
 class Scope;
 
-enum DomRel { DOMINATES = 10, NEG_DOMINATES = -10, EQUAL = 1, INDETERMINATE = 0 };
+enum class HeurRelation {EQUAL, BETTER, WORSE, _UNKNOWN};
+
+ostream& operator <<(ostream &os, const HeurRelation &val);
 
 /*
 
@@ -106,14 +108,6 @@ protected:
   vector<vector<int> > m_mbCountSubtree; // cumulative on entire subtree
   vector<vector<int> > m_dupeCount; // number of mini buckets for each bucket
 
-  // for each entry in this matrix M[i][j] =
-  // 1 if i dominates j
-  // -1 if j dominates i
-  // 0 if i and j are equal
-  // -10 if i and j are not comparable
-  // condition: M[i][j] = -M[j][i] unless they are not comparable
-  vector<vector<DomRel> > m_heuristicDominates;
-
   vector<int> m_mbCountAccurate;
 
   vector<int> m_subproblemWidth; // widths for each subproblem
@@ -142,11 +136,21 @@ protected:
   // Stores all number of times a variable is visited
   vector<unsigned int> m_countVarVisited;
 
-  // Stores the current form of the problem
-  Problem *m_problemCurrent;
-
   // Statistics: counts if the heuristic at this variable was better
   vector<int> m_heurBetter;
+  
+  // Estimation of the heuristic at this variable is expected to be
+  // at [nodevar] : EQUAL, BETTER, WORST, _UNKNOWN
+  vector<vector<HeurRelation>> m_heurBetterPre;
+
+  // Stores the partitionings used for minibucket
+  // [nodevar][var][partitionIdx] function set
+  vector<vector<vector<set<int>>>> m_varPartitioning;
+
+  vector<map<int,set<int>>> m_varPartitioningScopes;
+
+  // Mechanism to make minibucket function ids unique
+  int m_idMultiplier;
 
 protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
@@ -176,7 +180,7 @@ protected:
   // Calculate the number of variables not in the given context
   int getConditionedArity(const set<int> &scope, const set<int> &context) {
       int s = 0;
-      for (typeof(scope.begin()) it = scope.begin(); it != scope.end(); ++it) {
+      for (auto it = scope.begin(); it != scope.end(); ++it) {
           if (context.count(*it)==0) ++s;
       }
       return s;
@@ -193,7 +197,6 @@ protected:
           (m_options->gNodes > 0 && m_currentGIter == 0) &&
           (numberOfDuplicateVariables(varAncestor,var) -
            numberOfDuplicateVariables(var,var)) >= m_options->dupeRed &&
-          (m_options->strictDupeRed <= 0 || m_heuristicDominates[var][varAncestor] == DOMINATES) &&
           (m_options->randDyn >= 1.0 || rand::next() < int(m_options->randDyn * rand::max()));
           */
       /*
@@ -248,79 +251,6 @@ protected:
       }
   }
 
-  void buildDominanceMatrix() {
-      vector<int> ordering; 
-      findBfsOrder(ordering);
-      vector<int>::iterator it = ordering.begin();
-      for (; it != ordering.end(); ++it) {
-          cout << "var: " << *it << ", depth: " << m_pseudotree->getNode(*it)->getDepth() << endl;
-          PseudotreeNode *n = m_pseudotree->getNode(*it);
-          m_heuristicDominates[*it][*it] = EQUAL;
-          vector<bool> processed(ordering.size(),false);
-          while ( (n = n->getParent()) ) {
-              int v2 = n->getVar();
-              // skip since variable was already processed via transitivity
-              if (processed[v2]) continue;
-                  
-              // check dupe count on current variable only
-              vector<int>::iterator vit = m_elimOrder[*it].begin();
-              bool allEqualOrLess = true;
-              int countStrictlyLess = 0;
-              int countGreater = 0;
-              for (; vit != m_elimOrder[*it].end(); ++vit) {
-                  if (*vit == m_pseudotree->getRoot()->getVar()) continue;
-                  else if (m_dupeCount[*it][*vit] > m_dupeCount[v2][*vit]) {
-                      countGreater++;
-                      /*
-                      cout << "dupe this: " << m_dupeCount[*it][*vit] 
-                          << ", parent: " << m_dupeCount[v2][*vit] << endl;
-                          */
-                      //cout << " increase on " << *vit << endl;
-                      allEqualOrLess = false;
-                      break;
-                  }
-                  if (m_dupeCount[*it][*vit] < m_dupeCount[v2][*vit]) countStrictlyLess++;
-              }
-              /*
-              if (n == m_pseudotree->getRoot()) {
-                  cout << "buckets increased: " << countGreater << endl;
-                  cout << "buckets decreased: " << countStrictlyLess << endl;
-              }
-              */
-              allEqualOrLess = countGreater == 0;
-              if (allEqualOrLess) {
-                  PseudotreeNode *n2 = m_pseudotree->getNode(v2);
-                  if (countStrictlyLess >= m_options->strictDupeRed) {
-                      m_heuristicDominates[*it][v2] = DOMINATES;
-                      m_heuristicDominates[v2][*it] = NEG_DOMINATES;
-                      while ( (n2 = n2->getParent()) ) {
-                          int v3 = n2->getVar();
-                          // if the relation is defined, it is transitively dominating
-                          if (m_heuristicDominates[v2][v3] != INDETERMINATE) {
-                              m_heuristicDominates[*it][v3] = DOMINATES;
-                              m_heuristicDominates[v3][*it] = NEG_DOMINATES;
-                              processed[v3] = true;
-                          }
-                      }
-                  }
-                  else {
-                      m_heuristicDominates[*it][v2] = m_heuristicDominates[v2][*it] = EQUAL;
-                      while ( (n2 = n2->getParent()) ) {
-                          int v3 = n2->getVar();
-                          // if the relation is defined, it is transitively the same relation
-                          if (m_heuristicDominates[v2][v3] != INDETERMINATE) {
-                              m_heuristicDominates[*it][v3] = m_heuristicDominates[v2][v3];
-                              m_heuristicDominates[v3][*it] = m_heuristicDominates[v3][v2];
-                              processed[v3] = true;
-                          }
-                      }
-                  }
-              }
-          }
-          processed[*it] = true;
-      }
-  }
-
   // reset the data structures
   void reset();
 
@@ -342,7 +272,7 @@ public:
   size_t buildSubproblem(int var, const vector<val_t> &vAssn, MBEHeuristicInstance *ancHeur, MBEHeuristicInstance *curHeur, bool computeTables = true);
 
   // simulates building the subproblem heuristic, returning the number of buckets
-  void simulateBuildSubproblem(int var, const vector<int> &elimOrder);
+  void simulateBuildSubproblem(int var, const vector<int> &elimOrder, int ibound);
 
   // returns the global upper bound
   double getGlobalUB() const { return m_globalUB; }
@@ -352,6 +282,8 @@ public:
   // computes heuristic values for all instantiations of var, given context assignment
   void getHeurAll(int var, const vector<val_t>& assignment, SearchNode *n, vector<double>& out);
 
+  double getLabel(int var, const vector<val_t>& assignment, SearchNode *n);
+  void getLabelAll(int var, const vector<val_t>& assignment, SearchNode *n, vector<double> &out);
 
   // reset the i-bound
   void setIbound(int ibound) { m_ibound = ibound; }
@@ -368,6 +300,37 @@ public:
   bool readFromFile(string fn);
 
   bool isAccurate();
+
+  void printExtraStats() const {
+      cout << "Heuristic stats" << endl;
+      cout << "---------------" << endl;
+      cout << "# Heuristics:    " << m_numHeuristics << endl;
+      cout << "Max active:      " << MBEHeuristicInstance::getMaxNumActive() << endl;
+      cout << "Total time:      " << m_heurCompTime << " seconds" << endl;
+      cout << "Root time:       " << m_heurRootCompTime << " seconds" << endl;
+      if (m_options->dynamic && m_numHeuristics > 1) {
+          double dynTime = m_heurCompTime - m_heurRootCompTime;
+          double avgTime = dynTime / (m_numHeuristics - 1);
+          cout << "Dynamic time:    " << dynTime << " seconds" << endl;
+          cout << "Avg. time (dyn): " << avgTime << " seconds" << endl;
+      }
+      cout << "Max memory:      " 
+          << (MBEHeuristicInstance::getMaxMemory() / (1024*1024.0)) * sizeof(double) 
+          << " MB" << endl;
+      cout << "---------------" << endl;
+      /*
+      const auto &better = m_heuristic->getHeurBetter();
+      const auto &varCount = m_heuristic->getVarTimesVisited();
+      cout << "var,depth,width,#better,total,ratio" << endl;
+      for (unsigned int i = 0; i < better.size(); ++i) {
+          Pseudotree *temp = new Pseudotree(*m_pseudotree);
+          temp->restrictSubproblem(i);
+          cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << temp->getWidthCond() << "," << better[i] << "," << varCount[i] << "," << double(better[i])/varCount[i] << endl;
+          delete temp;
+      }
+      */
+
+  }
 
   int getNumHeuristics() const {
       return m_numHeuristics;
@@ -391,6 +354,10 @@ public:
 
   const vector<int> &getHeurBetter() const {
       return m_heurBetter;
+  }
+
+  const vector<unsigned int> &getVarTimesVisited() const {
+      return m_countVarVisited;
   }
 
   // Preprocess problem using FGLP/JGLP
@@ -427,6 +394,11 @@ public:
     }
     ~Scope() {
         m_scope.clear();
+    }
+
+    friend ostream& operator<<(ostream &os, const Scope &s) {
+        os << "f" << s.m_id << ":" << s.m_scope;
+        return os;
     }
 };
 
@@ -512,15 +484,21 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
     Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE), 
     m_mbCountSubtree(p->getN(),vector<int>(p->getN(), 0)),
     m_dupeCount(p->getN(),vector<int>(p->getN(), 0)),
-    m_heuristicDominates(p->getN(),vector<DomRel>(p->getN(),INDETERMINATE)),
     m_mbCountAccurate(p->getN()),
     m_subproblemWidth(p->getN(),-1),
     m_currentGIter(0), 
     m_numHeuristics(0),
     m_countVarVisited(p->getN()),
-    m_problemCurrent(p),
-    m_heurBetter(p->getN(), 0)
+    m_heurBetter(p->getN(), 0),
+    m_heurBetterPre(p->getN(), vector<HeurRelation>(p->getN(),HeurRelation::EQUAL))
     { 
+    m_varPartitioning.resize(p->getN());
+    for (auto &nodeVarVp : m_varPartitioning) {
+        nodeVarVp.resize(p->getN());
+    }
+    m_varPartitioningScopes.resize(p->getN());
+    m_idMultiplier = 1;
+    while (m_idMultiplier < p->getN()) m_idMultiplier *= 10;
 
         m_rootHeurInstance = new MBEHeuristicInstance(p->getN(), pt->getRoot()->getVar(), NULL);
         m_fglpRoot = NULL;
@@ -548,10 +526,13 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
         // If dynamic, precompute number of minibuckets used in each subproblem 
         // rooted by each node
         if (m_options->dynamic) {
-            for (int i = 0 ; i < p->getN(); ++i) {
+            int i;
+            for (i = 0 ; i < p->getN() - 1; ++i) {
                 m_mbCountAccurate[i] = m_elimOrder[i].size() - (i==p->getN()-1 ? 1 : 2);
-                simulateBuildSubproblem(i, m_elimOrder[i]);
+                simulateBuildSubproblem(i, m_elimOrder[i], m_options->subibound);
             }
+            m_mbCountAccurate[i] = m_elimOrder[i].size() - (i==p->getN()-1 ? 1 : 2);
+            simulateBuildSubproblem(i, m_elimOrder[i], m_ibound);
             /*
             for (int i = 0; i < p->getN(); ++i) {
                 cout << i << ", " << m_pseudotree->getNode(i)->getDepth() << ", " << m_subproblemWidth[i] << endl;
@@ -561,21 +542,139 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                 m_subproblemWidth[i] = m_pseudotree->computeSubproblemWidth(i);
             }
 
-            if (m_options->strictDupeRed > 0) {
-                buildDominanceMatrix();
-                /*
-                for (int i = 0; i < p->getN(); ++i) {
-                    cout << pt->getNode(i)->getVar() << " " << pt->getNode(i)->getDepth() << " " << m_heuristicDominates[pt->getRoot()->getVar()][i] << endl;
-                }
-                */
-            }
             /*
             for (int i = 0; i < p->getN(); ++i) {
                 cout << pt->getNode(i)->getVar() << " " << pt->getNode(i)->getDepth() << " " << m_mbCountSubtree[pt->getRoot()->getVar()][i] << " " << m_mbCountSubtree[i][i] << endl;
             }
             */
 
+            // DEBUG show partitioning for root
+            const auto &rootVarPartition = m_varPartitioning.back();
+            for (int i = 0; i < int(rootVarPartition.size()); ++i) {
+                cout << i << " : | ";
+                for (const auto &mbi : rootVarPartition[i]) {
+                    cout << mbi << " | ";
+                }
+                cout << endl;
+            }
 
+            // for each nodevar
+            for (int i=0; i<p->getN();++i) {
+                auto &curList = m_heurBetterPre[i];
+                // process each variable
+                for (int j=0; j<p->getN();++j) {
+                    if (curList[j] == HeurRelation::_UNKNOWN) continue; // skip update
+                    HeurRelation rel = HeurRelation::_UNKNOWN;
+                    const auto &curVarPartition = m_varPartitioning[i][j];
+
+                    // check if identical (0)
+                    if (curVarPartition.size() == rootVarPartition[j].size()) {
+                        // check if the function contents are identical
+                        bool allIdentical = true;
+                        for (unsigned int k=0; 
+                                allIdentical && k<curVarPartition.size(); ++k) {
+                            if (curVarPartition[k] != rootVarPartition[j][k])  
+                                allIdentical = false;
+                        }
+                        if (allIdentical) rel = HeurRelation::EQUAL;
+                    }
+                    // check if dynamic heuristic is better (1)
+                    else if (curVarPartition.size() < rootVarPartition[j].size()) {
+                        bool allHaveSuperset = true;
+                        for (const auto &er : rootVarPartition[j]) {
+                            bool exists = false;
+                            for (const auto &ec : curVarPartition) {
+                                if ( (exists = isSubset(er,ec)) ) break;
+                            }
+                            allHaveSuperset = allHaveSuperset && exists;
+                            if (!allHaveSuperset) break;
+                        }
+                        if (allHaveSuperset) rel = HeurRelation::BETTER;
+                    }
+                    // check if dynamic heuristic is worse (-1)
+                    else if (curVarPartition.size() > rootVarPartition[j].size()) {
+                        bool allHaveSuperset = true;
+                        for (const auto &ec : curVarPartition) {
+                            bool exists = false;
+                            for (const auto &er : rootVarPartition[j]) {
+                                if ( (exists = isSubset(ec,er)) ) break;
+                            }
+                            allHaveSuperset = allHaveSuperset && exists;
+                            if (!allHaveSuperset) break;
+                        }
+                        if (allHaveSuperset) rel = HeurRelation::WORSE;
+                    }
+                    // otherwise unknown, leave flag as default
+                    
+                    // record result and also propagate result to parents
+                    PseudotreeNode *curNode = pt->getNode(j);
+                    do {
+                        int v = curNode->getVar();
+                        if (rel==HeurRelation::_UNKNOWN) 
+                            curList[v] = HeurRelation::_UNKNOWN;
+                        else {
+                            switch(curList[v]) {
+                                case HeurRelation::EQUAL:
+                                    curList[v] = rel;
+                                    break;
+                                case HeurRelation::BETTER:
+                                    curList[v] = 
+                                        (rel==HeurRelation::WORSE) ? 
+                                        HeurRelation::_UNKNOWN : 
+                                        HeurRelation::BETTER;
+                                    break;
+                                case HeurRelation::WORSE:
+                                    curList[v] = 
+                                        (rel==HeurRelation::BETTER) ? 
+                                        HeurRelation::_UNKNOWN : 
+                                        HeurRelation::WORSE;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    } while ( (curNode = curNode->getParent()) );
+                }
+            }
+
+            for (int i=p->getN() - 1; i>=0;--i) {
+                // process each variable in the reverse elimination ordering
+                int nv = m_elimOrder.back()[i];
+                cout << "nodevar: " << nv << endl;
+                cout << "width: " << m_subproblemWidth[nv] << endl;
+                cout << "depth: " << pt->getNode(nv)->getDepth() << endl;
+                for (auto itV = m_elimOrder[nv].rbegin(); 
+                        itV != m_elimOrder[nv].rend(); ++itV) {
+                    cout << *itV << " " << m_heurBetterPre[nv][*itV] << endl;
+                    cout << "depth: " << pt->getNode(*itV)->getDepth() << endl;
+
+                    cout << "    |";
+                    for(const auto &mbi : m_varPartitioning[nv][*itV]) {
+                        cout << "{ ";
+                        for (const auto &f : mbi) {
+                            cout << "f" << f << ":" << m_varPartitioningScopes[nv][f] << " "; 
+                        }
+                        cout << "}";
+                        cout << "|";
+                    }
+                    cout << endl;
+
+                    cout << "    |";
+                    for(const auto &mbi : m_varPartitioning.back()[*itV]) {
+                        cout << "{ ";
+                        for (const auto &f : mbi) {
+                            cout << "f" << f << ":" << m_varPartitioningScopes.back()[f] << " "; 
+                        }
+                        cout << "}";
+                        cout << "|";
+                    }
+                    cout << endl;
+
+                }
+                cout << endl << "======================" << endl;
+            }
+            
+            
         }
 
 

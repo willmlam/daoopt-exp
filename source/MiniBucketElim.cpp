@@ -66,24 +66,38 @@ ostream& operator <<(ostream& os, const set<Function*>& l) {
 
 /* computes the augmented part of the heuristic estimate */
 // TO DO: fix for new data structure
+// ONLY WORKS FOR STATIC HEURISTIC RIGHT NOW
 double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment, SearchNode *n) {
 
   assert( var >= 0 && var < m_problem->getN());
+  m_countVarVisited[var]++;
+
+  // Handle initial root search node
+  if (n->getHeurInstance() == NULL) {
+      n->setHeurInstance(m_rootHeurInstance);
+      //m_rootHeurInstance->setOwner(sNode);
+  }
 
   double h = ELEM_ONE;
 
+  MBEHeuristicInstance *curHeur = n->getHeurInstance();
   /*
+  if (curHeur->getParent()) 
+      curHeur = curHeur->getParent();
+      */
+  const vector<vector<Function*> >&augmented = curHeur->getAugmented();
+  const vector<vector<Function*> >&intermediate = curHeur->getIntermediate();
+
   // go over augmented and intermediate lists and combine all values
-  set<Function*>::const_iterator itF = m_augmented[var].begin();
-  for (; itF!=m_augmented[var].end(); ++itF) {
+  vector<Function*>::const_iterator itF = augmented[var].begin();
+  for (; itF!=augmented[var].end(); ++itF) {
     h OP_TIMESEQ (*itF)->getValue(assignment);
   }
 
-  itF = m_intermediate[var].begin();
-  for (; itF!=m_intermediate[var].end(); ++itF) {
+  itF = intermediate[var].begin();
+  for (; itF!=intermediate[var].end(); ++itF) {
     h OP_TIMESEQ (*itF)->getValue(assignment);
   }
-  */
 
   return h;
 }
@@ -321,10 +335,14 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
       vector<double> fglpOut;
       fglpOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
       getNodeFGLPHeur(n,assignment,fglpOut);
+      /*
       cout << "var: " << var << endl;
       cout << m_elimOrder[var] << endl;
       cout << "MBE:\t" << out << endl;
       cout << "FGLP:\t" << fglpOut << endl << endl;
+      */
+      for (size_t i=0; i<out.size(); ++i)
+          out[i] = min(out[i],fglpOut[i]);
   }
 
 
@@ -353,6 +371,26 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   }
   */
 
+}
+
+// In this case, just the functions indexed by the pseudotree
+double MiniBucketElim::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {
+    double d = ELEM_ONE;
+    for (Function *f : m_pseudotree->getFunctions(var)) {
+        d OP_TIMESEQ f->getValue(assignment);
+    }
+    return d;
+}
+
+void MiniBucketElim::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node,
+        vector<double> &out) {
+    vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
+    for (Function *f : m_pseudotree->getFunctions(var)) {
+        f->getValues(assignment, var, costTmp);
+        for (int i=0; i<m_problem->getDomainSize(var); ++i) {
+            out[i] OP_TIMESEQ costTmp[i];
+        }
+    }
 }
 
 
@@ -1016,12 +1054,12 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   return memSize;
 }
 
-void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrder) {
+void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrder, int ibound) {
 
   //if (m_pseudotree->getRoot()->getVar() == var) return 0;
 
 #ifdef DEBUGSIM
-  cout << "$ Building MBE(" << m_ibound << ")" << endl;
+  cout << "$ Building MBE(" << ibound << ")" << endl;
   cout << "simulating at " << var << endl;
 #endif
 
@@ -1041,7 +1079,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
   // sets of scopes for each variable
   vector<vector<Scope*> > augmentedSim(m_problem->getN());
   set<int> subproblemVars(elimOrder.begin(),elimOrder.end());
-  subproblemVars.erase(var);
+//  subproblemVars.erase(var);
 
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
   for (vector<int>::const_reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
@@ -1051,7 +1089,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
         cout << "will skip var "  << var << endl;
         cout << "assign " << assignment << endl;
         */
-        continue;
+//        continue;
     }
 #ifdef DEBUGSIM
     cout << "$ Bucket for variable " << *itV << endl;
@@ -1095,7 +1133,12 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
     vector<Scope*> minibuckets;
 //    vector<Function*>::iterator itF; bool placed;
 
+    // Alias varPartitioning for [var][*itV]
+    vector<set<int>> &curVarPartition = m_varPartitioning[var][*itV];
+    map<int,set<int>> &curVarPartitionScopes = m_varPartitioningScopes[var];
+
     set<int> intersectionScope;
+    int mbIdx = 0;
     for (vector<Scope*>::iterator itF = funs.begin(); itF!=funs.end(); ++itF) {
       intersectionScope.insert((*itF)->getScope().begin(), (*itF)->getScope().end());
       bool placed = false;
@@ -1122,13 +1165,18 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
         while (itb != b.end()) {
             ++s; ++itb;
         }
-        if (s == (int) a.size() || s <= m_ibound+1) {// checks if function fits into bucket
+        if (s == (int) a.size() || s <= ibound+1) {// checks if function fits into bucket
             a.insert(b.begin(),b.end()); 
             placed = true;
+            curVarPartition.back().insert((*itF)->getId());
+            curVarPartitionScopes[(*itF)->getId()] = (*itF)->getScope();
         }
       }
       if (!placed) { // no fit, need to create new bucket
-        minibuckets.push_back(new Scope(-(*itV), (*itF)->getScope()));
+        minibuckets.push_back(new Scope(-((*itV)*m_idMultiplier+(mbIdx++)), (*itF)->getScope()));
+        curVarPartition.push_back(set<int>());
+        curVarPartition.back().insert((*itF)->getId());
+        curVarPartitionScopes[(*itF)->getId()] = (*itF)->getScope();
       }
     }
     for (unsigned i = 0; i < funs.size(); ++i) {
@@ -1150,8 +1198,7 @@ void MiniBucketElim::simulateBuildSubproblem(int var, const vector<int> &elimOrd
       // go up in tree to find target bucket
 
       PseudotreeNode* n = m_pseudotree->getNode(*itV)->getParent();
-      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() && 
-              n->getVar() != var) {
+      while (newscope.find(n->getVar()) == newscope.end() && n != m_pseudotree->getRoot() && n->getVar() != var) {
         n = n->getParent();
       }
       // matching bucket found OR root of pseudo tree reached
@@ -1238,53 +1285,53 @@ bool MiniBucketElim::doJGLP() {
   return changedFunctions;
 }
 
+// This one needs to start from the *original* parameterization
 bool MiniBucketElim::getNodeFGLPHeur(SearchNode *n, const vector<val_t> &assignment, vector<double> &out) {
     SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
         //    Problem *pCond = nn->getProblemCond();
 
-//        const vector<int> &relVars = 
-//            m_pseudotree->getNode(nn->getVar())->getFullContextVec();
+        const vector<int> &relVars = 
+            m_pseudotree->getNode(nn->getVar())->getFullContextVec();
         map<int,val_t> cond;
 
 
         // Need to get the correct set of conditioning variables
 
-        /*
-           for (unsigned i = 0; i < relVars.size(); ++i) {
+        for (unsigned i = 0; i < relVars.size(); ++i) {
            cond[relVars[i]] = assignment[relVars[i]];
         //        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
         }
-        for (unsigned i = 0; i < assignment.size(); ++i) {
-        if (assignment[i] != -1)
-        cond[i] = assignment[i];
-        //        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
-        }
-        */
 
         // May need to change this later, depending on the FGLP parent instances
+        /*
         if (nn->getParent()) {
             int parentVar = nn->getParent()->getParent()->getVar();
             assert(assignment[parentVar] != -1);
             cond[parentVar] = assignment[parentVar];
         }
+        */
 
     FGLP *fglp = NULL;
+    /*
     if (!nn->getParent()) {
         fglp = m_fglpRoot;
         if (m_fglpRoot) {
-            fglp->getUB(nn->getVar(),out);
+            fglp->getVarUB(nn->getVar(),out);
             return false;
         }
     }
-    FGLP *fglpParent = nn->getParent()->getParent()->getFglpProblem();
+    */
+    // Not getting functions from parent FGLP copy because f values are different
+    //
+    for (int k=0; k<int(out.size());++k) {
+        cond[nn->getVar()] = k;
+        fglp = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), m_problem->getFunctions(),m_elimOrder[nn->getVar()],cond);
+        fglp->run(m_options->ndfglp < 0 ? 5 : m_options->ndfglp, m_options->ndfglps);
+        out[k] = fglp->getUBNonConstant();
+        delete fglp;
+    }
 
-    fglp = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), fglpParent->getFactors(),m_elimOrder[nn->getVar()],cond);
 
-    nn->setFglpProblem(fglp);
-    fglp->setOwner(nn);
-
-    fglp->run(m_options->ndfglp < 0 ? 5 : m_options->ndfglp, m_options->ndfglps);
-    fglp->getUB(nn->getVar(),out);
 
     return true;
 
@@ -1292,8 +1339,8 @@ bool MiniBucketElim::getNodeFGLPHeur(SearchNode *n, const vector<val_t> &assignm
 
 // Copy DaoOpt Function class into mex::Factor class structures
 mex::vector<mex::Factor> MiniBucketElim::copyFactors( void ) {
-  mex::vector<mex::Factor> fs(m_problemCurrent->getC());
-  for (int i=0;i<m_problemCurrent->getC(); ++i) fs[i] = m_problemCurrent->getFunctions()[i]->asFactor().exp();
+  mex::vector<mex::Factor> fs(m_problem->getC());
+  for (int i=0;i<m_problem->getC(); ++i) fs[i] = m_problem->getFunctions()[i]->asFactor().exp();
   return fs;
 }
 
@@ -1640,6 +1687,26 @@ bool MiniBucketElim::readFromFile(string fn) {
   in.close();
   cout << "Read mini bucket with i-bound " << ibound << " from file " << fn << endl;
   return true;
+}
+
+ostream& operator <<(ostream &os, const HeurRelation &val) {
+    switch(val) {
+        case HeurRelation::EQUAL:
+            os << "EQUAL";
+            break;
+        case HeurRelation::BETTER:
+            os << "BETTER";
+            break;
+        case HeurRelation::WORSE:
+            os << "WORSE";
+            break;
+        case HeurRelation::_UNKNOWN:
+            os << "UNKNOWN";
+            break;
+        default:
+            break;
+    }
+    return os;
 }
 
 

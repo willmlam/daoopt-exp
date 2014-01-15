@@ -101,8 +101,7 @@ bool Search::doCaching(SearchNode* node) {
       m_space->cache->reset(*it);
 
   } else { // OR node, try actual caching
-
-    if (!ptnode->getParent() || !ptnode->getParent()->getParent())
+if (!ptnode->getParent() || !ptnode->getParent()->getParent())
       return false;  // pseudo tree root or one of its direct children
 
     if (ptnode->getFullContextVec().size() <= ptnode->getParent()->getFullContextVec().size()) {
@@ -452,12 +451,9 @@ double Search::assignCostsOR(SearchNode* n) {
   double* dv = new double[vDomain*2];
   for (int i=0; i<vDomain; ++i) dv[2*i+1] = ELEM_ONE;
   double h = ELEM_ZERO; // the new OR nodes h value
-  const vector<Function*>& funs = m_pseudotree->getFunctions(v);
 
-  /*
-  cout << "assignCostsOR: ";
-  cout << "var,depth: " << v << ", " << n->getDepth() << endl;
-  */
+  // get from heuristic class instead?
+//  const vector<Function*>& funs = m_pseudotree->getFunctions(v);
 
   if (m_options->useRelGapDecrease && !nn->isHeuristicLocked()) {
 
@@ -498,9 +494,9 @@ double Search::assignCostsOR(SearchNode* n) {
               curOR->setHeurInstance(bestHeur);
               curOR->setHeuristicLocked(true);
               NodeP *children = curOR->getChildren();
-              for (int i=0; i<curOR->getChildCountAct(); ++i) {
+              for (unsigned int i=0; i<curOR->getChildCountAct(); ++i) {
                 NodeP *andChildren = children[i]->getChildren();
-                for (int j=0; j<children[i]->getChildCountAct(); ++j) {
+                for (unsigned int j=0; j<children[i]->getChildCountAct(); ++j) {
                     //cout << "Child(" << i << "," << j << "): " << andChildren[j] << endl;
                     SearchNodeOR *temp = static_cast<SearchNodeOR*>(andChildren[j]);
                     if (!temp->isHeuristicLocked()) {
@@ -520,14 +516,6 @@ double Search::assignCostsOR(SearchNode* n) {
 
 #ifdef GET_VALUE_BULK
 
-  // Need to get correct costs for function after shifting
-  m_costTmp.clear();
-  m_costTmp.resize(vDomain, ELEM_ONE);
-  for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it) {
-    (*it)->getValues(m_assignment, v, m_costTmp);
-    for (int i=0; i<vDomain; ++i)
-      dv[2*i+1] OP_TIMESEQ m_costTmp[i];
-  }
       /*
   if (nn->getHeurInstance()) {
       cout << "heuristic before possible recomputation used: ";
@@ -535,13 +523,27 @@ double Search::assignCostsOR(SearchNode* n) {
   }
       */
 
+  m_costTmp.clear();
+  m_costTmp.resize(vDomain, ELEM_ONE);
   m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
+  for (int i=0; i<vDomain; ++i) {
+    dv[2*i] = m_costTmp[i];
+  }
+
+  // Need to get correct costs for function after shifting
+  // need to request from heuristic class instead
+  m_costTmp.clear();
+  m_costTmp.resize(vDomain, ELEM_ONE);
+  m_heuristic->getLabelAll(v, m_assignment, n, m_costTmp);
+  for (int i=0; i<vDomain; ++i) {
+    dv[2*i+1] = m_costTmp[i];
+  }
   /*
   cout << "heuristic actually used: ";
   cout << "var,depth: " << nn->getHeurInstance()->getVar() << ", " << nn->getHeurInstance()->getDepth() << endl;
   */
   for (int i=0; i<vDomain; ++i) {
-    dv[2*i] = dv[2*i+1] OP_TIMES m_costTmp[i];
+    dv[2*i] = dv[2*i+1] OP_TIMES dv[2*i];
     h = max(h, dv[2*i]);
   }
 #else
@@ -550,10 +552,17 @@ double Search::assignCostsOR(SearchNode* n) {
     m_assignment[v] = i;
     // compute heuristic value
     dv[2*i] = m_heuristic->getHeur(v,m_assignment, n);
+
+    
     // precompute label value
+    /*
     d = ELEM_ONE;
     for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it)
       d OP_TIMESEQ (*it)->getValue(m_assignment);
+      */
+
+    // get label from based on heuristic class instead
+    d = m_heuristic->getLabel(v,m_assignment,n);
 
     // store label and heuristic into cache table
     dv[2*i+1] = d; // label

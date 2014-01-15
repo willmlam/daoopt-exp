@@ -292,10 +292,10 @@ class Factor : public virtual mxObject {
 */
 
   Factor max(VarSet const& sumOut) const { VarSet t=v_ - sumOut; return maxmarginal(t); }
-  value  max()                     const { return std::accumulate(t_.begin(),t_.end(),-infty(),std::max<value>); }
+  value  max()                     const { return std::accumulate(t_.begin(),t_.end(),-infty(),[](value x,value y) {return x>y?x:y;} ); }
 
   Factor min(VarSet const& sumOut) const { VarSet t= v_ - sumOut; return minmarginal(t); }
-  value  min()                     const { return std::accumulate(t_.begin(),t_.end(),-infty(),std::min<value>); }
+  value  min()                     const { return std::accumulate(t_.begin(),t_.end(),-infty(),[](value x,value y) {return x<y?x:y;} ); }
   
 	size_t argmax() const { return std::distance(t_.begin(), std::max_element(t_.begin(),t_.end())); }
   size_t argmin() const { return std::distance(t_.begin(), std::min_element(t_.begin(),t_.end())); }

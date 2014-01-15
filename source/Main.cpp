@@ -291,8 +291,14 @@ bool Main::initDataStructs() {
   }
   */
 //  if (m_options->dynamic) {
+    if (m_options->fglpHeur) {
+      m_heuristic.reset(new FGLPHeuristic(m_problem.get(), m_pseudotree.get(),
+                  m_options.get()));
+    }
+    else {
       m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
                   m_options.get(), m_options->ibound) );
+    }
 //  }
   /*
   else {
@@ -680,6 +686,8 @@ bool Main::outputStats() const {
 
 
   cout << endl;
+  m_heuristic->printExtraStats();
+  /*
   cout << "Heuristic stats" << endl;
   cout << "---------------" << endl;
   cout << "# Heuristics:    " << m_heuristic->getNumHeuristics() << endl;
@@ -695,12 +703,13 @@ bool Main::outputStats() const {
   cout << "Max memory:      " << m_heuristic->getMaxMemory() << " MB" << endl;
   cout << "---------------" << endl;
 
-  /*
-  const vector<int> &better = m_heuristic->getHeurBetter();
-  for (int i = 0; i < better.size(); ++i) {
+  const auto &better = m_heuristic->getHeurBetter();
+  const auto &varCount = m_heuristic->getVarTimesVisited();
+  cout << "var,depth,width,#better,total,ratio" << endl;
+  for (unsigned int i = 0; i < better.size(); ++i) {
       Pseudotree *temp = new Pseudotree(*m_pseudotree);
-      int depth = temp->restrictSubproblem(i);
-      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << temp->getWidthCond() << "," << better[i] << endl;
+      temp->restrictSubproblem(i);
+      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << temp->getWidthCond() << "," << better[i] << "," << varCount[i] << "," << double(better[i])/varCount[i] << endl;
       delete temp;
   }
   */

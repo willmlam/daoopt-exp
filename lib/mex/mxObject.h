@@ -258,7 +258,7 @@ struct mexable_traits<std::pair<T,T> > {
   mxArray* MyObject::mxGet() { \
     if (!mxAvail()) { \
       mxArray* m; int retval=mexCallMATLAB(1,&m,0,NULL,STRINGIZE(MyObject)); \
-      if (retval) mexErrMsgTxt("Error creating new "STRINGIZE(MyObject)); \
+      if (retval) mexErrMsgTxt("Error creating new " STRINGIZE(MyObject)); \
       MyObject Obj; Obj.mxSet(m); Obj=*this; \
       FOR_EACH(MXGETSINGLE, __VA_ARGS__) \
       mxSwap(Obj); \
