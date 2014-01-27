@@ -506,7 +506,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
         // If dynamic, precomupute all DFS elimination orders for each node
         // Also if using node FGLP
         // Otherwise, just compute one order for the entire problem
-        if (m_options->dynamic || m_options->ndfglp > 0 || m_options->ndfglps > 0) {
+        if (m_options->dynamic) {
             m_elimOrder.resize(p->getN());
             for (int i = 0 ; i < p->getN(); ++i) {
                 findDfsOrder(m_elimOrder[i], i);

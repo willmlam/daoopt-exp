@@ -30,9 +30,11 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         vector<double> &out) {
 
     FGLP *parentFGLP;
+    double parentCost;
     // Is the root node?
     if (!node->getParent()) {
         parentFGLP = rootFGLP;
+        parentCost = ELEM_ONE;
     }
     else {
         SearchNode *parentOR = node->getParent()->getParent();
@@ -47,12 +49,22 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         */
 
         parentFGLP = parentInfo->getFGLPStore()[node->getParent()->getVal()];
+        parentCost = parentInfo->getOrigCostToNode()[node->getParent()->getVal()];
     }
 
     tempAssn.clear();
     const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
     for (int v : relVars) {
         tempAssn[v] = assignment[v];
+    }
+
+    vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
+    vector<double> costs(m_problem->getDomainSize(var), ELEM_ONE);
+    for (Function *f : m_pseudotree->getFunctions(var)) {
+        f->getValues(assignment, var, costTmp);
+        for (int i=0; i<m_problem->getDomainSize(var); ++i) {
+            costs[i] OP_TIMESEQ costTmp[i];
+        }
     }
 
 
@@ -86,10 +98,24 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
                 tempAssn);
 //        valFGLP->setVerbose(true);
         valFGLP->run(m_options->ndfglp, m_options->ndfglps);
+
+        // Add in original cost for traversing this edge and add to parent cost
+        info->addToCosts(parentCost + costs[i]);
+
         out[i] = valFGLP->getUBNonConstant();
         info->addToStore(valFGLP);
 
     }
+}
+
+void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
+    getHeurAll(var, assignment, node, out);
+    for (unsigned int i=0; i<out.size(); ++i) {
+        FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo());
+        double adjustment = info->getFGLPStore()[i]->getConstant() OP_DIVIDE info->getOrigCostToNode()[i];
+        out[i] OP_TIMESEQ adjustment;
+    }
+
 }
 
 double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {

@@ -89,6 +89,9 @@ public:
     // the non constant portion of the problem
     double getUBNonConstant() const { return m_UBNonConstant; }
 
+    // Get the constant value (nullary function value)
+    double getConstant() const { return m_globalConstFactor->getTable()[0]; }
+
     void setVerbose(bool v) { m_verbose = v; }
 
     const vector<Function*> &getFactors() const { return m_factors; }

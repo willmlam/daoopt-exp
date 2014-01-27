@@ -331,19 +331,19 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
   // before ANY reparameterization
   // It may be a good idea to write a separate FGLP heuristic class.
   
+  /*
   if (m_options->ndfglp > 0 || m_options->ndfglps > 0) {
       vector<double> fglpOut;
       fglpOut.resize(m_problem->getDomainSize(var), ELEM_ONE);
       getNodeFGLPHeur(n,assignment,fglpOut);
-      /*
       cout << "var: " << var << endl;
       cout << m_elimOrder[var] << endl;
       cout << "MBE:\t" << out << endl;
       cout << "FGLP:\t" << fglpOut << endl << endl;
-      */
       for (size_t i=0; i<out.size(); ++i)
           out[i] = min(out[i],fglpOut[i]);
   }
+  */
 
 
   /*
@@ -458,9 +458,9 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   time(&heurCompStart);
 
   const vector<int> &elimOrder = 
-      ((m_options->dynamic || m_options->ndfglp > 0 || m_options->ndfglps > 0) ? 
+       m_options->dynamic ?
        m_elimOrder[m_pseudotree->getRoot()->getVar()] :
-       m_elimOrder[0]);
+       m_elimOrder[0];
 
   //m_miniBucketFunctions.push(new MiniBucketFunctions(m_pseudotree->getRoot()->getVar()));
 
@@ -732,9 +732,6 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
   }
   const vector<int> &elimOrder = m_elimOrder[var];// will hold dfs order
 
-  if (m_options->ndfglp > 0) {
-
-  }
   /*
   cout << elimOrder << endl;
   //cout << "Assignment: " << assignment << endl;
@@ -753,7 +750,7 @@ size_t MiniBucketElim::buildSubproblem(int var, const vector<val_t> &vAssn,
 
   // force updates on everything if the ancestor heuristic uses
   // a different ibound or if performing fglp on each node
-  if (ancHeur->getIBound() != curHeur->getIBound() || m_options->ndfglp > 0) {
+  if (ancHeur->getIBound() != curHeur->getIBound()) {
       forceUpdate.resize(m_problem->getN(), true);
   }
 

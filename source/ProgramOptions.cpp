@@ -68,6 +68,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
       ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
       ("fglpHeur","use pure FGLP heuristic")
+      ("fglpMBEHeur","use FGLP/MBE hybrid heuristic")
       ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
       ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
@@ -255,6 +256,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->fglpHeur = true;
     else
         opt->fglpHeur = false;
+
+    if (vm.count("fglpMBEHeur"))
+        opt->fglpMBEHeur = true;
+    else
+        opt->fglpMBEHeur = false;
 
     if (vm.count("ndfglp"))
         opt->ndfglp = vm["ndfglp"].as<int>();

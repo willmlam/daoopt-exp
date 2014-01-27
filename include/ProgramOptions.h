@@ -50,6 +50,7 @@ public:
   double jglps;  // enables JGLP tightening in Alex Ihler's MBE library (# sec)
   int jglpi;  // specifies the i-bound used for JGLP
   bool fglpHeur; // use pure FGLP heuristic
+  bool fglpMBEHeur; // use FGLP/MBE hybrid heuristic
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
   int ibound; // bucket elim. i-bound

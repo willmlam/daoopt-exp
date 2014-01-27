@@ -90,6 +90,7 @@ set(FILES
   ./source/CacheTable.cpp
   ./source/FGLP.cpp
   ./source/FGLPHeuristic.cpp
+  ./source/FGLPMBEHybrid.cpp
   ./source/Function.cpp
   ./source/Graph.cpp
   ./source/LearningEngine.cpp

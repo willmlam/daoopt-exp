@@ -12,14 +12,23 @@
 
 // Utility class to contain all the FGLP processed problems
 // corresponding to each variable assignment
+// Also stores the cost to the node based on the original functions
 class FGLPNodeInfo : public ExtraNodeInfo {
     std::vector<FGLP*> fglpStore;
+    std::vector<double> origCostToNode;
     public:
     const std::vector<FGLP*> &getFGLPStore() const {
         return fglpStore;
     }
     void addToStore(FGLP *fglp) {
         fglpStore.push_back(fglp);
+    }
+
+    const std::vector<double> &getOrigCostToNode() const {
+        return origCostToNode;
+    }
+    void addToCosts(double v) {
+        origCostToNode.push_back(v);
     }
     ~FGLPNodeInfo() {
         for (FGLP *f : fglpStore) {
@@ -69,6 +78,10 @@ public:
 
     void getHeurAll(int var, const std::vector<val_t> &assignment, SearchNode *node, 
             std::vector<double> &out);
+
+    // Readjusts the heuristic value so it is consistent with the original functions
+    // that are already assigned
+    void getHeurAllAdjusted(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
     double getLabel(int var, const std::vector<val_t> &assignment, SearchNode *node);
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);

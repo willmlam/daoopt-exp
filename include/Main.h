@@ -34,6 +34,7 @@
 #include "MiniBucketElim.h"
 #include "MiniBucketElimMplp.h"
 #include "FGLPHeuristic.h"
+#include "FGLPMBEHybrid.h"
 #ifdef ENABLE_SLS
 #include "SLSWrapper.h"
 #endif
