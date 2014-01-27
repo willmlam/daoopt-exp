@@ -255,7 +255,7 @@ void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment, Search
       bool printResults = false;
       diff.resize(m_problem->getDomainSize(var));
       for (size_t i=0; i<diff.size(); ++i) {
-          if (isinf(out[i]) && isinf(tempOut[i])) 
+          if (std::isinf(out[i]) && std::isinf(tempOut[i])) 
               diff[i] = 0;
           else 
               diff[i] = out[i] - tempOut[i];

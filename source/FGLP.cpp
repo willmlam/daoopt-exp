@@ -364,7 +364,7 @@ void FGLP::reparameterize(Function *f, double *maxMarginal, double *averageMaxMa
     size_t idx = 0;
     do {
         // if the max-marginal value passed is -inf (0), then this is a hard constraint
-        if (isinf(averageMaxMarginal[*mmVal]))
+        if (std::isinf(averageMaxMarginal[*mmVal]))
             f->getTable()[idx] = ELEM_ZERO;
         else
             f->getTable()[idx] OP_TIMESEQ (averageMaxMarginal[*mmVal] OP_DIVIDE maxMarginal[*mmVal]);

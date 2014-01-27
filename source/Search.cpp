@@ -468,7 +468,7 @@ double Search::assignCostsOR(SearchNode* n) {
           cout << nn->getHeurInstance()->getDepth() << endl;
       cout << "Lower bound: " << lowerBound(n) << endl;
       */
-      if (!isinf(lowerBound(n)) && 
+      if (!std::isinf(lowerBound(n)) && 
               !m_foundFirstPartialSolution && 
               nn->getHeurInstance()->getParent()) {
           double maxDecrease = nn->getHeurInstance()->getMostRecentDecrease();
