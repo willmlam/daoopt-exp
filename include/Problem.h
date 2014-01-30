@@ -92,7 +92,7 @@ public:
 
   // replaces the current set of functions with an equivalent one
   // (pseudo tree compatibility is implicitly assumed)
-  void replaceFunctions(const vector<Function*>& newFunctions);
+  void replaceFunctions(const vector<Function*>& newFunctions, bool asCopy=false);
 
   bool hasDummy() const { return m_hasDummy; }
 

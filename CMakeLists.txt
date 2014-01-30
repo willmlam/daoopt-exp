@@ -117,5 +117,7 @@ set(FILES
 
 # Main executable and library dependencies
 add_executable(daoopt daoopt.cpp ${FILES})
+add_executable(fglpPreproc fglpPreproc.cpp ${FILES})
 target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+target_link_libraries(fglpPreproc ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 

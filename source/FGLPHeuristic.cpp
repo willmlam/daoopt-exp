@@ -31,10 +31,12 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 
     FGLP *parentFGLP;
     double parentCost;
+    double parentCostShifted;
     // Is the root node?
     if (!node->getParent()) {
         parentFGLP = rootFGLP;
         parentCost = ELEM_ONE;
+        parentCostShifted = ELEM_ONE;
     }
     else {
         SearchNode *parentOR = node->getParent()->getParent();
@@ -50,6 +52,27 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 
         parentFGLP = parentInfo->getFGLPStore()[node->getParent()->getVal()];
         parentCost = parentInfo->getOrigCostToNode()[node->getParent()->getVal()];
+        parentCostShifted = parentFGLP->getConstant();
+
+
+        // verify the computed cost
+        SearchNode *cur = node->getParent();
+        double vCost = ELEM_ONE;
+        while (cur) {
+            if (cur->getType() == NODE_AND) {
+                vCost OP_TIMESEQ cur->getLabel();
+            }
+            cur = cur->getParent();
+        }
+        cout << "Computed original cost vs cost from space: ";
+        stringstream ss;
+        if (fabs(parentCost-vCost) <= 1e-8) {
+            ss << parentCost << " == " << vCost;
+        }
+        else {
+            ss << parentCost << " != " << vCost << " --WARNING!";
+        }
+        cout << ss.str() << endl;
     }
 
     tempAssn.clear();
@@ -96,11 +119,13 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 //                parentFGLP->getFactors(),
                 m_ordering[var],
                 tempAssn);
-//        valFGLP->setVerbose(true);
+        valFGLP->setVerbose(true);
         valFGLP->run(m_options->ndfglp, m_options->ndfglps);
 
         // Add in original cost for traversing this edge and add to parent cost
         info->addToCosts(parentCost + costs[i]);
+        cout << "Cost (original):" << parentCost + costs[i] << endl;
+        cout << "Cost (shifted) :" << parentCostShifted + valFGLP->getLabel() << endl;
 
         out[i] = valFGLP->getUBNonConstant();
         info->addToStore(valFGLP);
@@ -112,8 +137,16 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
     getHeurAll(var, assignment, node, out);
     for (unsigned int i=0; i<out.size(); ++i) {
         FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo());
+        cout << info->getFGLPStore()[i]->getConstant() << endl;
+        cout << info->getOrigCostToNode()[i] << endl;
         double adjustment = info->getFGLPStore()[i]->getConstant() OP_DIVIDE info->getOrigCostToNode()[i];
-        out[i] OP_TIMESEQ adjustment;
+        cout << adjustment <<  " " << std::isnan(adjustment) << endl;
+        if (adjustment != 0 && !std::isnan(adjustment)) {
+            cout << "(var=" << var << ", val=" << i << ")" << endl;
+            cout << "Adjusted:  " << out[i] << " -> ";
+            out[i] OP_TIMESEQ adjustment;
+            cout << out[i] << endl;
+        }
     }
 
 }

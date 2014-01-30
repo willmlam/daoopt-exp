@@ -793,14 +793,22 @@ void Problem::addDummy() {
 }
 
 
-void Problem::replaceFunctions(const vector<Function*>& newFunctions) {
+void Problem::replaceFunctions(const vector<Function*>& newFunctions, bool asCopy) {
   // delete current functions
   for (vector<Function*>::iterator it = m_functions.begin(); 
           !m_is_copy && it!= m_functions.end(); ++it) {
     if (*it) delete (*it);
   }
   // store new functions
-  m_functions = newFunctions;
+  if (!asCopy) {
+      m_functions = newFunctions;
+  }
+  else {
+      m_functions.clear();
+      for (Function *f : newFunctions) {
+          m_functions.push_back(f->clone());
+      }
+  }
   m_c = m_functions.size();
   // update function scopes???
 }

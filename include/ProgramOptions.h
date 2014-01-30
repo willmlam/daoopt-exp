@@ -46,6 +46,7 @@ public:
   bool match; // uses moment matching during MBE
   int mplp;  // enables MPLP in Alex Ihler's MBE library (# iters)
   double mplps;  // enables MPLP in Alex Ihler's MBE library (# sec)
+  double mplpt;  // convergence tolerance for MPLP
   int jglp;  // enables JGLP tightening in Alex Ihler's MBE library (# iters)
   double jglps;  // enables JGLP tightening in Alex Ihler's MBE library (# sec)
   int jglpi;  // specifies the i-bound used for JGLP

@@ -183,7 +183,7 @@ void FGLP::getVarUB(int var, vector<double> &out) {
     }
 }
 
-void FGLP::run(int maxIter, double maxTime) {
+void FGLP::run(int maxIter, double maxTime, double tolerance) {
     time_t timeStart, timeEnd;
     time(&timeStart);
 
@@ -204,7 +204,7 @@ void FGLP::run(int maxIter, double maxTime) {
     }
 
     int iter;
-    for (iter = 0; iter < maxIter || maxIter == -1; ++iter) {
+    for (iter = 0; iter < maxIter || (maxIter == -1 && maxTime > 0); ++iter) {
         time(&timeEnd);
         if (maxTime > 0 && difftime(timeEnd,timeStart) >= maxTime) break;
 //        vector<int>::const_reverse_iterator rit = m_ordering.rbegin();
@@ -277,6 +277,7 @@ void FGLP::run(int maxIter, double maxTime) {
             cout << "label: " << m_label << endl;
             */
         }
+        if (fabs(diff) < tolerance) break;
     }
     time(&timeEnd);
     if (m_verbose) {
@@ -399,7 +400,11 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
         }
         */
 
-//        cout << *fns[i] << endl;
+        cout << *fns[i] << endl;
+        for (unsigned int j = 0; j < fns[i]->getTableSize(); ++j) {
+            cout << " " << fns[i]->getTable()[j] << endl;
+        }
+        cout << endl;
         /*
         for (int j=0; j<fns[i]->getTableSize(); ++j) {
             cout << " " << fns[i]->getTable()[j] << endl;
@@ -408,6 +413,7 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
         */
         Function *new_fn = fns[i]->substitute(assignment);
         if (new_fn->isConstant()) {
+            cout << new_fn->getTable()[0] << endl << endl;
             globalConstant OP_TIMESEQ new_fn->getTable()[0];
             m_label OP_TIMESEQ new_fn->getTable()[0];
             delete new_fn;

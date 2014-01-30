@@ -64,6 +64,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
       ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
       ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
+      ("mplpt", po::value<double>()->default_value(1e-7), "convergence tolerance for MPLP")
       ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
       ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
       ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
@@ -245,6 +246,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->mplp = vm["mplp"].as<int>();
     if (vm.count("mplps"))
         opt->mplps = vm["mplps"].as<double>();
+    if (vm.count("mplpt"))
+        opt->mplpt = vm["mplpt"].as<double>();
     if (vm.count("jglp"))
         opt->jglp = vm["jglp"].as<int>();
     if (vm.count("jglps"))

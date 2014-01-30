@@ -11,6 +11,7 @@ class SearchNode;
 
 class FGLP {
 private:
+    static constexpr double DEFAULT_TOLERANCE = 1e-6;
     /*
     // Problem to reparameterize
     Problem *m_problem;
@@ -77,7 +78,7 @@ public:
     // Constructor for reparameterizing dynamically during search
     FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment);
 
-    void run(int maxIter, double maxTime);
+    void run(int maxIter, double maxTime, double tolerance=DEFAULT_TOLERANCE);
 
     // Get the upper bounds with respect to all assignments to a variable
     void getVarUB(int var, vector<double> &out);
