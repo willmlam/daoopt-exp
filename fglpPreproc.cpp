@@ -30,11 +30,6 @@ int main(int argc, char **argv) {
     cout << "Created problem with " << p->getN()
         << " variables and " << p->getC() << " functions." << endl;
 
-    // Remove evidence variables
-    p->removeEvidence();
-    cout << "Removed evidence, now " << p->getN()
-        << " variables and " << p->getC() << " functions." << endl;
-
     vector<int> elim;
     bool orderFromFile = false;
     if (!po->in_orderingFile.empty()) {
