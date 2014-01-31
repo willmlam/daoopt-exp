@@ -54,6 +54,7 @@ public:
   bool fglpMBEHeur; // use FGLP/MBE hybrid heuristic
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
+  double ndfglpt; // convergence tolerance for FGLP
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes

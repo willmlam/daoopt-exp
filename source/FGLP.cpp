@@ -277,7 +277,7 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
             cout << "label: " << m_label << endl;
             */
         }
-        if (fabs(diff) < tolerance) break;
+        if (fabs(diff) < tolerance || std::isnan(diff)) break;
     }
     time(&timeEnd);
     if (m_verbose) {
@@ -400,11 +400,6 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
         }
         */
 
-        cout << *fns[i] << endl;
-        for (unsigned int j = 0; j < fns[i]->getTableSize(); ++j) {
-            cout << " " << fns[i]->getTable()[j] << endl;
-        }
-        cout << endl;
         /*
         for (int j=0; j<fns[i]->getTableSize(); ++j) {
             cout << " " << fns[i]->getTable()[j] << endl;
@@ -413,7 +408,6 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
         */
         Function *new_fn = fns[i]->substitute(assignment);
         if (new_fn->isConstant()) {
-            cout << new_fn->getTable()[0] << endl << endl;
             globalConstant OP_TIMESEQ new_fn->getTable()[0];
             m_label OP_TIMESEQ new_fn->getTable()[0];
             delete new_fn;

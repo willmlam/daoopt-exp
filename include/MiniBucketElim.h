@@ -293,6 +293,8 @@ public:
   // gets sum of tables sizes
   size_t getSize() const;
 
+  MBEHeuristicInstance *getRootInstance() const {return m_rootHeurInstance;}
+
   // gets the width of the subproblem rooted at node i
   int getWidthSubproblem(int i) const;
 

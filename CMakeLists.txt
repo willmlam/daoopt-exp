@@ -49,6 +49,7 @@ endif()
 
 if(DAOOPT_LINK_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "-static")
+  set(BOOST_USE_STATIC LIBS ON)
 endif()
 
 # Optional forced version: static over dynamic master, worker over both
@@ -118,6 +119,8 @@ set(FILES
 # Main executable and library dependencies
 add_executable(daoopt daoopt.cpp ${FILES})
 add_executable(fglpPreproc fglpPreproc.cpp ${FILES})
+add_executable(fglpMbeCompare fglpMbeCompare.cpp ${FILES})
 target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 target_link_libraries(fglpPreproc ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+target_link_libraries(fglpMbeCompare ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 

@@ -72,6 +72,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("fglpMBEHeur","use FGLP/MBE hybrid heuristic")
       ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
       ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
+      ("ndfglpt", po::value<double>()->default_value(1e-7), "convergence tolerance for FGLP at every node")
+      ("cutoff-depth,d", po::value<int>()->default_value(0), "number of variables to test heuristic")
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
       ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
 #else
@@ -269,6 +271,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->ndfglp = vm["ndfglp"].as<int>();
     if (vm.count("ndfglps")) {
         opt->ndfglps = vm["ndfglps"].as<double>();
+    }
+    if (vm.count("ndfglpt")) {
+        opt->ndfglpt = vm["ndfglpt"].as<double>();
     }
 
     if (vm.count("cbound-worker"))
