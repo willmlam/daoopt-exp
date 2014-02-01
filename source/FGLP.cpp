@@ -1,6 +1,8 @@
 #include "FGLP.h"
+#include <chrono>
 
 using namespace std;
+using namespace std::chrono;
 
 FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering) 
     :  
@@ -184,8 +186,6 @@ void FGLP::getVarUB(int var, vector<double> &out) {
 }
 
 void FGLP::run(int maxIter, double maxTime, double tolerance) {
-    time_t timeStart, timeEnd;
-    time(&timeStart);
 
     double diff = updateUB();
     if (m_verbose) {
@@ -202,17 +202,19 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
         }
         */
     }
+    steady_clock::time_point timeStart = steady_clock::now();
+    steady_clock::time_point timeEnd;
 
     int iter;
     for (iter = 0; iter < maxIter || (maxIter == -1 && maxTime > 0); ++iter) {
-        time(&timeEnd);
-        if (maxTime > 0 && difftime(timeEnd,timeStart) >= maxTime) break;
+        timeEnd = steady_clock::now();
+        if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
 //        vector<int>::const_reverse_iterator rit = m_ordering.rbegin();
         vector<int>::const_iterator rit = m_ordering.begin();
         for (; rit != m_ordering.end(); ++rit) {
 //        for (; rit != m_ordering.rend(); ++rit) {
-            time(&timeEnd);
-            if (maxTime > 0 && difftime(timeEnd,timeStart) >= maxTime) break;
+            timeEnd = steady_clock::now();
+            if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
             // update variable v this iteration
             int v = *rit;
 
@@ -279,9 +281,11 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
         }
         if (fabs(diff) < tolerance || std::isnan(diff)) break;
     }
-    time(&timeEnd);
+    timeEnd = steady_clock::now();
+    m_runtime = double(duration_cast<milliseconds>(timeEnd-timeStart).count()) / 1000;
+    m_runiters = iter;
     if (m_verbose) {
-        cout << "FGLP (" << iter << " iter, " << difftime(timeEnd,timeStart) << " sec): " << m_UB << endl;
+        cout << "FGLP (" << iter << " iter, " << m_runtime << " sec): " << m_UB << endl;
         /*
         for(Function *f : m_factors) {
             cout << *f << endl;

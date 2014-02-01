@@ -12,11 +12,11 @@ using namespace std;
 
 random_device rd;
 mt19937 gen(rd());
+uniform_real_distribution<> dis(0,1);
 
 
 // Changes the assignments of already assigned values
 void shuffleAssignments(const vector<val_t> &domains, vector<val_t> &assignment) {
-    uniform_real_distribution<> dis(0,1);
     for (unsigned int i=0; i<domains.size(); ++i) {
         if (assignment[i] != NONE) {
             assignment[i] = int(dis(gen)*domains[i]);
@@ -40,7 +40,7 @@ double evaluateMBE(const shared_ptr<MiniBucketElim> &mbe, int var, const vector<
     return h;
 }
 
-double evaluateFGLP(const shared_ptr<Problem> &p, const shared_ptr<ProgramOptions> &po, const vector<int> &ordering, const vector<val_t> &assignment) {
+double evaluateFGLP(const shared_ptr<Problem> &p, const shared_ptr<ProgramOptions> &po, const vector<int> &ordering, const vector<val_t> &assignment, double &runtime, int &iters) {
     map<int,val_t> mAssn;
     for (unsigned int i=0; i<assignment.size(); ++i) {
         if (assignment[i] != NONE) mAssn[i] = assignment[i];
@@ -48,6 +48,8 @@ double evaluateFGLP(const shared_ptr<Problem> &p, const shared_ptr<ProgramOption
 
     shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),ordering,mAssn));
     fglp->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    runtime = fglp->getRuntime();
+    iters = fglp->getRunIters();
     return fglp->getUBNonConstant();
         
 }
@@ -119,6 +121,14 @@ int main(int argc, char **argv) {
 
     // Build MBE first once.
     shared_ptr<MiniBucketElim> mbe(new MiniBucketElim(p.get(),pt.get(),po.get(),po->ibound));
+    // test the memory usage first
+    size_t sz = mbe->build(NULL,false);
+    double szMB = (sz/(1024*1024.0)) * sizeof(double);
+    cout << "\tMB size: " << szMB << " MBytes" << endl;
+    if (po->memlimit != NONE && szMB > po->memlimit) {
+        cout << "i-bound exceeds memory limits!";
+        return 0;
+    }
     mbe->build();
 
 
@@ -134,17 +144,22 @@ int main(int argc, char **argv) {
         assignment[node->getVar()] = 0;
     }
 
-    cout << "MBEValue,FGLPValue,difference" << endl;
+    cout << endl;
+    cout << "<MBEmemory>=" << szMB << endl << endl;
+    cout << "MBEValue,FGLPValue,difference,FGLPiters,FGLPtime" << endl;
     for (unsigned int k=0;k<100000;++k) {
         shuffleAssignments(p->getDomains(), assignment);
+        double fglpRunTime = 0;
+        int fglpIters = 0;
 
         double mbeValue = evaluateMBE(mbe,node->getVar(),assignment);
-        double fglpValue = evaluateFGLP(p,po,elim,assignment);
+        double fglpValue = evaluateFGLP(p,po,elim,assignment,fglpRunTime,fglpIters);
         double diff = fglpValue - mbeValue;
-        if(isnan(diff)) diff = 0;
+        if(std::isnan(diff)) diff = 0;
 
 
-        cout << mbeValue << "," << fglpValue << "," << diff << endl;
+        cout << mbeValue << "," << fglpValue << "," << diff 
+            << "," << fglpIters << "," << fglpRunTime << endl;
     }
 
     return 0;

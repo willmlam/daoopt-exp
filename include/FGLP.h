@@ -62,6 +62,13 @@ private:
     // into m_factors. Also removes factors not in the subproblem
     void condition(const vector<Function*> &fns, const map<int,val_t> &assignment);
 
+
+    // store the time it took to run
+    double m_runtime;
+
+    // store the number of iterations it took
+    int m_runiters;
+
     // Updates UB and returns the amount it changed
     double updateUB();
 
@@ -98,6 +105,9 @@ public:
     const vector<Function*> &getFactors() const { return m_factors; }
 
     double getLabel() const { return m_label; }
+
+    double getRuntime() const { return m_runtime; }
+    double getRunIters() const { return m_runiters; }
 
     ~FGLP() {
         for (size_t i = 0; i < m_factors.size(); ++i)
