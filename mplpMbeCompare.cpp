@@ -3,6 +3,7 @@
 #include "Problem.h"
 #include "MiniBucketElim.h"
 #include "FGLP.h"
+#include "mex/mplp.h"
 #include "ProgramOptions.h"
 #include <random>
 using namespace std;
@@ -40,17 +41,59 @@ double evaluateMBE(const shared_ptr<MiniBucketElim> &mbe, int var, const vector<
     return h;
 }
 
-double evaluateFGLP(const shared_ptr<Problem> &p, const shared_ptr<ProgramOptions> &po, const vector<int> &ordering, const vector<val_t> &assignment, double &runtime, int &iters) {
+double evaluateMPLP(const shared_ptr<Problem> &p, const shared_ptr<ProgramOptions> &po, const vector<int> &ordering, const vector<val_t> &assignment, double &runtime, int &iters) {
     map<int,val_t> mAssn;
     for (unsigned int i=0; i<assignment.size(); ++i) {
         if (assignment[i] != NONE) mAssn[i] = assignment[i];
     }
+    cout << mAssn << endl;
 
-    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),newFunctions,ordering,mAssn));
-    fglp->run(po->ndfglp,po->ndfglps,po->ndfglpt);
-    runtime = fglp->getRuntime();
-    iters = fglp->getRunIters();
-    return fglp->getUBNonConstant();
+    double globalConstant = ELEM_ONE;
+    int arityZeroFnIdx = NONE;
+    const vector<Function*> &fns = p->getFunctions();
+    vector<Function*> newFunctions;
+    for (size_t i=0; i<fns.size();++i) {
+        if (fns[i]->getArity() == 0) {
+            globalConstant OP_TIMESEQ fns[i]->getTable()[0];
+            arityZeroFnIdx = i;
+            continue;
+        }
+        Function *new_fn = fns[i]->substitute(mAssn);
+        if (new_fn->isConstant()) {
+            globalConstant OP_TIMESEQ new_fn->getTable()[0];
+            delete new_fn;
+        } else {
+            newFunctions.push_back(new_fn);
+        }
+    }
+    Function *constFun = fns[arityZeroFnIdx]->clone();
+    constFun->getTable()[0] = globalConstant;
+    newFunctions.push_back(constFun);
+
+    mex::vector<mex::Factor> fs(newFunctions.size());
+    for (unsigned int i=0;i<newFunctions.size();++i) 
+        fs[i] = newFunctions[i]->asFactor().exp();
+
+    mex::mplp _mplp(fs);
+    _mplp.setProperties("Schedule=Fixed,Update=Var,StopIter=100,StopObj=-1,StopMsg=-1,StopMsg=-1,StopTime=-1");
+    _mplp.init();
+    cout << "Initial UB: " << _mplp.ub() << endl;
+    char opt[50];
+    if (po->ndfglp > 0) { 
+        sprintf(opt,"StopIter=%d",po->ndfglp); _mplp.setProperties(opt); 
+    }
+    if (po->ndfglps > 0) { 
+        sprintf(opt,"StopTime=%f",po->ndfglps); _mplp.setProperties(opt); 
+    }
+    if (po->ndfglpt > 0) { 
+        sprintf(opt,"StopObj=%f",po->ndfglpt); _mplp.setProperties(opt); 
+    }
+
+    _mplp.run();
+
+    runtime = 0;
+    iters = 0;
+    return _mplp.ub();
         
 }
 
@@ -144,25 +187,22 @@ int main(int argc, char **argv) {
         assignment[node->getVar()] = 0;
     }
 
-    vector <int> linearOrdering;
-    for (int i=0; i<elim.size();++i) linearOrdering.push_back(i);
-
     cout << endl;
     cout << "<MBEmemory>=" << szMB << endl << endl;
-    cout << "MBEValue,FGLPValue,difference,FGLPiters,FGLPtime" << endl;
-    for (unsigned int k=0;k<100000;++k) {
+    cout << "MBEValue,MPLPValue,difference,MPLPiters,MPLPtime" << endl;
+    for (unsigned int k=0;k<1;++k) {
         shuffleAssignments(p->getDomains(), assignment);
-        double fglpRunTime = 0;
-        int fglpIters = 0;
+        double mplpRunTime = 0;
+        int mplpIters = 0;
 
         double mbeValue = evaluateMBE(mbe,node->getVar(),assignment);
-        double fglpValue = evaluateFGLP(p,po,linearOrdering,assignment,fglpRunTime,fglpIters);
-        double diff = fglpValue - mbeValue;
+        double mplpValue = evaluateMPLP(p,po,elim,assignment,mplpRunTime,mplpIters);
+        double diff = mplpValue - mbeValue;
         if(std::isnan(diff)) diff = 0;
 
 
-        cout << mbeValue << "," << fglpValue << "," << diff 
-            << "," << fglpIters << "," << fglpRunTime << endl;
+        cout << mbeValue << "," << mplpValue << "," << diff 
+            << "," << mplpIters << "," << mplpRunTime << endl;
     }
 
     return 0;
