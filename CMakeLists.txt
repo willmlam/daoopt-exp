@@ -49,7 +49,7 @@ endif()
 
 if(DAOOPT_LINK_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "-static")
-  set(BOOST_USE_STATIC LIBS ON)
+  set(Boost_USE_STATIC_LIBS ON)
 endif()
 
 # Optional forced version: static over dynamic master, worker over both

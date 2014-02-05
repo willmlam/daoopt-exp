@@ -46,7 +46,7 @@ double evaluateFGLP(const shared_ptr<Problem> &p, const shared_ptr<ProgramOption
         if (assignment[i] != NONE) mAssn[i] = assignment[i];
     }
 
-    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),newFunctions,ordering,mAssn));
+    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),ordering,mAssn));
     fglp->run(po->ndfglp,po->ndfglps,po->ndfglpt);
     runtime = fglp->getRuntime();
     iters = fglp->getRunIters();
