@@ -215,6 +215,54 @@ void Problem::removeEvidence(bool clearEvid) {
   if (clearEvid) m_evidence.clear();
 }
 
+void Problem::collapseFunctions() {
+    // Create a map from scopes to a list of function indexs
+    map<set<int>,vector<int>> mapping;
+    size_t oldC = m_c;
+
+    for (unsigned int i=0; i<m_functions.size(); ++i) {
+        const auto &sc = m_functions[i]->getScopeSet();
+        auto itM = mapping.find(sc);
+        if(itM == mapping.end()) {
+            mapping.insert(make_pair(sc,vector<int>(1,i)));
+        }
+        else {
+            itM->second.push_back(i);
+        }
+    }
+
+    vector<Function*> newFunctions;
+    newFunctions.resize(mapping.size());
+    int newid = 0;
+    for (auto mapElement : mapping) {
+        const auto &fids = mapElement.second;
+        Function *f = m_functions[fids[0]];
+        f->setId(newid);
+        for (unsigned int i=1;i<fids.size();++i) {
+            Function *g = m_functions[fids[i]];
+            assert(f->getTableSize() == g->getTableSize());
+            for (unsigned int k=0;k<f->getTableSize();++k) {
+                f->getTable()[k] OP_TIMESEQ g->getTable()[k];
+            }
+            delete g;
+        }
+        newFunctions[newid++] = f;
+    }
+    m_functions = newFunctions;
+    m_c = m_functions.size();
+    cout << "Collapsed from " << oldC << " to " << m_c << " functions." << endl;
+}
+
+void Problem::perturbDeterminism(double epsilon) {
+    for (Function *f : m_functions) {
+        double *t = f->getTable();
+        for (unsigned int i=0; i<f->getTableSize(); ++i) {
+            if (t[i] == ELEM_ZERO)
+                t[i] = ELEM_ENCODE(epsilon);
+        }
+    }
+}
+
 
 bool Problem::parseOrdering(const string& file, vector<int>& elim) const {
 
@@ -340,7 +388,7 @@ void Problem::saveOrdering(const string& file, const vector<int>& elim) const {
 
 
 
-bool Problem::parseUAI(const string& prob, const string& evid) {
+bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
   {
     ifstream inTemp(prob.c_str());
     inTemp.close();
@@ -495,6 +543,8 @@ bool Problem::parseUAI(const string& prob, const string& evid) {
 
   } // All function tables read
   in.close();
+
+  if (collapse) collapseFunctions();
 
   // Read evidence?
   if (evid.empty()) {

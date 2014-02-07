@@ -99,7 +99,7 @@ public:
 public:
 
   /* parses a UAI format input file */
-  bool parseUAI(const string& prob, const string& evid);
+  bool parseUAI(const string& prob, const string& evid, bool collapse=false);
 
   /* writes the current problem to a UAI file */
   void writeUAI(const string& prob) const;
@@ -111,6 +111,11 @@ public:
 
   /* removes evidence and unary-domain variables */
   void removeEvidence(bool clearEvid=false);
+
+  /* combines factors with the same scope */
+  void collapseFunctions();
+
+  void perturbDeterminism(double epsilon);
 
   /* condition problem */
   /* note that this does not re-index the variables */

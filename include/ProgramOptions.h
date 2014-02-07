@@ -104,7 +104,8 @@ public:
   int subibound; // bucket elim. i-bound for dynamic heuristics (subproblem)
   int subwidthDistance; // compute dynamic heuristics if the remaining width is within this amount of the i-bound
 
-
+  bool collapse; // collapse functions with identical scopes onto each other
+  double perturb; // sets zeros to this value in the functions
 
   double initialBound; // initial lower bound
 

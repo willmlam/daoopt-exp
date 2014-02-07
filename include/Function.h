@@ -60,6 +60,7 @@ protected:
 
 public:
   int getId() const { return m_id; }
+  void setId(int id) { m_id=id; }
   size_t getTableSize() const { return m_tableSize; }
   double* getTable() const { return m_table; }
   const set<int>& getScopeSet() const { return m_scopeS; }

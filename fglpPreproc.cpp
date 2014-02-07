@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 
     // Load problem
     shared_ptr<Problem> p(new Problem());
-    if (!p->parseUAI(po->in_problemFile, po->in_evidenceFile))
+    if (!p->parseUAI(po->in_problemFile, po->in_evidenceFile, po->collapse))
         exit(0);
     cout << "Created problem with " << p->getN()
         << " variables and " << p->getC() << " functions." << endl;
