@@ -31,12 +31,12 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 
     FGLP *parentFGLP;
     double parentCost;
-    double parentCostShifted;
+//    double parentCostShifted;
     // Is the root node?
     if (!node->getParent()) {
         parentFGLP = rootFGLP;
         parentCost = ELEM_ONE;
-        parentCostShifted = ELEM_ONE;
+//        parentCostShifted = ELEM_ONE;
     }
     else {
         SearchNode *parentOR = node->getParent()->getParent();
@@ -52,7 +52,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 
         parentFGLP = parentInfo->getFGLPStore()[node->getParent()->getVal()];
         parentCost = parentInfo->getOrigCostToNode()[node->getParent()->getVal()];
-        parentCostShifted = parentFGLP->getConstant();
+//        parentCostShifted = parentFGLP->getConstant();
 
 
         // verify the computed cost
@@ -64,15 +64,10 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
             }
             cur = cur->getParent();
         }
-        cout << "Computed original cost vs cost from space: ";
-        stringstream ss;
-        if (fabs(parentCost-vCost) <= 1e-8) {
-            ss << parentCost << " == " << vCost;
+//        cout << "Computed original cost vs cost from space: ";
+        if (fabs(parentCost-vCost) >= 1e-8) {
+            cout << parentCost << " != " << vCost << " --WARNING!";
         }
-        else {
-            ss << parentCost << " != " << vCost << " --WARNING!";
-        }
-        cout << ss.str() << endl;
     }
 
     tempAssn.clear();
@@ -119,13 +114,15 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 //                parentFGLP->getFactors(),
                 m_ordering[var],
                 tempAssn);
-        valFGLP->setVerbose(true);
+//        valFGLP->setVerbose(true);
         valFGLP->run(m_options->ndfglp, m_options->ndfglps);
 
         // Add in original cost for traversing this edge and add to parent cost
         info->addToCosts(parentCost + costs[i]);
+        /*
         cout << "Cost (original):" << parentCost + costs[i] << endl;
         cout << "Cost (shifted) :" << parentCostShifted + valFGLP->getLabel() << endl;
+        */
 
         out[i] = valFGLP->getUBNonConstant();
         info->addToStore(valFGLP);

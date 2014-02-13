@@ -269,8 +269,11 @@ int Pseudotree::eliminate(Graph G, vector<int>& elim, int limit, int tolerance) 
 
 void Pseudotree::buildChain(Graph G, const vector<int>& elim, const int cachelimit) {
 
+
+  int oldWidth = m_width;
   if (m_height != UNKNOWN)
     this->reset();
+  m_width = oldWidth;
 
   const int n = G.getStatNodes();
   assert(n == (int) m_nodes.size());
@@ -287,7 +290,8 @@ void Pseudotree::buildChain(Graph G, const vector<int>& elim, const int cachelim
     context.erase(*it);
     context.insert(N.begin(),N.end());
 
-    m_width = max(m_width,(int)context.size());
+    // can't compute width correctly using an OR chain
+//    m_width = max(m_width,(int)context.size());
 
     // create pseudo tree node
     m_nodes[*it] = new PseudotreeNode(this,*it,context);
