@@ -66,7 +66,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         }
 //        cout << "Computed original cost vs cost from space: ";
         if (fabs(parentCost-vCost) >= 1e-8) {
-            cout << parentCost << " != " << vCost << " --WARNING!";
+            cout << parentCost << " != " << vCost << " --WARNING!" << endl;
         }
     }
 
@@ -134,15 +134,16 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
     getHeurAll(var, assignment, node, out);
     for (unsigned int i=0; i<out.size(); ++i) {
         FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo());
-        cout << info->getFGLPStore()[i]->getConstant() << endl;
-        cout << info->getOrigCostToNode()[i] << endl;
+//        cout << info->getFGLPStore()[i]->getConstant() << endl;
+//        cout << info->getOrigCostToNode()[i] << endl;
         double adjustment = info->getFGLPStore()[i]->getConstant() OP_DIVIDE info->getOrigCostToNode()[i];
-        cout << adjustment <<  " " << std::isnan(adjustment) << endl;
         if (adjustment != 0 && !std::isnan(adjustment)) {
+            /*
             cout << "(var=" << var << ", val=" << i << ")" << endl;
             cout << "Adjusted:  " << out[i] << " -> ";
+            */
             out[i] OP_TIMESEQ adjustment;
-            cout << out[i] << endl;
+//            cout << out[i] << endl;
         }
     }
 

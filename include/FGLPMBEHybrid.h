@@ -17,8 +17,12 @@ class FGLPMBEHybrid : public Heuristic {
     FGLPHeuristic *fglpHeur;
     MiniBucketElim *mbeHeur;
 
-    unsigned long timesFGLPUsed;
-    unsigned long timesMBEUsed;
+    vector<unsigned long> timesFGLPUsed;
+    vector<unsigned long> timesMBEUsed;
+
+    vector<unsigned long> timesFGLPPruned;
+    vector<unsigned long> timesMBEPruned;
+    vector<unsigned long> timesBothPruned;
 
 public:
     FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po); 
@@ -44,9 +48,18 @@ public:
     double getLabel(int var, const std::vector<val_t> &assignment, SearchNode *node);
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
+    bool calculatePruning(int var, SearchNode *node, double curPSTVal);
+
     void printExtraStats() const {
-        cout << "Times FGLP better:" << timesFGLPUsed << endl;
-        cout << "Times MBE better:" << timesMBEUsed << endl;
+        cout << "depth,FGLPBetter,MBEBetter,OnlyFGLPPruned,OnlyMBEPruned,BothPruned" << endl;
+        for (size_t i=0; i<timesFGLPUsed.size(); ++i) {
+            cout << i << "," 
+                << timesFGLPUsed[i] << "," 
+                << timesMBEUsed[i] << ","
+                << timesFGLPPruned[i] << ","
+                << timesMBEPruned[i] << ","
+                << timesBothPruned[i] << endl;
+        }
     }
 
     virtual ~FGLPMBEHybrid() { 
