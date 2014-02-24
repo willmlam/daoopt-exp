@@ -41,7 +41,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     else {
         SearchNode *parentOR = node->getParent()->getParent();
         FGLPNodeInfo *parentInfo = 
-            static_cast<FGLPNodeInfo*>(parentOR->getExtraNodeInfo());
+            static_cast<FGLPNodeInfo*>(parentOR->getExtraNodeInfo().get());
 
         /*
         cout << "parent var/val: " 
@@ -133,7 +133,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
     getHeurAll(var, assignment, node, out);
     for (unsigned int i=0; i<out.size(); ++i) {
-        FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo());
+        FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get());
 //        cout << info->getFGLPStore()[i]->getConstant() << endl;
 //        cout << info->getOrigCostToNode()[i] << endl;
         double adjustment = info->getFGLPStore()[i]->getConstant() OP_DIVIDE info->getOrigCostToNode()[i];
@@ -150,13 +150,13 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
 }
 
 double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {
-    return static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo())->
+    return static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->
         getFGLPStore()[assignment[var]]->getLabel();
 }
 
 void FGLPHeuristic::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
     for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-        out[i] = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo())->
+        out[i] = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->
             getFGLPStore()[i]->getLabel();
     }
     /*

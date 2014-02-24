@@ -77,6 +77,8 @@ protected:
   vector<val_t> m_optAssignment;     // stores the optimal solution to the subproblem
 #endif
 
+  unique_ptr<ExtraNodeInfo> m_eInfo; // stores extra info specific to a heuristic
+
 
 public:
   virtual int getType() const = 0;
@@ -171,8 +173,8 @@ public:
   virtual MBEHeuristicInstance *getHeurInstance() const = 0;
   virtual void setHeurInstance(MBEHeuristicInstance *h) = 0;
 
-  virtual ExtraNodeInfo *getExtraNodeInfo() const = 0;
-  virtual void setExtraNodeInfo(ExtraNodeInfo *inf) = 0;
+  virtual const unique_ptr<ExtraNodeInfo> &getExtraNodeInfo() const { return m_eInfo;}
+  virtual void setExtraNodeInfo(ExtraNodeInfo *inf) { m_eInfo.reset(inf); }
 
   virtual bool isHeuristicLocked() const = 0;
   virtual void setHeuristicLocked(bool locked) = 0;
@@ -238,8 +240,6 @@ public:
   MBEHeuristicInstance *getHeurInstance() const { return NULL; }
   void setHeurInstance(MBEHeuristicInstance *h) { }
 
-  virtual ExtraNodeInfo *getExtraNodeInfo() const { return NULL; }
-  virtual void setExtraNodeInfo(ExtraNodeInfo *inf) { }
 
 
   bool isHeuristicLocked() const { return false; }
@@ -276,7 +276,6 @@ protected:
   bool m_heuristicLocked;              // flag to prevent further heuristic computation
                                      // on the entire subproblem rooted by this node
                                      
-  ExtraNodeInfo *m_eInfo;
 
 
 public:
@@ -341,8 +340,6 @@ public:
   }
   MBEHeuristicInstance *getHeurInstance() const { return m_hNode; }
 
-  virtual ExtraNodeInfo *getExtraNodeInfo() const { return m_eInfo; }
-  virtual void setExtraNodeInfo(ExtraNodeInfo *inf) { m_eInfo = inf; }
 
   void setHeuristicLocked(bool locked) { m_heuristicLocked = locked; }
   bool isHeuristicLocked() const { return m_heuristicLocked; }
@@ -438,8 +435,7 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
   SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(nullptr), 
     m_hNode(nullptr), 
-    m_heuristicLocked(false),
-    m_eInfo(nullptr)
+    m_heuristicLocked(false)
     //, m_cacheContext(NULL)
 #if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)
@@ -450,7 +446,7 @@ inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
 inline SearchNodeOR::~SearchNodeOR() {
   if (m_hNode && this == m_hNode->getOwner())
       delete m_hNode;
-  if (m_eInfo) delete m_eInfo;
+//  if (m_eInfo) delete m_eInfo;
 
   this->clearHeurCache();
 }
