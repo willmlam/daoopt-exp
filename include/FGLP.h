@@ -49,9 +49,6 @@ private:
     // Stores the upper bound for the non constant portion of the problem
     double m_UBNonConstant;
 
-    // Stores the label induced by the conditioning
-    double m_label;
-
     // Accumulates the cost for functions already conditioned
     double m_ancestorCost;
 
@@ -104,10 +101,10 @@ public:
 
     const vector<Function*> &getFactors() const { return m_factors; }
 
-    double getLabel() const { return m_label; }
-
     double getRuntime() const { return m_runtime; }
     double getRunIters() const { return m_runiters; }
+
+    size_t getSize() const;
 
     ~FGLP() {
         for (size_t i = 0; i < m_factors.size(); ++i)

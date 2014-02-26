@@ -50,8 +50,9 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         cout << "current var: " << node->getVar() << endl;
         */
 
-        parentFGLP = parentInfo->getFGLPStore()[node->getParent()->getVal()];
-        parentCost = parentInfo->getOrigCostToNode()[node->getParent()->getVal()];
+        parentFGLP = parentInfo->getFGLPStore().get();
+        parentCost = parentInfo->getOrigCostToNode();
+        parentCost OP_TIMESEQ node->getParent()->getLabel();
 //        parentCostShifted = parentFGLP->getConstant();
 
 
@@ -70,104 +71,84 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         }
     }
 
-    tempAssn.clear();
+    m_tempAssn.clear();
     const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
     for (int v : relVars) {
-        tempAssn[v] = assignment[v];
+        m_tempAssn[v] = assignment[v];
     }
-
-    vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
-    vector<double> costs(m_problem->getDomainSize(var), ELEM_ONE);
-    for (Function *f : m_pseudotree->getFunctions(var)) {
-        f->getValues(assignment, var, costTmp);
-        for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-            costs[i] OP_TIMESEQ costTmp[i];
-        }
-    }
-
 
     FGLPNodeInfo *info = new FGLPNodeInfo();
     node->setExtraNodeInfo(info);
-    // For each value, get factors of parentFGLP and run FGLP on them with conditioning
-    for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-//        cout << "val: " << i << endl;
-        tempAssn[var] = i;
-        /*
-        for (Function *f : parentFGLP->getFactors()) {
-            cout << *f << endl;
+    vector<Function*> funs;
+    for (Function *f : parentFGLP->getFactors()) {
+        if (m_subproblemFunIds[var].find(f->getId()) != m_subproblemFunIds[var].end() ||
+                f->getArity() == 0) {
+            funs.push_back(f);
         }
-        cout << endl;
-        */
-        // work off shifted version or original problem?
-//        const vector<Function*> &funsOrig = m_problem->getFunctions();
-        vector<Function*> funs;
-        for (Function *f : parentFGLP->getFactors()) {
-            if (m_subproblemFunIds[var].find(f->getId()) != m_subproblemFunIds[var].end() ||
-                    f->getArity() == 0) {
-                funs.push_back(f);
-            }
-        }
-
-        FGLP *valFGLP = new FGLP(m_problem->getN(),
-                m_problem->getDomains(),
-                funs,
-//                parentFGLP->getFactors(),
-                m_ordering[var],
-                tempAssn);
-//        valFGLP->setVerbose(true);
-        valFGLP->run(m_options->ndfglp, m_options->ndfglps);
-
-        // Add in original cost for traversing this edge and add to parent cost
-        info->addToCosts(parentCost + costs[i]);
-        /*
-        cout << "Cost (original):" << parentCost + costs[i] << endl;
-        cout << "Cost (shifted) :" << parentCostShifted + valFGLP->getLabel() << endl;
-        */
-
-        out[i] = valFGLP->getUBNonConstant();
-        info->addToStore(valFGLP);
-
     }
+
+    FGLP *varFGLP = new FGLP(m_problem->getN(),
+            m_problem->getDomains(),
+            funs,
+            m_ordering[var],
+            m_tempAssn);
+
+    varFGLP->run(m_options->ndfglp, m_options->ndfglps);
+
+//    cout << "FGLP size (MB): " << (varFGLP->getSize()*sizeof(double)) / (1024*1024.0)  << endl;
+    
+    varFGLP->getVarUB(var, out);
+    info->setFGLPStore(varFGLP);
+    info->setOrigCostToNode(parentCost);
+
 }
 
 void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
     getHeurAll(var, assignment, node, out);
-    for (unsigned int i=0; i<out.size(); ++i) {
-        FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get());
-//        cout << info->getFGLPStore()[i]->getConstant() << endl;
-//        cout << info->getOrigCostToNode()[i] << endl;
-        double adjustment = info->getFGLPStore()[i]->getConstant() OP_DIVIDE info->getOrigCostToNode()[i];
-        if (adjustment != 0 && !std::isnan(adjustment)) {
-            /*
-            cout << "(var=" << var << ", val=" << i << ")" << endl;
-            cout << "Adjusted:  " << out[i] << " -> ";
-            */
-            out[i] OP_TIMESEQ adjustment;
-//            cout << out[i] << endl;
-        }
-    }
+    // Calculate the difference between the path costs and adjust if needed
+    FGLPNodeInfo* info = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get());
+    double adjustment;
+    double originalCost;
 
-}
-
-double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {
-    return static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->
-        getFGLPStore()[assignment[var]]->getLabel();
-}
-
-void FGLPHeuristic::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
-    for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-        out[i] = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->
-            getFGLPStore()[i]->getLabel();
-    }
-    /*
     vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
+    m_tempLabels.clear();
+    m_tempLabels.resize(m_problem->getDomainSize(var), ELEM_ONE);
     for (Function *f : m_pseudotree->getFunctions(var)) {
         f->getValues(assignment, var, costTmp);
         for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-            out[i] OP_TIMESEQ costTmp[i];
+            m_tempLabels[i] OP_TIMESEQ costTmp[i];
         }
     }
-    */
+    // Need to get original labels into m_tempLabels
+    for (size_t i=0; i<out.size(); ++i) {
+        originalCost = info->getOrigCostToNode() OP_TIMES m_tempLabels[i];
+        adjustment = info->getFGLPStore()->getConstant() OP_DIVIDE originalCost;
+        if (adjustment != 0 && !std::isnan(adjustment)) {
+            out[i] OP_TIMESEQ adjustment;
+        }
+    }
+}
+
+double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {
+    assert(assignment[var] != NONE);
+    const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->getFactors();
+    double labelValue = ELEM_ONE;
+    for (auto f : functions)
+        if (f->getArity() == 1 && f->getScopeVec()[0] == var)
+            labelValue OP_TIMESEQ f->getTable()[assignment[var]];
+    return labelValue;
+}
+
+void FGLPHeuristic::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
+    const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->getFactors();
+    double labelValue;
+    for (int i=0; i<m_problem->getDomainSize(var); ++i) {
+        labelValue = ELEM_ONE;
+        for (auto f : functions)
+            if (f->getArity() == 1 && f->getScopeVec()[0] == var)
+                labelValue OP_TIMESEQ f->getTable()[i];
+        out[i] = labelValue;
+    }
 }
 
 void FGLPHeuristic::findDfsOrder(vector<int> &order, int var) const {

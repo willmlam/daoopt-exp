@@ -549,6 +549,7 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
   // Read evidence?
   if (evid.empty()) {
     m_e = 0;
+    cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
     return true; // No evidence, return
   }
 
@@ -579,6 +580,8 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
   }
 
   in.close();
+
+  cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
   return true;
 }
 
@@ -890,3 +893,11 @@ bool Problem::isEliminated(int i) const {
 }
 #endif
 
+
+size_t Problem::getSize() const {
+    size_t S = 0;
+    for (const auto &f : m_functions) {
+        S += f->getTableSize();
+    }
+    return S;
+}

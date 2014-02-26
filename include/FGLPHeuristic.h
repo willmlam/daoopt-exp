@@ -14,26 +14,15 @@
 // corresponding to each variable assignment
 // Also stores the cost to the node based on the original functions
 class FGLPNodeInfo : public ExtraNodeInfo {
-    std::vector<FGLP*> fglpStore;
-    std::vector<double> origCostToNode;
+    unique_ptr<FGLP> m_fglpStore;
+    double m_origCostToNode;
     public:
-    const std::vector<FGLP*> &getFGLPStore() const {
-        return fglpStore;
-    }
-    void addToStore(FGLP *fglp) {
-        fglpStore.push_back(fglp);
-    }
+    const unique_ptr<FGLP> &getFGLPStore() const { return m_fglpStore; }
+    void setFGLPStore(FGLP *fglp) { m_fglpStore.reset(fglp); }
 
-    const std::vector<double> &getOrigCostToNode() const {
-        return origCostToNode;
-    }
-    void addToCosts(double v) {
-        origCostToNode.push_back(v);
-    }
+    double getOrigCostToNode() const { return m_origCostToNode; }
+    void setOrigCostToNode(double v) { m_origCostToNode = v; }
     ~FGLPNodeInfo() {
-        for (FGLP *f : fglpStore) {
-            delete f;
-        }
     }
 };
 
@@ -43,7 +32,8 @@ protected:
     FGLP *rootFGLP;
     vector<vector<int>> m_ordering;
 
-    map<int,val_t> tempAssn;
+    map<int,val_t> m_tempAssn;
+    vector<double> m_tempLabels;
 
     vector<set<int>> m_subproblemFunIds;
 
@@ -82,6 +72,7 @@ public:
     // Readjusts the heuristic value so it is consistent with the original functions
     // that are already assigned
     void getHeurAllAdjusted(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
+
 
     double getLabel(int var, const std::vector<val_t> &assignment, SearchNode *node);
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);

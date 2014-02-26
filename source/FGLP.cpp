@@ -14,7 +14,6 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     m_maxMarginals(nVars, vector<double*>()),
     m_UB(ELEM_ONE),
     m_UBNonConstant(ELEM_ONE),
-    m_label(ELEM_ONE),
     m_ancestorCost(ELEM_ONE),
     m_verbose(true) {
 
@@ -65,7 +64,6 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     m_globalConstFactor(NULL),
     m_maxMarginals(nVars, vector<double*>()),
     m_UB(ELEM_ONE),
-    m_label(ELEM_ONE),
     m_ancestorCost(ELEM_ONE),
     m_verbose(false) {
 
@@ -276,7 +274,6 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
             /*
             cout << "constant: " << m_globalConstFactor->getTable()[0] << endl;
             cout << "non-const UB: " << m_UBNonConstant << endl;
-            cout << "label: " << m_label << endl;
             */
         }
         if (fabs(diff) < tolerance || std::isnan(diff)) break;
@@ -381,7 +378,6 @@ void FGLP::reparameterize(Function *f, double *maxMarginal, double *averageMaxMa
 void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignment) {
 
     double globalConstant = ELEM_ONE;
-    m_label = ELEM_ONE;
     int arityZeroFnIdx = -1;
 //    cout << assignment << endl;
     for (size_t i = 0; i < fns.size(); ++i) {
@@ -413,7 +409,6 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
         Function *new_fn = fns[i]->substitute(assignment);
         if (new_fn->isConstant()) {
             globalConstant OP_TIMESEQ new_fn->getTable()[0];
-            m_label OP_TIMESEQ new_fn->getTable()[0];
             delete new_fn;
         } else {
             m_factors.push_back(new_fn);
@@ -424,4 +419,12 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
     constFun->getTable()[0] = globalConstant;
     m_globalConstFactor = constFun;
     m_factors.push_back(m_globalConstFactor);
+}
+
+size_t FGLP::getSize() const {
+    size_t S = 0;
+    for (const auto &f : m_factors) {
+        S += f->getTableSize();
+    }
+    return S;
 }

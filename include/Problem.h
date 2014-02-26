@@ -95,6 +95,8 @@ public:
   void replaceFunctions(const vector<Function*>& newFunctions, bool asCopy=false);
 
   bool hasDummy() const { return m_hasDummy; }
+  
+  size_t getSize() const;
 
 public:
 
