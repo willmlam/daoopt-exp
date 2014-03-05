@@ -51,9 +51,11 @@ protected:
   int m_heightConditioned;
   int m_width;
   int m_widthConditioned;
+  int m_pathwidth; // only computed when a chain tree is constructed
   int m_components;
   int m_size;
   int m_sizeConditioned;
+
 
   Problem* m_problem;
   PseudotreeNode* m_root;
@@ -81,6 +83,9 @@ public:
   /* returns the width of the (sub) pseudo tree */
   int getWidth() const { return m_width; }
   int getWidthCond() const { if (m_widthConditioned == NONE) return m_width; else return m_widthConditioned; };
+
+  /* returns the pathwidth */
+  int getPathwidth() const { return m_pathwidth; }
 
   /* returns the height of the (sub) pseudo tree */
   int getHeight() const { return m_height; }
@@ -321,6 +326,7 @@ inline void Pseudotree::reset() {
   assert(m_problem);
   m_height = UNKNOWN; m_heightConditioned = UNKNOWN;
   m_width = UNKNOWN; m_widthConditioned = UNKNOWN;
+  m_pathwidth = UNKNOWN;
   m_components = 0;
   m_size = UNKNOWN; m_sizeConditioned = UNKNOWN;
   m_root = NULL;
@@ -338,6 +344,7 @@ inline Pseudotree::Pseudotree(Problem* p, int subOrder) :
     m_subOrder(subOrder),
     m_height(UNKNOWN), m_heightConditioned(UNKNOWN),
     m_width(UNKNOWN), m_widthConditioned(UNKNOWN),
+    m_pathwidth(UNKNOWN),
     m_components(0),
     m_size(UNKNOWN), m_sizeConditioned(UNKNOWN),
     m_problem(p), m_root(NULL)

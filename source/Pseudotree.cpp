@@ -290,7 +290,9 @@ void Pseudotree::buildChain(Graph G, const vector<int>& elim, const int cachelim
     context.erase(*it);
     context.insert(N.begin(),N.end());
 
-    // can't compute width correctly using an OR chain
+    // can't compute width correctly using an OR chain, but this gives the pathwidth
+    m_pathwidth = max(m_pathwidth,(int)context.size());
+    
 //    m_width = max(m_width,(int)context.size());
 
     // create pseudo tree node

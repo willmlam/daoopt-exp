@@ -347,6 +347,9 @@ bool Main::initDataStructs() {
 
   cout << "Induced width:\t\t" << m_pseudotree->getWidthCond()
        << " / " << m_pseudotree->getWidth() << endl;
+  if (m_options->orSearch) {
+      cout << "Pathwidth:\t\t" << m_pseudotree->getPathwidth() << endl;
+  }
   cout << "Pseudotree depth:\t" << m_pseudotree->getHeightCond()
        << " / " << m_pseudotree->getHeight() << endl;
   cout << "Problem variables:\t" << m_pseudotree->getSizeCond()
