@@ -106,6 +106,7 @@ public:
 
   bool collapse; // collapse functions with identical scopes onto each other
   double perturb; // sets zeros to this value in the functions
+  int maxTime; // timeout threshold (seconds)
 
   double initialBound; // initial lower bound
 

@@ -40,6 +40,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("evid-file,e", po::value<string>(), "path to optional evidence file")
       ("ordering,o", po::value<string>(), "read elimination ordering from this file (first to last)")
       ("adaptive", "enable adaptive ordering scheme")
+      ("maxTime", po::value<int>()->default_value(numeric_limits<int>::max()), "timeout threshold (seconds)")
       ("minibucket", po::value<string>(), "path to read/store mini bucket heuristic")
       ("subproblem,s", po::value<string>(), "limit search to subproblem specified in file")
       ("suborder,r",po::value<int>()->default_value(0), "subproblem order (0:width-inc 1:width-dec 2:heur-inc 3:heur-dec)")
@@ -155,6 +156,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       opt->autoIter = true;
     else
       opt->autoIter = false;
+
+    if (vm.count("maxTime"))
+      opt->maxTime = vm["maxTime"].as<int>();
 
     if (vm.count("subproblem"))
       opt->in_subproblemFile = vm["subproblem"].as<string>();

@@ -26,6 +26,8 @@
 #include "Search.h"
 #include "ProgramOptions.h"
 
+extern time_t _time_start; // from Main.cpp
+
 Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, ProgramOptions *po) :
     m_problem(prob), m_pseudotree(pt), m_space(s), m_heuristic(h),
     m_options(po), m_foundFirstPartialSolution(false)
@@ -196,6 +198,21 @@ SearchNode* Search::nextLeaf() {
     if (doExpand(node)) // node expansion
       { return node; }
     node = this->nextNode();
+    time_t now; time(&now);
+    double T = difftime(now, _time_start);
+    if (T > m_options->maxTime) {
+        cout << "Timed out at " << T << " seconds." << endl;
+        cout << "Stats at timeout: " << endl;
+        cout << "================= " << endl;
+        cout << "OR nodes:      " << m_space->stats.numExpOR << endl;
+        cout << "AND nodes:     " << m_space->stats.numExpAND << endl;
+        cout << "OR processed:  " << m_space->stats.numProcOR << endl;
+        cout << "AND processed: " << m_space->stats.numProcAND << endl;
+        cout << "Leaf nodes:    " << m_space->stats.numLeaf << endl;
+        cout << "Pruned nodes:  " << m_space->stats.numPruned << endl;
+        cout << "Deadend nodes: " << m_space->stats.numDead << endl;
+        exit(0);
+    }
   }
   return NULL;
 }
