@@ -27,17 +27,25 @@ class FGLPMBEHybrid : public Heuristic {
 public:
     FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po); 
 
-    size_t limitSize(size_t limit, const std::vector<val_t> *assignment) {
-        return mbeHeur->limitSize(limit,assignment);
+    inline size_t limitSize(size_t limit, const std::vector<val_t> *assignment) {
+        if (m_options->fglpMBEHeur)
+            return mbeHeur->limitSize(limit,assignment);
+        else
+            return 0;
     }
 
-    size_t getSize() const { return mbeHeur->getSize(); }
+    inline size_t getSize() const { 
+        if (m_options->fglpMBEHeur) 
+            return mbeHeur->getSize(); 
+        else
+            return 0;
+    }
 
     size_t build(const std::vector<val_t> *assignment = NULL, bool computeTables = true);
     bool readFromFile(std::string filename) { return mbeHeur->readFromFile(filename); } 
     bool writeToFile(std::string filename) const { return mbeHeur->writeToFile(filename); } 
 
-    double getGlobalUB() const { return min(fglpHeur->getGlobalUB(), mbeHeur->getGlobalUB()); }
+    inline double getGlobalUB() const { return min(fglpHeur->getGlobalUB(), (mbeHeur ? mbeHeur->getGlobalUB() : ELEM_ONE)); }
 
     double getHeur(int var, const std::vector<val_t> &assignment, SearchNode *node);
 
@@ -50,7 +58,7 @@ public:
 
     bool calculatePruning(int var, SearchNode *node, double curPSTVal);
 
-    void printExtraStats() const {
+    inline void printExtraStats() const {
         cout << "depth,FGLPBetter,MBEBetter,OnlyFGLPPruned,OnlyMBEPruned,BothPruned" << endl;
         for (size_t i=0; i<timesFGLPUsed.size(); ++i) {
             cout << i << "," 
@@ -62,7 +70,7 @@ public:
         }
     }
 
-    virtual ~FGLPMBEHybrid() { 
+    inline virtual ~FGLPMBEHybrid() { 
         if (fglpHeur)
             delete fglpHeur;
         if (mbeHeur)

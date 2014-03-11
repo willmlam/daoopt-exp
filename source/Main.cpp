@@ -291,11 +291,7 @@ bool Main::initDataStructs() {
   }
   */
 //  if (m_options->dynamic) {
-    if (m_options->fglpHeur) {
-      m_heuristic.reset(new FGLPHeuristic(m_problem.get(), m_pseudotree.get(),
-                  m_options.get()));
-    }
-    else if (m_options->fglpMBEHeur) {
+    if (m_options->fglpHeur || m_options->fglpMBEHeur) {
       m_heuristic.reset(new FGLPMBEHybrid(m_problem.get(), m_pseudotree.get(),
                   m_options.get()));
     }

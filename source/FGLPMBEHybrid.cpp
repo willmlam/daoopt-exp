@@ -13,7 +13,10 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
         m_options->mplps = 0;
     }
     fglpHeur = new FGLPHeuristic(p,pt,po);
-    mbeHeur = new MiniBucketElim(p,pt,po,po->ibound);
+    if (m_options->fglpMBEHeur)
+        mbeHeur = new MiniBucketElim(p,pt,po,po->ibound);
+    else
+        mbeHeur = nullptr;
     timesFGLPUsed.resize(p->getN(),0);
     timesMBEUsed.resize(p->getN(),0);
     timesFGLPPruned.resize(p->getN(),0);
@@ -23,7 +26,10 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
 
 size_t FGLPMBEHybrid::build(const std::vector<val_t> *assignment, bool computeTables) {
     fglpHeur->build(assignment,computeTables);
-    return mbeHeur->build(assignment,computeTables);
+    if (m_options->fglpMBEHeur)
+        return mbeHeur->build(assignment,computeTables);
+    else
+        return 0;
 }
 
 double FGLPMBEHybrid::getHeur(int var, const vector<val_t> &assignment, SearchNode *node) {
@@ -36,7 +42,8 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     vector<double> fglpOut(out.size(),ELEM_ONE);
     vector<double> mbeOut(out.size(),ELEM_ONE);
     fglpHeur->getHeurAllAdjusted(var,assignment,node,fglpOut);
-    mbeHeur->getHeurAll(var,assignment,node,mbeOut);
+    if (m_options->fglpMBEHeur)
+        mbeHeur->getHeurAll(var,assignment,node,mbeOut);
 
 //    cout << "FGLP:"<< fglpOut << endl;
 //    cout << "MBE :"<< mbeOut << endl;
@@ -44,6 +51,7 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     // Count the number of possible prunings for each heuristics wrt to the 
     // values (only if the other heuristic doesn't prune)
 //    if (m_options->comparePruning) {
+      if (m_options->fglpMBEHeur) {
         vector<double> labels(out.size(),ELEM_ONE);
         getLabelAll(var,assignment,node,labels);
         for (unsigned int i=0; i<fglpOut.size(); ++i) {
@@ -61,20 +69,25 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
                 timesBothPruned[m_pseudotree->getNode(var)->getDepth()]++;
             }
         }
-//    }
+        for (unsigned int i=0; i<out.size(); ++i) {
+            if (fglpOut[i] < mbeOut[i]) {
+                //            cout << "(var=" << var << ", val=" << i << ")" << endl;
+                //            cout << "Found " << fglpOut[i] << " < " << mbeOut[i] << endl;
+                out[i] = fglpOut[i];
+                timesFGLPUsed[m_pseudotree->getNode(var)->getDepth()]++;
+            }
+            else {
+                out[i] = mbeOut[i];
+                timesMBEUsed[m_pseudotree->getNode(var)->getDepth()]++;
+            }
+        }
+      }
+      else {
+          for (unsigned int i=0; i<out.size(); ++i) {
+              out[i] = fglpOut[i];
+          }
+      }
 
-    for (unsigned int i=0; i<out.size(); ++i) {
-        if (fglpOut[i] < mbeOut[i]) {
-//            cout << "(var=" << var << ", val=" << i << ")" << endl;
-//            cout << "Found " << fglpOut[i] << " < " << mbeOut[i] << endl;
-            out[i] = fglpOut[i];
-            timesFGLPUsed[m_pseudotree->getNode(var)->getDepth()]++;
-        }
-        else {
-            out[i] = mbeOut[i];
-            timesMBEUsed[m_pseudotree->getNode(var)->getDepth()]++;
-        }
-    }
 
 }
 
