@@ -55,6 +55,7 @@ private:
     // Use verbose output (show bound progression)
     bool m_verbose;
 
+
     // condition the functions in fns according to the assignment and fill them 
     // into m_factors. Also removes factors not in the subproblem
     void condition(const vector<Function*> &fns, const map<int,val_t> &assignment);
@@ -88,21 +89,23 @@ public:
     void getVarUB(int var, vector<double> &out);
 
     // Get the upper bound produced directly from reparameterization
-    double getUB() const { return m_UB; }
+    inline double getUB() const { return m_UB; }
 
     // Get the upper bound produced directly from reparameterization for only 
     // the non constant portion of the problem
-    double getUBNonConstant() const { return m_UBNonConstant; }
+    inline double getUBNonConstant() const { return m_UBNonConstant; }
 
     // Get the constant value (nullary function value)
-    double getConstant() const { return m_globalConstFactor->getTable()[0]; }
+    inline double getConstant() const { return m_globalConstFactor->getTable()[0]; }
 
-    void setVerbose(bool v) { m_verbose = v; }
+    void getLabelAll(int var, vector<double> &out);
 
-    const vector<Function*> &getFactors() const { return m_factors; }
+    inline void setVerbose(bool v) { m_verbose = v; }
 
-    double getRuntime() const { return m_runtime; }
-    double getRunIters() const { return m_runiters; }
+    inline const vector<Function*> &getFactors() const { return m_factors; }
+
+    inline double getRuntime() const { return m_runtime; }
+    inline double getRunIters() const { return m_runiters; }
 
     size_t getSize() const;
 

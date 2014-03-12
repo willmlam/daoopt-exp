@@ -41,7 +41,13 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         vector<double> &out) {
     vector<double> fglpOut(out.size(),ELEM_ONE);
     vector<double> mbeOut(out.size(),ELEM_ONE);
-    fglpHeur->getHeurAllAdjusted(var,assignment,node,fglpOut);
+    if (m_options->useShiftedLabels) {
+        fglpHeur->getHeurAll(var,assignment,node,fglpOut);
+    }
+    else {
+        fglpHeur->getHeurAllAdjusted(var,assignment,node,fglpOut);
+    }
+
     if (m_options->fglpMBEHeur)
         mbeHeur->getHeurAll(var,assignment,node,mbeOut);
 
@@ -88,7 +94,6 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
           }
       }
 
-
 }
 
 double FGLPMBEHybrid::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {
@@ -101,11 +106,16 @@ double FGLPMBEHybrid::getLabel(int var, const vector<val_t> &assignment, SearchN
 
 void FGLPMBEHybrid::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node,
         vector<double> &out) {
-    vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
-    for (Function *f : m_pseudotree->getFunctions(var)) {
-        f->getValues(assignment, var, costTmp);
-        for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-            out[i] OP_TIMESEQ costTmp[i];
+    if (m_options->useShiftedLabels) {
+        fglpHeur->getLabelAll(var, assignment, node, out);
+    }
+    else {
+        vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
+        for (Function *f : m_pseudotree->getFunctions(var)) {
+            f->getValues(assignment, var, costTmp);
+            for (int i=0; i<m_problem->getDomainSize(var); ++i) {
+                out[i] OP_TIMESEQ costTmp[i];
+            }
         }
     }
 }

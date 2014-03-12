@@ -33,6 +33,7 @@ protected:
     vector<vector<int>> m_ordering;
 
     map<int,val_t> m_tempAssn;
+    vector<double> m_tempLabelsFGLP;
     vector<double> m_tempLabels;
 
     vector<set<int>> m_subproblemFunIds;

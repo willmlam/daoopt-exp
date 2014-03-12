@@ -421,6 +421,19 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
     m_factors.push_back(m_globalConstFactor);
 }
 
+void FGLP::getLabelAll(int var, vector<double> &out) {
+    out.clear();
+    out.resize(m_domains[var],ELEM_ONE);
+    // For each function, check if its unary and contains the variable
+    for (const auto &f : m_factors) {
+        if (f->getArity() == 1 && f->hasInScope(var)) {
+            for (size_t i=0; i < out.size(); ++i) {
+                out[i] OP_TIMESEQ f->getTable()[i];
+            }
+        }
+    }
+}
+
 size_t FGLP::getSize() const {
     size_t S = 0;
     for (const auto &f : m_factors) {

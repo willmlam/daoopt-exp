@@ -52,6 +52,7 @@ public:
   int jglpi;  // specifies the i-bound used for JGLP
   bool fglpHeur; // use pure FGLP heuristic
   bool fglpMBEHeur; // use FGLP/MBE hybrid heuristic
+  bool useShiftedLabels; // use shifted labels induced by FGLP
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
   double ndfglpt; // convergence tolerance for FGLP
