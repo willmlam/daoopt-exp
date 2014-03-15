@@ -8,13 +8,17 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
     for (int i = 0; i < p->getN(); ++i) {
         findDfsOrder(m_ordering[i], i);
     }
+    m_updateOrdering.resize(p->getN());
+    for (int i = 0; i < p->getN(); ++i) {
+        findBfsOrder(m_updateOrdering[i], i);
+    }
     computeSubproblemFunIds();
 
 }
 
 size_t FGLPHeuristic::build(const std::vector<val_t> *assignment, bool computeTables) {
     rootFGLP = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), 
-            m_problem->getFunctions(), m_ordering.back());
+            m_problem->getFunctions(), m_updateOrdering.back());
 //    rootFGLP->setVerbose(true);
     rootFGLP->run(m_options->mplp, m_options->mplps);
     m_globalUB = rootFGLP->getUB();
@@ -94,13 +98,15 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     }
     */
 
+
     FGLP *varFGLP = new FGLP(m_problem->getN(),
             m_problem->getDomains(),
 //       funs,
             parentFGLP->getFactors(),
-            m_ordering[var],
+            (m_options->useFglpBfs ? m_updateOrdering[var] : m_ordering[var]),
             m_tempAssn);
 
+//    varFGLP->setVerbose(true);
     varFGLP->run(m_options->ndfglp, m_options->ndfglps);
 
 //    cout << "FGLP size (MB): " << (varFGLP->getSize()*sizeof(double)) / (1024*1024.0)  << endl;
@@ -189,6 +195,25 @@ void FGLPHeuristic::findDfsOrder(vector<int> &order, int var) const {
         for (vector<PseudotreeNode*>::const_iterator it=n->getChildren().begin();
                 it!=n->getChildren().end(); ++it) {
             dfs.push(*it);
+        }
+    }
+}
+
+void FGLPHeuristic::findBfsOrder(vector<int> &order, int var) const {
+    order.clear();
+    queue<PseudotreeNode*> bfs;
+    if (m_pseudotree->getRoot()->getVar() != var) {
+        order.push_back(m_pseudotree->getRoot()->getVar());
+    }
+    bfs.push(m_pseudotree->getNode(var));
+    PseudotreeNode* n = NULL;
+    while (!bfs.empty()) {
+        n = bfs.front();
+        bfs.pop();
+        order.push_back(n->getVar());
+        for (vector<PseudotreeNode*>::const_iterator it=n->getChildren().begin();
+                it!=n->getChildren().end(); ++it) {
+            bfs.push(*it);
         }
     }
 }

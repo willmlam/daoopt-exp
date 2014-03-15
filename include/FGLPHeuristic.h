@@ -31,6 +31,7 @@ protected:
     double m_globalUB;  
     FGLP *rootFGLP;
     vector<vector<int>> m_ordering;
+    vector<vector<int>> m_updateOrdering;
 
     map<int,val_t> m_tempAssn;
     vector<double> m_tempLabelsFGLP;
@@ -87,6 +88,7 @@ public:
 
 protected:
     void findDfsOrder(vector<int>& ordering, int var) const;
+    void findBfsOrder(vector<int>& ordering, int var) const;
 
 
 };

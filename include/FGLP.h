@@ -12,6 +12,7 @@ class SearchNode;
 class FGLP {
 private:
     static constexpr double DEFAULT_TOLERANCE = 1e-6;
+//    static constexpr int DEFAULT_UPDATE_DISTANCE = std::numeric_limits<int>::max();
     /*
     // Problem to reparameterize
     Problem *m_problem;
@@ -23,9 +24,12 @@ private:
     // Domain sizes of variables
     const vector<val_t> &m_domains;
 
-    // Ordering of variables to use
-    const vector<int> &m_ordering;
+    // Variable ordering containing the varibles in this subproblem
+//    const vector<int> &m_ordering;
 
+    // Update ordering for each iteration
+    const vector<int> &m_updateOrdering;
+//    vector<bool> m_inUpdateOrdering;
 
     // Local copy of all of the functions of the problem
     vector<Function*> m_factors;
@@ -55,17 +59,15 @@ private:
     // Use verbose output (show bound progression)
     bool m_verbose;
 
-
-    // condition the functions in fns according to the assignment and fill them 
-    // into m_factors. Also removes factors not in the subproblem
-    void condition(const vector<Function*> &fns, const map<int,val_t> &assignment);
-
-
     // store the time it took to run
     double m_runtime;
 
     // store the number of iterations it took
     int m_runiters;
+
+    // condition the functions in fns according to the assignment and fill them 
+    // into m_factors. Also removes factors not in the subproblem
+    void condition(const vector<Function*> &fns, const map<int,val_t> &assignment);
 
     // Updates UB and returns the amount it changed
     double updateUB();
@@ -99,6 +101,18 @@ public:
     inline double getConstant() const { return m_globalConstFactor->getTable()[0]; }
 
     void getLabelAll(int var, vector<double> &out);
+
+    /*
+    inline bool addToUpdateOrdering(int v) {
+        if (!m_inUpdateOrdering[v]) {
+            m_updateOrdering.push_back(v);
+            m_inUpdateOrdering[v] = true;
+            return true;
+        }
+        return false;
+    }
+    */
+//    void populateOrdering(int dist=DEFAULT_UPDATE_DISTANCE);
 
     inline void setVerbose(bool v) { m_verbose = v; }
 

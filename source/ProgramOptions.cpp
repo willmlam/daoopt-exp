@@ -72,6 +72,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("fglpHeur","use pure FGLP heuristic")
       ("fglpMBEHeur","use FGLP/MBE hybrid heuristic")
       ("useShiftedLabels","use shifted labels induced by FGLP")
+      ("useFglpBfs","use BFS based update ordering for FGLP")
       ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
       ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
       ("ndfglpt", po::value<double>()->default_value(1e-7), "convergence tolerance for FGLP at every node")
@@ -278,6 +279,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->useShiftedLabels = true;
     else
         opt->useShiftedLabels = false;
+    
+    if (vm.count("useFglpBfs"))
+        opt->useFglpBfs = true;
+    else
+        opt->useFglpBfs = false;
 
     if (vm.count("ndfglp"))
         opt->ndfglp = vm["ndfglp"].as<int>();

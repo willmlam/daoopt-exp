@@ -7,7 +7,7 @@ using namespace std::chrono;
 FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering) 
     :  
     m_domains(domains),
-    m_ordering(ordering), 
+    m_updateOrdering(ordering),
     m_factorsByVariable(nVars, vector<Function*>()), 
     m_unaryFactors(nVars, NULL),
     m_globalConstFactor(NULL),
@@ -26,8 +26,9 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
 
         // Check if factor exists in this subproblem
         bool factorExists = false;
-        vector<int>::const_iterator it = m_ordering.begin();
-        for (; it!=m_ordering.end(); ++it) {
+        vector<int>::const_iterator it = m_updateOrdering.begin();
+        
+        for (; it != m_updateOrdering.end(); ++it) {
             if (fns[i]->hasInScope(*it)) factorExists = true;
         }
         if (fns[i]->getArity() == 0) m_globalConstFactor = fns[i]->clone();
@@ -36,7 +37,6 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
             continue;
         }
 
-//        m_factors[i] = fns[i]->clone();
         m_factors.push_back(fns[i]->clone());
         const vector<int> &scope = m_factors.back()->getScopeVec();
         vector<int>::const_iterator itS = scope.begin();
@@ -53,12 +53,14 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
         m_maxMarginals[v].resize(m_factorsByVariable[v].size(), NULL);
     }
 
+//    addToUpdateOrdering(m_ordering[1]);
+//    populateOrdering();
 }
 
 FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment) 
     : 
     m_domains(domains),
-    m_ordering(ordering), 
+    m_updateOrdering(ordering), 
     m_factorsByVariable(nVars, vector<Function*>()), 
     m_unaryFactors(nVars, NULL),
     m_globalConstFactor(NULL),
@@ -85,6 +87,7 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     for (size_t v = 0; v < m_factorsByVariable.size(); ++v) {
         m_maxMarginals[v].resize(m_factorsByVariable[v].size(), NULL);
     }
+//    populateOrdering();
 
 }
 
@@ -208,13 +211,15 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
         timeEnd = steady_clock::now();
         if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
 //        vector<int>::const_reverse_iterator rit = m_ordering.rbegin();
-        vector<int>::const_iterator rit = m_ordering.begin();
-        for (; rit != m_ordering.end(); ++rit) {
+//        m_updateOrdering = m_ordering;
+//        cout << m_updateOrdering << endl;
+        vector<int>::const_iterator it = m_updateOrdering.begin();
+        for (; it != m_updateOrdering.end(); ++it) {
 //        for (; rit != m_ordering.rend(); ++rit) {
             timeEnd = steady_clock::now();
             if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
             // update variable v this iteration
-            int v = *rit;
+            int v = *it;
 
             if (v >= int(m_factorsByVariable.size())) continue;
 
@@ -407,7 +412,20 @@ void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignm
         cout << endl;
         */
         Function *new_fn = fns[i]->substitute(assignment);
+
+        // Function changed, place other variables in update ordering
+        /*
+        if (new_fn->getArity() != fns[i]->getArity()) {
+//            cout << "new arity: " << new_fn->getArity() << " , old arity:" << fns[i]->getArity() << endl;
+            for (int v : new_fn->getScopeVec()) {
+//                cout << "Adding to initial update ordering: " << v << endl;
+                addToUpdateOrdering(v);
+            }
+        }
+        */
+
         if (new_fn->isConstant()) {
+//            cout << "Changed function is constant (nothing to add)" << endl;
             globalConstant OP_TIMESEQ new_fn->getTable()[0];
             delete new_fn;
         } else {
@@ -433,6 +451,35 @@ void FGLP::getLabelAll(int var, vector<double> &out) {
         }
     }
 }
+
+/*
+void FGLP::populateOrdering(int dist) {
+    queue<int> newVars;
+    for (int k : m_updateOrdering) {
+        newVars.push(k);
+    }
+    int firstAdded;
+    for (int k=0; k<dist; ++k) {
+//        cout << k << endl;
+        if (newVars.empty()) {
+            break;
+        }
+        firstAdded = NONE;
+        while(!newVars.empty() && newVars.front() != firstAdded) {
+            int currentVar = newVars.front();
+            newVars.pop();
+            for (Function *f : m_factorsByVariable[currentVar]) {
+                for (int k : f->getScopeVec()) {
+                    if (addToUpdateOrdering(k)) {
+                        newVars.push(k);
+                        if (firstAdded == NONE) firstAdded = k;
+                    }
+                }
+            }
+        }
+    }
+}
+*/
 
 size_t FGLP::getSize() const {
     size_t S = 0;
