@@ -1,4 +1,5 @@
 #include "FGLPHeuristic.h"
+#include "Graph.h"
 using namespace std;
 
 FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po) 
@@ -8,9 +9,55 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
     for (int i = 0; i < p->getN(); ++i) {
         findDfsOrder(m_ordering[i], i);
     }
+
+    Graph g(p->getN());
+    for (Function *f : p->getFunctions()) {
+        g.addClique(f->getScopeVec());
+    }
+
     m_updateOrdering.resize(p->getN());
-    for (int i = 0; i < p->getN(); ++i) {
-        findBfsOrder(m_updateOrdering[i], i);
+    for (int v : m_ordering.back()) {
+
+        // keeps track of which node has been visited
+        SETCLASS<int> nodes(++m_ordering[v].begin(), m_ordering[v].end());
+#if defined HASH_GOOGLE_SPARSE || defined HASH_GOOGLE_DENSE
+        nodes.set_deleted_key(UNKNOWN);
+#endif
+#ifdef HASH_GOOGLE_DENSE
+        nodes.set_empty_key(UNKNOWN-1);
+#endif
+
+        queue<int> bfs;
+        if (v == pt->getRoot()->getVar()) {
+            assert(m_ordering.back().size() > 1);
+            bfs.push(m_ordering.back()[1]);
+        }
+        else {
+            bfs.push(v);
+        }
+        nodes.erase(bfs.front());
+        while (!bfs.empty()) {
+            int currentVar = bfs.front(); 
+            m_updateOrdering[v].push_back(currentVar);
+            bfs.pop();
+            const set<int> &nb = g.getNeighbors(currentVar);
+            for (int vn : nb) {
+                if (nodes.find(vn) != nodes.end()) {
+                    bfs.push(vn);
+                    nodes.erase(vn);
+                }
+            }
+            if (!nodes.empty()) {
+                for (int k : m_ordering.back()) {
+                    if (nodes.find(k) != nodes.end()) {
+                        bfs.push(k);
+                        nodes.erase(k);
+                        break;
+                    }
+                }
+            }
+        }
+        g.removeNode(v);
     }
     computeSubproblemFunIds();
 
