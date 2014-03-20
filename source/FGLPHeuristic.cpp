@@ -47,7 +47,7 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
                     nodes.erase(vn);
                 }
             }
-            if (!nodes.empty()) {
+            if (v == pt->getRoot()->getVar() && !nodes.empty()) {
                 for (int k : m_ordering.back()) {
                     if (nodes.find(k) != nodes.end()) {
                         bfs.push(k);
