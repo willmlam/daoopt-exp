@@ -97,13 +97,14 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
 #ifndef NO_CACHING
           // prev is OR node, try to cache
           if (m_doCaching && prev->isCachable() && !prev->isNotOpt() ) {
+              cout << "Trying to cache " << endl;;
 #ifndef NO_ASSIGNMENT
             if (m_space->cache->write(prev->getVar(), prev->getCacheInst(), prev->getCacheContext(), prev->getValue(), prev->getOptAssig() ) )
 #else
             if (m_space->cache->write(prev->getVar(), prev->getCacheInst(), prev->getCacheContext(), prev->getValue() ) )
 #endif
             {
-#ifdef DEBUG
+#ifndef DEBUG
               ostringstream ss;
               ss << "-Cached " << *prev << " with value " << prev->getValue()
 #ifndef NO_ASSIGNMENT

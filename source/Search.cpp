@@ -249,10 +249,10 @@ bool Search::canBePruned(SearchNode* n) const {
     DIAG( ostringstream ss; ss << "\t ?PST root: " << *curOR << " pst=" << curPSTVal << " v=" << curOR->getValue() << endl; myprint(ss.str()); )
 
     //if ( fpLt(curPSTVal, curOR->getValue()) ) {
-    if ( curPSTVal <= curOR->getValue() ) {
-      for (SearchNode* nn = (n->getType() == NODE_OR) ? n : n->getParent();
-           nn != curOR; nn = nn->getParent()->getParent())
-        nn->setNotOpt();  // mark possibly not optimally solved subproblems
+    if ( curPSTVal <= curOR->getValue()  || fabs(curPSTVal - curOR->getValue()) < 1e-10 ) {
+        for (SearchNode* nn = (n->getType() == NODE_OR) ? n : n->getParent();
+            nn != curOR; nn = nn->getParent()->getParent())
+            nn->setNotOpt();  // mark possibly not optimally solved subproblems
       return true;  // pruning is possible!
     }
   }

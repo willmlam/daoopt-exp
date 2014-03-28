@@ -690,6 +690,10 @@ bool Main::outputStats() const {
 
   cout << endl;
   m_heuristic->printExtraStats();
+  for (auto c : m_search->getLeafProfile()) {
+      cout << " " << int(c) << endl;
+  }
+  cout << endl;
   /*
   cout << "Heuristic stats" << endl;
   cout << "---------------" << endl;
