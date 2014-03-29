@@ -29,8 +29,8 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -O0 -g3")
 set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -g3")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-DDEBUG -O3")
+set(CMAKE_C_FLAGS_RELEASE "-DDEBUG -O3")
 
 # Check for C++11 support
 include(CheckCXXCompilerFlag) 

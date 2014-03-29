@@ -25,6 +25,7 @@
 
 #include "Search.h"
 #include "ProgramOptions.h"
+#include <iomanip>
 
 extern time_t _time_start; // from Main.cpp
 
@@ -158,6 +159,12 @@ bool Search::doPruning(SearchNode* node) {
 
   if (canBePruned(node)) {
     DIAG( myprint("\t !pruning \n") );
+    /*
+    if (node->getVar() == 173) {
+        sleep(5);
+        exit(0);
+    }
+    */
     node->setLeaf();
     m_space->stats.numPruned += 1;
     node->setPruned();
@@ -219,7 +226,7 @@ SearchNode* Search::nextLeaf() {
 
 
 bool Search::canBePruned(SearchNode* n) const {
-  DIAG(oss ss; ss << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
+  DIAG(oss ss; ss << std::setprecision(20) << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
 
       // heuristic is upper bound, prune if zero
   if (n->getHeur() == ELEM_ZERO) return true;
@@ -236,6 +243,7 @@ bool Search::canBePruned(SearchNode* n) const {
 
     curAND = curOR->getParent();  // climb up one, update values
     curPSTVal OP_TIMESEQ curAND->getLabel();  // collect AND node label
+    DIAG ( ostringstream ss; ss << *curAND << endl; myprint(ss.str()); )
     curPSTVal OP_TIMESEQ curAND->getSubSolved();  // incorporate already solved sibling OR nodes
 
     // incorporate new not-yet-solved sibling OR nodes through their heuristic
@@ -246,16 +254,26 @@ bool Search::canBePruned(SearchNode* n) const {
     }
     curOR = curAND->getParent();
 
-    DIAG( ostringstream ss; ss << "\t ?PST root: " << *curOR << " pst=" << curPSTVal << " v=" << curOR->getValue() << endl; myprint(ss.str()); )
+    DIAG( ostringstream ss; ss << std::setprecision(20) << "\t ?PST root: " << *curOR << " pst=" << curPSTVal << " v=" << curOR->getValue() << endl; myprint(ss.str()); )
 
     //if ( fpLt(curPSTVal, curOR->getValue()) ) {
-    if ( curPSTVal <= curOR->getValue()  || fabs(curPSTVal - curOR->getValue()) < 1e-10 ) {
+    //
+    if ( curPSTVal <= curOR->getValue() /*|| fabs(curPSTVal - curOR->getValue()) < 1e-10*/ ) {
         for (SearchNode* nn = (n->getType() == NODE_OR) ? n : n->getParent();
             nn != curOR; nn = nn->getParent()->getParent())
             nn->setNotOpt();  // mark possibly not optimally solved subproblems
       return true;  // pruning is possible!
     }
+
+    /*
+    if (n->getVar() == 173) {
+        sleep(5);
+        exit(0);
+    }
+    */
+
   }
+
 
   return false;  // default, no pruning possible
 

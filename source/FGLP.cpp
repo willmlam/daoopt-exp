@@ -210,7 +210,7 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
     for (iter = 0; iter < maxIter || (maxIter == -1 && maxTime > 0); ++iter) {
         timeEnd = steady_clock::now();
         if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
-        if (fabs(diff) < tolerance || std::isnan(diff)) break;
+//        if (fabs(diff) < tolerance || std::isnan(diff)) break;
 //        vector<int>::const_reverse_iterator rit = m_ordering.rbegin();
 //        m_updateOrdering = m_ordering;
 //        cout << m_updateOrdering << endl;
