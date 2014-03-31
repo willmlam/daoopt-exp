@@ -227,6 +227,9 @@ SearchNode* Search::nextLeaf() {
 
 bool Search::canBePruned(SearchNode* n) const {
   DIAG(oss ss; ss << std::setprecision(20) << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
+ 
+  // never prune the root node (is there a better solution maybe?)
+  if (n->getDepth() < 0) return false;
 
       // heuristic is upper bound, prune if zero
   if (n->getHeur() == ELEM_ZERO) return true;
