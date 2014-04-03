@@ -11,49 +11,61 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
         m_pseudotree->addFunctionInfo(m_problem->getFunctions()); 
         m_options->mplp = 0;
         m_options->mplps = 0;
-    }
-    if (m_options!=NULL && (m_options->jglp > 0 || m_options->jglps > 0)) {
-        mex::mbe _jglp( copyFactors() );
-        mex::VarOrder ord(m_pseudotree->getElimOrder().begin(), --m_pseudotree->getElimOrder().end());
-        //cout << m_pseudotree->getElimOrder().size() << endl;
-        _jglp.setOrder(ord);
 
-        //cout << m_problem->getN() << endl;
-        mex::VarOrder parents(m_problem->getN() - 1);              // copy pseudotree information
-        for (int i=0;i<m_problem->getN() - 1;++i) {
-        int par = m_pseudotree->getNode(i)->getParent()->getVar();
-        parents[i]= (par==m_pseudotree->getRoot()->getVar()) ? -1 : par;
-        }
-        _jglp.setPseudotree(parents);
-
-        limitJGLPIBound(m_options->memlimit);
-
-        _jglp.setIBound(m_options->jglpi);
-
-        _jglp.setProperties("DoMatch=1,DoFill=0,DoJG=1,DoMplp=0");
-        cout << "Running JGLP(" << m_options->jglpi << ")" << endl;
-
-        _jglp.init();
-
-        int iter; if (m_options->jglp>0) iter = m_options->jglp; else iter=100;
-        _jglp.tighten(iter, m_options->jglps);
-        rewriteFactors( _jglp.factors() );
-
-        // JGLP code duplicates scopes, recollapse functions
-        m_problem->collapseFunctions();
-        m_pseudotree->addFunctionInfo(m_problem->getFunctions());
-
-        // Make sure preprocessing doesn't run again.
-        m_options->jglp = 0;
-        m_options->jglps = 0;
+        cout << "Problem size (MB) after FGLP preprocessing: "
+            << (m_problem->getSize()*sizeof(double) / (1024*1024.0)) << endl;
 
     }
 
+    // Construct the fglp heuristic here on the smaller functions
     fglpHeur = new FGLPHeuristic(p,pt,po);
-    if (m_options->fglpMBEHeur)
+
+    if (m_options->fglpMBEHeur) {
+        if (m_options!=NULL && (m_options->jglp > 0 || m_options->jglps > 0)) {
+            mex::mbe _jglp( copyFactors() );
+            mex::VarOrder ord(m_pseudotree->getElimOrder().begin(), --m_pseudotree->getElimOrder().end());
+            //cout << m_pseudotree->getElimOrder().size() << endl;
+            _jglp.setOrder(ord);
+
+            //cout << m_problem->getN() << endl;
+            mex::VarOrder parents(m_problem->getN() - 1);              // copy pseudotree information
+            for (int i=0;i<m_problem->getN() - 1;++i) {
+            int par = m_pseudotree->getNode(i)->getParent()->getVar();
+            parents[i]= (par==m_pseudotree->getRoot()->getVar()) ? -1 : par;
+            }
+            _jglp.setPseudotree(parents);
+
+            limitJGLPIBound(m_options->memlimit);
+
+            _jglp.setIBound(m_options->jglpi);
+
+            _jglp.setProperties("DoMatch=1,DoFill=0,DoJG=1,DoMplp=0");
+            cout << "Running JGLP(" << m_options->jglpi << ")" << endl;
+
+            _jglp.init();
+
+            int iter; if (m_options->jglp>0) iter = m_options->jglp; else iter=100;
+            _jglp.tighten(iter, m_options->jglps);
+            rewriteFactors( _jglp.factors() );
+
+            // JGLP code duplicates scopes, recollapse functions
+            m_problem->collapseFunctions();
+            m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+
+            // Make sure preprocessing doesn't run again.
+            m_options->jglp = 0;
+            m_options->jglps = 0;
+
+            cout << "Problem size (MB) after JGLP preprocessing: "
+                << (m_problem->getSize()*sizeof(double) / (1024*1024.0)) << endl;
+
+        }
         mbeHeur = new MiniBucketElim(p,pt,po,po->ibound);
-    else
+    }
+    else {
         mbeHeur = nullptr;
+    }
+
     timesFGLPUsed.resize(p->getN(),0);
     timesMBEUsed.resize(p->getN(),0);
     timesFGLPPruned.resize(p->getN(),0);
