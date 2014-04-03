@@ -8,6 +8,7 @@
 #include "ProgramOptions.h"
 #include "Pseudotree.h"
 #include "utils.h"
+#include "mex/mbe.h"
 #include "FGLP.h"
 #include "ExtraNodeInfo.h"
 
@@ -57,6 +58,18 @@ public:
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
     bool calculatePruning(int var, SearchNode *node, double curPSTVal);
+
+    mex::vector<mex::Factor> copyFactors();
+    void rewriteFactors( const vector<mex::Factor> &factors);
+
+    inline bool isAccurate() {
+        assert(m_pseudotree);
+        return mbeHeur && (m_pseudotree->getWidthCond() <= mbeHeur->getIbound());
+    }
+
+    size_t computeMBEMemory(int ibound);
+
+    size_t limitJGLPIBound(size_t memlimit);
 
     inline void printExtraStats() const {
         cout << "depth,FGLPBetter,MBEBetter,OnlyFGLPPruned,OnlyMBEPruned,BothPruned" << endl;

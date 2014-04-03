@@ -34,6 +34,9 @@ private:
     // Local copy of all of the functions of the problem
     vector<Function*> m_factors;
 
+    // Does this class own its factors?
+    bool m_ownsFactors;
+
     // Mapping of variables to factors
     vector<vector<Function*> > m_factorsByVariable;
 
@@ -115,6 +118,7 @@ public:
 //    void populateOrdering(int dist=DEFAULT_UPDATE_DISTANCE);
 
     inline void setVerbose(bool v) { m_verbose = v; }
+    inline void setOwnsFactors(bool o) { m_ownsFactors = o; }
 
     inline const vector<Function*> &getFactors() const { return m_factors; }
 
@@ -124,8 +128,10 @@ public:
     size_t getSize() const;
 
     ~FGLP() {
-        for (size_t i = 0; i < m_factors.size(); ++i)
-            delete m_factors[i];
+        if (m_ownsFactors) {
+            for (size_t i = 0; i < m_factors.size(); ++i)
+                delete m_factors[i];
+        }
     }
 
 };
