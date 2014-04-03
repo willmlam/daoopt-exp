@@ -63,6 +63,7 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     : 
     m_domains(domains),
     m_updateOrdering(ordering), 
+    m_ownsFactors(true),
     m_factorsByVariable(nVars, vector<Function*>()), 
     m_unaryFactors(nVars, NULL),
     m_globalConstFactor(NULL),

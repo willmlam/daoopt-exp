@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
     cout << endl;
     cout << "<MBEmemory>=" << szMB << endl << endl;
     cout << "MBEValue,FGLPValue,difference,FGLPiters,FGLPtime" << endl;
-    for (unsigned int k=0;k<100000;++k) {
+    for (unsigned int k=0;k<10000;++k) {
         shuffleAssignments(p->getDomains(), assignment);
         double fglpRunTime = 0;
         int fglpIters = 0;
