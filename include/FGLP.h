@@ -11,7 +11,7 @@ class SearchNode;
 
 class FGLP {
 private:
-    static constexpr double DEFAULT_TOLERANCE = 1e-6;
+    static constexpr double DEFAULT_TOLERANCE = 1e-7;
 //    static constexpr int DEFAULT_UPDATE_DISTANCE = std::numeric_limits<int>::max();
     /*
     // Problem to reparameterize

@@ -209,6 +209,7 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
     steady_clock::time_point timeStart = steady_clock::now();
     steady_clock::time_point timeEnd;
 
+
     int iter;
     for (iter = 0; iter < maxIter || (maxIter == -1 && maxTime > 0); ++iter) {
         timeEnd = steady_clock::now();
@@ -289,6 +290,7 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
     timeEnd = steady_clock::now();
     m_runtime = double(duration_cast<milliseconds>(timeEnd-timeStart).count()) / 1000;
     m_runiters = iter;
+
     if (m_verbose) {
         cout << "FGLP (" << iter << " iter, " << m_runtime << " sec): " << m_UB << endl;
         /*

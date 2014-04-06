@@ -25,6 +25,7 @@ class FGLPMBEHybrid : public Heuristic {
     vector<unsigned long> timesMBEPruned;
     vector<unsigned long> timesBothPruned;
 
+
 public:
     FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po); 
 
@@ -81,6 +82,14 @@ public:
                 << timesMBEPruned[i] << ","
                 << timesBothPruned[i] << endl;
         }
+
+        unsigned long long totalIterationsRun = fglpHeur->getTotalIterationsRun();
+        unsigned long long totalInitiated = fglpHeur->getTotalInitiated();
+
+        cout << "Total iterations run: " << totalIterationsRun << endl;
+        cout << "Total initiated: " << totalInitiated << endl;
+
+        cout << "Average iterations per node: " << totalIterationsRun / double(totalInitiated) << endl;
     }
 
     inline virtual ~FGLPMBEHybrid() { 

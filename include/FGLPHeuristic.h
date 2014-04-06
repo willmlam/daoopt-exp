@@ -47,6 +47,9 @@ protected:
 //
     void computeSubproblemFunIds();
 
+    unsigned long long totalIterationsRun;
+    unsigned long long totalInitiated;
+
     
 public:
     FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po);
@@ -81,6 +84,9 @@ public:
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
     void printExtraStats() const {}
+
+    unsigned long long getTotalIterationsRun() { return totalIterationsRun; }
+    unsigned long long getTotalInitiated() { return totalInitiated; }
 
     virtual ~FGLPHeuristic() { 
         if (rootFGLP)

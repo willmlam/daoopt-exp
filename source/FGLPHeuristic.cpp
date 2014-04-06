@@ -3,7 +3,7 @@
 using namespace std;
 
 FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po) 
-: Heuristic(p,pt,po), rootFGLP(nullptr) {
+: Heuristic(p,pt,po), rootFGLP(nullptr), totalIterationsRun(0), totalInitiated(0) {
     // Precompute lists of variables for each subproblem
     m_ordering.resize(p->getN());
     for (int i = 0; i < p->getN(); ++i) {
@@ -154,7 +154,12 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
             m_tempAssn);
 
 //    varFGLP->setVerbose(true);
-    varFGLP->run(m_options->ndfglp, m_options->ndfglps);
+    varFGLP->run(m_options->ndfglp, m_options->ndfglps, m_options->ndfglpt);
+
+    totalIterationsRun += varFGLP->getRunIters();
+    if (varFGLP->getRunIters() > 0) {
+        totalInitiated++;
+    }
 
 //    cout << "FGLP size (MB): " << (varFGLP->getSize()*sizeof(double)) / (1024*1024.0)  << endl;
     
