@@ -90,11 +90,15 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         vector<double> &out) {
     vector<double> fglpOut(out.size(),ELEM_ONE);
     vector<double> mbeOut(out.size(),ELEM_ONE);
-    if (m_options->useShiftedLabels) {
-        fglpHeur->getHeurAll(var,assignment,node,fglpOut);
-    }
-    else {
-        fglpHeur->getHeurAllAdjusted(var,assignment,node,fglpOut);
+
+    // Do not use FGLP at all if MBE is accurate
+    if (!isAccurate()) {
+        if (m_options->useShiftedLabels) {
+            fglpHeur->getHeurAll(var,assignment,node,fglpOut);
+        }
+        else {
+            fglpHeur->getHeurAllAdjusted(var,assignment,node,fglpOut);
+        }
     }
 
     if (m_options->fglpMBEHeur)

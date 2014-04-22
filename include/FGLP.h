@@ -21,6 +21,13 @@ private:
     Problem *m_problemLocal;
     */
 
+    // Use version of update that shifts the max-marginals into the nullary function?
+    bool m_useNullaryShift;
+
+    // Flag to determine if there were no changes made for a particular 
+    // variable update
+    vector<bool> m_noChanges;
+
     // Domain sizes of variables
     const vector<val_t> &m_domains;
 
@@ -49,6 +56,9 @@ private:
     // Storage of max marginals during tightening
     vector<vector<double*> >m_maxMarginals;
 
+    // Storage of shifted max marginals during tightening
+    vector<vector<double*> >m_maxMarginalsShifted;
+
     // Stores the current upper bound of the problem
     // (computed by taking the product of the max values of each factor)
     double m_UB;
@@ -73,6 +83,8 @@ private:
     void condition(const vector<Function*> &fns, const map<int,val_t> &assignment);
 
     // Updates UB and returns the amount it changed
+    // Not used when using nullary shift version, which updates the UB on the fly
+    // Simply sets the UB value instead.
     double updateUB();
 
     // Utility function to compute the max marginal of a function
@@ -83,10 +95,10 @@ private:
 
 public:
     // Constructor for reparameterizing the original problem
-    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering);
+    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, bool useNullaryShift = false);
 
     // Constructor for reparameterizing dynamically during search
-    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment);
+    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment, bool useNullaryShift = false);
 
     void run(int maxIter, double maxTime, double tolerance=DEFAULT_TOLERANCE);
 

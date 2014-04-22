@@ -111,23 +111,36 @@ int main(int argc, char **argv) {
 
     // Evaluation code
 
-    int nvAssign = po->cutoff_depth; // ...Borrowing the option variable
-
-    vector<val_t> assignment(p->getN(),NONE);
-    PseudotreeNode *node = pt->getRoot();
-    for (int i=0; i<nvAssign; ++i) {
-        node=node->getChildren()[0];
-        assignment[node->getVar()] = 0;
-    }
-
     vector <int> linearOrdering;
-    for (int i=0; i<elim.size();++i) linearOrdering.push_back(i);
+    for (size_t i=0; i<elim.size();++i) linearOrdering.push_back(i);
 
     // Preprocess problem first to convergence
-    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering));
-    fglp->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,po->useNullaryShift));
+    fglp->run(1000,po->ndfglps,po->ndfglpt);
+
+
+    /*
+    for (size_t fid = 0; fid < p->getFunctions().size(); ++fid) {
+        Function *f = p->getFunctions()[fid];
+        Function *fs = fglp->getFactors()[fid];
+        cout << *f << endl;
+        for (size_t k = 0; k < f->getTableSize(); ++k) {
+            cout << f->getTable()[k] << " " << fs->getTable()[k] << endl;
+        }
+        cout << endl;
+    }
+    */
 
     p->replaceFunctions(fglp->getFactors(),true);
+
+
+    vector<double> fMax(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
+    for (size_t i = 0; i < p->getFunctions().size(); ++i) {
+        Function *f = p->getFunctions()[i];
+        for (size_t j = 0; j < f->getTableSize(); ++j) {
+            fMax[f->getId()] = max(fMax[f->getId()],f->getTable()[j]);
+        }
+    }
 
     map<int,val_t> mAssn;
     int vA = 0;
@@ -135,13 +148,21 @@ int main(int argc, char **argv) {
 
     vector<int> bOrdering = bfsOrdering(p,linearOrdering,vA);
 
-    shared_ptr<FGLP> fglp2(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,mAssn));
+    shared_ptr<FGLP> fglp2(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,mAssn,po->useNullaryShift));
 //fglp2->run(10,po->ndfglps,po->ndfglpt);
-    fglp2->run(po->ndfglp,po->ndfglps,po->ndfglpt);
     fglp2->setVerbose(true);
+    fglp2->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+
 
 
     p->condition(mAssn);
+    vector<double> fMaxAfter(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
+    for (size_t i = 0; i < p->getFunctions().size(); ++i) {
+        Function *f = p->getFunctions()[i];
+        for (size_t j = 0; j < f->getTableSize(); ++j) {
+            fMaxAfter[f->getId()] = max(fMaxAfter[f->getId()],f->getTable()[j]);
+        }
+    }
 
     const vector<Function*> &fOrig = p->getFunctions();
     const vector<Function*> &fShifted = fglp2->getFactors();
@@ -149,24 +170,38 @@ int main(int argc, char **argv) {
     assert(fOrig.size() == fShifted.size());
 
     vector<double> changes(fOrig.size(),0);
+    vector<double> changesMin(fOrig.size(),0);
 
     double totalPositiveChange = 0;
     double totalNegativeChange = 0;
+
 
     for (size_t i = 0; i < fOrig.size(); ++i) {
         size_t tSize = fOrig[i]->getTableSize();
         double oMax = -std::numeric_limits<double>::infinity();
         double sMax = -std::numeric_limits<double>::infinity();
+        double oMin = std::numeric_limits<double>::infinity();
+        double sMin = std::numeric_limits<double>::infinity();
         for (size_t j = 0; j < tSize; ++j) {
             oMax = max(oMax,fOrig[i]->getTable()[j]);
             sMax = max(sMax,fShifted[i]->getTable()[j]);
+            oMin = min(oMin,fOrig[i]->getTable()[j]);
+            sMin = min(sMin,fShifted[i]->getTable()[j]);
         }
         changes[i] = sMax - oMax;
+        changesMin[i] = sMin - oMin;
         if (changes[i] > 0) totalPositiveChange += changes[i];
         else totalNegativeChange += changes[i];
     }
 
+    for (size_t i = 0; i < fMax.size(); ++i) {
+        double change = fMaxAfter[i] - fMax[i];
+        if (change == 0.0) continue;
+        cout << i << " : " << fMax[i] << " " << fMaxAfter[i] << " (change: " << change << ")" << endl;
+    }
 
+
+    /*
     vector<int> fOrdering;
     for (int v : bOrdering) {
         for (Function *f : fOrig) {
@@ -178,14 +213,43 @@ int main(int argc, char **argv) {
         }
     }
     assert(fOrdering.size() <= fOrig.size());
-    for (int fid : fOrdering) {
-        cout << *fOrig[fid] << ", change: " << changes[fid] << endl;
+    */
+//    for (int fid : fOrdering) {
+    for (size_t fid = 0; fid < fOrig.size(); ++fid) {
+        if (changes[fid] == 0.0) continue;
+        cout << *fOrig[fid] << endl;
+        cout << "change: " << changes[fid] /*<< " | " << changesMin[fid]*/ << endl;
     }
+
+    /*
+    for (size_t fid = 0; fid < fOrig.size(); ++fid) {
+        Function *f = fOrig[fid];
+        Function *fs = fShifted[fid];
+        cout << *f << endl;
+        for (size_t k = 0; k < f->getTableSize(); ++k) {
+            cout << f->getTable()[k] << " " << fs->getTable()[k] << endl;
+        }
+        cout << endl;
+    }
+    */
 
     cout << "total positive change: " << totalPositiveChange << endl;
     cout << "total negative change: " << totalNegativeChange << endl;
     cout << "net change: " << totalPositiveChange + totalNegativeChange << endl;
 
+    vector<double> fMaxFinal(fShifted.size(),-std::numeric_limits<double>::infinity());
+    vector<double> fMinFinal(fShifted.size(),std::numeric_limits<double>::infinity());
+    for (size_t i = 0; i < fShifted.size(); ++i) {
+        Function *f = fShifted[i];
+        for (size_t j = 0; j < f->getTableSize(); ++j) {
+            fMaxFinal[f->getId()] = max(fMaxFinal[f->getId()],f->getTable()[j]);
+            fMinFinal[f->getId()] = min(fMinFinal[f->getId()],f->getTable()[j]);
+        }
+    }
+
+    for (size_t i = 0; i > fMaxFinal.size(); ++i) {
+        cout << i << " : " << fMaxFinal[i] /*<< " , " << fMinFinal[i] */<< endl;
+    }
 
 
 

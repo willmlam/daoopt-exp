@@ -4,8 +4,9 @@
 using namespace std;
 using namespace std::chrono;
 
-FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering) 
+FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, bool useNullaryShift) 
     :  
+    m_useNullaryShift(useNullaryShift),
     m_domains(domains),
     m_updateOrdering(ordering),
     m_ownsFactors(true),
@@ -13,6 +14,7 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     m_unaryFactors(nVars, NULL),
     m_globalConstFactor(NULL),
     m_maxMarginals(nVars, vector<double*>()),
+    m_maxMarginalsShifted(nVars, vector<double*>()),
     m_UB(ELEM_ONE),
     m_UBNonConstant(ELEM_ONE),
     m_ancestorCost(ELEM_ONE),
@@ -53,14 +55,16 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     // allocate max marginal storage
     for (size_t v = 0; v < m_factorsByVariable.size(); ++v) {
         m_maxMarginals[v].resize(m_factorsByVariable[v].size(), NULL);
+        m_maxMarginalsShifted[v].resize(m_factorsByVariable[v].size(), NULL);
     }
 
 //    addToUpdateOrdering(m_ordering[1]);
 //    populateOrdering();
 }
 
-FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment) 
+FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment, bool useNullaryShift) 
     : 
+    m_useNullaryShift(useNullaryShift),
     m_domains(domains),
     m_updateOrdering(ordering), 
     m_ownsFactors(true),
@@ -68,6 +72,7 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     m_unaryFactors(nVars, NULL),
     m_globalConstFactor(NULL),
     m_maxMarginals(nVars, vector<double*>()),
+    m_maxMarginalsShifted(nVars, vector<double*>()),
     m_UB(ELEM_ONE),
     m_ancestorCost(ELEM_ONE),
     m_verbose(false) {
@@ -89,6 +94,7 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
     // allocate max marginal storage
     for (size_t v = 0; v < m_factorsByVariable.size(); ++v) {
         m_maxMarginals[v].resize(m_factorsByVariable[v].size(), NULL);
+        m_maxMarginalsShifted[v].resize(m_factorsByVariable[v].size(), NULL);
     }
 //    populateOrdering();
 
@@ -96,18 +102,24 @@ FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns
 
 double FGLP::updateUB() {
     double oldUB = m_UB;
-    m_UB = ELEM_ONE;
-    m_UBNonConstant = ELEM_ONE;
-    vector<Function*>::const_iterator itF = m_factors.begin();
-    for (; itF != m_factors.end(); ++itF) {
-       // Find the maximum value of the factor
-       double z = ELEM_ZERO;
-       for (size_t i=0; i<(*itF)->getTableSize(); ++i) {
-           z = max(z,(*itF)->getTable()[i]);
-       }
-       m_UB OP_TIMESEQ z;
-       if ((*itF)->getArity() > 0) m_UBNonConstant OP_TIMESEQ z;
+    if (!m_useNullaryShift) {
+        m_UB = ELEM_ONE;
+        m_UBNonConstant = ELEM_ONE;
+        vector<Function*>::const_iterator itF = m_factors.begin();
+        for (; itF != m_factors.end(); ++itF) {
+            // Find the maximum value of the factor
+            double z = ELEM_ZERO;
+            for (size_t i=0; i<(*itF)->getTableSize(); ++i) {
+                z = max(z,(*itF)->getTable()[i]);
+            }
+            m_UB OP_TIMESEQ z;
+            if ((*itF)->getArity() > 0) m_UBNonConstant OP_TIMESEQ z;
+        }
     }
+    // If using nullary shift, the bound is collected in the nullary function
+    else {
+        m_UB = m_globalConstFactor->getTable()[0];
+    } 
     return m_UB OP_DIVIDE oldUB;
 }
 
@@ -132,14 +144,14 @@ void FGLP::getVarUB(int var, vector<double> &out) {
             continue;
         }
 
-        // Skip if unary factor with the current variable scope (would be pushed to the global constant in actual conditioning)
+        // Skip if unary factor with the current variable scope (would correspond to node label)
         if ((*itF)->getArity() == 1 && (*itF)->hasInScope(var)) {
             /*
             cout << " unary [ ";
             for (size_t k=0; k<(*itF)->getTableSize(); ++k) {
                 cout << (*itF)->getTable()[k] << " ";
             }
-            cout << "]" << endl;
+           , bool useNullaryShift = false cout << "]" << endl;
             */
 
             continue;
@@ -191,7 +203,8 @@ void FGLP::getVarUB(int var, vector<double> &out) {
 
 void FGLP::run(int maxIter, double maxTime, double tolerance) {
 
-    double diff = updateUB();
+    double diff = numeric_limits<double>::max();
+    updateUB();
     if (m_verbose) {
         cout << "Initial UB: " << m_UB << endl;
         /*
@@ -249,19 +262,62 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
             // To store max marginals of each of the functions
 
             vector<double*> &varMaxMarginals = m_maxMarginals[v];
+            vector<double*> &varMaxMarginalsShifted = m_maxMarginalsShifted[v];
 
-            // Compute max marginals
+            vector<double> mmMax(varMaxMarginals.size(),
+                    -numeric_limits<double>::max());
+
+            size_t tableSize = m_domains[v];
+            // Compute max marginals and shifted versions
             for (size_t i = 0; i < m_factorsByVariable[v].size(); ++i) {
                 varMaxMarginals[i] = maxMarginal(m_factorsByVariable[v][i], v);
+
+                if (m_useNullaryShift) {
+                    for (size_t j = 0; j < tableSize; ++j) {
+                        mmMax[i] = max(mmMax[i], varMaxMarginals[i][j]);
+                    }
+
+                    // Find shifted version and shift cost into nullary function
+                    // if needed
+                    varMaxMarginalsShifted[i] = new double[tableSize];
+//                    if (mmMax[i] != 0) cout << v << endl;
+                    // Shift max into the global constant
+                    m_globalConstFactor->getTable()[0] OP_TIMESEQ mmMax[i];
+
+
+                    // compute shifted version
+                    for (size_t j = 0; j < tableSize; ++j) {
+                        varMaxMarginalsShifted[i][j] = 
+                            varMaxMarginals[i][j] OP_DIVIDE mmMax[i];
+                    }
+                    // DEBUG output max marginals
+                    /*
+                    cout << "max marginals: " << endl;
+                    for (size_t j = 0; j < tableSize; ++j) {
+                        cout << varMaxMarginals[i][j] << " "
+                            << varMaxMarginalsShifted[i][j] << endl;
+                    }
+                    */
+                }
             }
 
             // Compute average max marginal
-            size_t tableSize = m_domains[v];
             double *avgMaxMarginalTable = new double[tableSize];
 
             for (unsigned int i=0; i<tableSize; ++i) avgMaxMarginalTable[i] = ELEM_ONE;
-            for (vector<double*>::iterator itMM=varMaxMarginals.begin();
-                    itMM!=varMaxMarginals.end(); ++itMM) {
+
+            vector<double*>::iterator itMM;
+            vector<double*>::iterator itMMEnd;
+
+            if (m_useNullaryShift) {
+                itMM = varMaxMarginalsShifted.begin();
+                itMMEnd = varMaxMarginalsShifted.end();
+            }
+            else {
+                itMM = varMaxMarginals.begin();
+                itMMEnd = varMaxMarginals.end();
+            }
+            for (; itMM != itMMEnd; ++itMM) {
                 for (unsigned int i=0; i<tableSize; ++i)
                     avgMaxMarginalTable[i] OP_TIMESEQ (*itMM)[i];
             }
@@ -275,6 +331,10 @@ void FGLP::run(int maxIter, double maxTime, double tolerance) {
                 reparameterize(m_factorsByVariable[v][i],varMaxMarginals[i],avgMaxMarginalTable,v);
                 delete varMaxMarginals[i];
                 varMaxMarginals[i] = NULL;
+                if (m_useNullaryShift) {
+                    delete varMaxMarginalsShifted[i];
+                    varMaxMarginalsShifted[i] = NULL;
+                }
             }
             delete avgMaxMarginalTable;
         }
