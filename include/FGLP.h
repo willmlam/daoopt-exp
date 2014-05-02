@@ -10,7 +10,7 @@ class SearchNode;
 // generates/stores a reparameterized version of the problem
 
 class FGLP {
-private:
+protected:
     static constexpr double DEFAULT_TOLERANCE = 1e-7;
 //    static constexpr int DEFAULT_UPDATE_DISTANCE = std::numeric_limits<int>::max();
     /*
@@ -24,19 +24,11 @@ private:
     // Use version of update that shifts the max-marginals into the nullary function?
     bool m_useNullaryShift;
 
-    // Flag to determine if there were no changes made for a particular 
-    // variable update
-    vector<bool> m_noChanges;
+    // Number of variables
+    int m_nVars;
 
     // Domain sizes of variables
     const vector<val_t> &m_domains;
-
-    // Variable ordering containing the varibles in this subproblem
-//    const vector<int> &m_ordering;
-
-    // Update ordering for each iteration
-    const vector<int> &m_updateOrdering;
-//    vector<bool> m_inUpdateOrdering;
 
     // Local copy of all of the functions of the problem
     vector<Function*> m_factors;
@@ -53,11 +45,11 @@ private:
     // Pointer to global constant factor
     Function *m_globalConstFactor;
 
-    // Storage of max marginals during tightening
-    vector<vector<double*> >m_maxMarginals;
 
-    // Storage of shifted max marginals during tightening
-    vector<vector<double*> >m_maxMarginalsShifted;
+    // Store the variables that must be updated
+    // (Conditioning definitely affects these variables in general)
+    // (only needed for first iteration?) (rest can do zero check?)
+    vector<bool> m_forceUpdateVars;
 
     // Stores the current upper bound of the problem
     // (computed by taking the product of the max values of each factor)
@@ -65,9 +57,6 @@ private:
 
     // Stores the upper bound for the non constant portion of the problem
     double m_UBNonConstant;
-
-    // Accumulates the cost for functions already conditioned
-    double m_ancestorCost;
 
     // Use verbose output (show bound progression)
     bool m_verbose;
@@ -93,14 +82,32 @@ private:
     // Utility function to reparameterize a function given its max marginal and average max marginal
     void reparameterize(Function *f, double *maxMarginal, double *averageMaxMarginal, int v);
 
+
+private:
+    // Update ordering for each iteration
+    const vector<int> &m_updateOrdering;
+
+    // Storage of max marginals during tightening
+    vector<vector<double*> >m_maxMarginals;
+
+    // Skip variable updates if zero?
+    bool m_skipVars;
+
+    // Flags for each variable to determine if all of their functions are zero
+    vector<bool> m_varFactorMaxIsZero;
+
+    // Goes through each function to check if the function maximum is 0
+    // if not, mark it in the vector
+    void updateVarFactorMaxIsZero();
+
 public:
     // Constructor for reparameterizing the original problem
     FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, bool useNullaryShift = false);
 
     // Constructor for reparameterizing dynamically during search
-    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment, bool useNullaryShift = false);
+    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment, const vector<bool> &zeroFlags, bool useNullaryShift = false);
 
-    void run(int maxIter, double maxTime, double tolerance=DEFAULT_TOLERANCE);
+    virtual void run(int maxIter, double maxTime, double tolerance=DEFAULT_TOLERANCE);
 
     // Get the upper bounds with respect to all assignments to a variable
     void getVarUB(int var, vector<double> &out);
@@ -115,6 +122,11 @@ public:
     // Get the constant value (nullary function value)
     inline double getConstant() const { return m_globalConstFactor->getTable()[0]; }
 
+    // Get the flags stating whether all of the functions containing a variable
+    // have maximums at 0.
+    inline const vector<bool> &getVarFactorMaxIsZero() const {
+        return m_varFactorMaxIsZero;
+    }
     void getLabelAll(int var, vector<double> &out);
 
     /*

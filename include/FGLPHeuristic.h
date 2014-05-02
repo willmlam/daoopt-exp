@@ -8,17 +8,18 @@
 #include "Pseudotree.h"
 #include "utils.h"
 #include "FGLP.h"
+#include "ResidualFGLP.h"
 #include "ExtraNodeInfo.h"
 
 // Utility class to contain all the FGLP processed problems
 // corresponding to each variable assignment
 // Also stores the cost to the node based on the original functions
 class FGLPNodeInfo : public ExtraNodeInfo {
-    unique_ptr<FGLP> m_fglpStore;
+    unique_ptr<ResidualFGLP> m_fglpStore;
     double m_origCostToNode;
     public:
-    const unique_ptr<FGLP> &getFGLPStore() const { return m_fglpStore; }
-    void setFGLPStore(FGLP *fglp) { m_fglpStore.reset(fglp); }
+    const unique_ptr<ResidualFGLP> &getFGLPStore() const { return m_fglpStore; }
+    void setFGLPStore(ResidualFGLP *fglp) { m_fglpStore.reset(fglp); }
 
     double getOrigCostToNode() const { return m_origCostToNode; }
     void setOrigCostToNode(double v) { m_origCostToNode = v; }
@@ -29,7 +30,7 @@ class FGLPNodeInfo : public ExtraNodeInfo {
 class FGLPHeuristic : public Heuristic {
 protected:
     double m_globalUB;  
-    FGLP *rootFGLP;
+    ResidualFGLP *rootFGLP;
     vector<vector<int>> m_ordering;
 
     vector<vector<int>> m_updateOrdering;

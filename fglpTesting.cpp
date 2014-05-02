@@ -3,6 +3,7 @@
 #include "Problem.h"
 #include "MiniBucketElim.h"
 #include "FGLP.h"
+#include "ResidualFGLP.h"
 #include "ProgramOptions.h"
 #include "Graph.h"
 #include <random>
@@ -115,8 +116,16 @@ int main(int argc, char **argv) {
     for (size_t i=0; i<elim.size();++i) linearOrdering.push_back(i);
 
     // Preprocess problem first to convergence
+    /*
     shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,po->useNullaryShift));
+//    fglp->setVerbose(false);
     fglp->run(1000,po->ndfglps,po->ndfglpt);
+    */
+
+    shared_ptr<ResidualFGLP> rfglp(new ResidualFGLP(p.get(),po->useNullaryShift));
+    rfglp->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+
+
 
 
     /*
@@ -131,7 +140,7 @@ int main(int argc, char **argv) {
     }
     */
 
-    p->replaceFunctions(fglp->getFactors(),true);
+    p->replaceFunctions(rfglp->factors(),true);
 
 
     vector<double> fMax(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
@@ -148,12 +157,16 @@ int main(int argc, char **argv) {
 
     vector<int> bOrdering = bfsOrdering(p,linearOrdering,vA);
 
-    shared_ptr<FGLP> fglp2(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,mAssn,po->useNullaryShift));
+    /*
+    shared_ptr<FGLP> fglp2(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,mAssn,fglp->getVarFactorMaxIsZero(),po->useNullaryShift));
 //fglp2->run(10,po->ndfglps,po->ndfglpt);
     fglp2->setVerbose(true);
     fglp2->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    */
 
-
+    shared_ptr<ResidualFGLP> fglp2(new ResidualFGLP(rfglp.get(),mAssn));
+    fglp2->set_verbose(true);
+    fglp2->run(po->ndfglp,po->ndfglps,po->ndfglpt);
 
     p->condition(mAssn);
     vector<double> fMaxAfter(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
@@ -165,7 +178,7 @@ int main(int argc, char **argv) {
     }
 
     const vector<Function*> &fOrig = p->getFunctions();
-    const vector<Function*> &fShifted = fglp2->getFactors();
+    const vector<Function*> &fShifted = fglp2->factors();
 
     assert(fOrig.size() == fShifted.size());
 

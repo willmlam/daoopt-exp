@@ -1239,7 +1239,7 @@ bool MiniBucketElim::doFGLP() {
     */
 
       // My version of FGLP
-    m_fglpRoot = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), m_problem->getFunctions(),m_elimOrder.back());
+    m_fglpRoot = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), m_problem->getFunctions(),m_elimOrder.back(),m_options->useNullaryShift);
     m_fglpRoot->run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps);
     m_fglpRoot->setOwnsFactors(false);
     m_problem->replaceFunctions(m_fglpRoot->getFactors(),true);
@@ -1281,58 +1281,6 @@ bool MiniBucketElim::doJGLP() {
 
   }
   return changedFunctions;
-}
-
-// This one needs to start from the *original* parameterization
-bool MiniBucketElim::getNodeFGLPHeur(SearchNode *n, const vector<val_t> &assignment, vector<double> &out) {
-    SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
-        //    Problem *pCond = nn->getProblemCond();
-
-        const vector<int> &relVars = 
-            m_pseudotree->getNode(nn->getVar())->getFullContextVec();
-        map<int,val_t> cond;
-
-
-        // Need to get the correct set of conditioning variables
-
-        for (unsigned i = 0; i < relVars.size(); ++i) {
-           cond[relVars[i]] = assignment[relVars[i]];
-        //        cout << "Assigning: (" << relVars[i] << "," << int(assignment[relVars[i]]) << ")" << endl;
-        }
-
-        // May need to change this later, depending on the FGLP parent instances
-        /*
-        if (nn->getParent()) {
-            int parentVar = nn->getParent()->getParent()->getVar();
-            assert(assignment[parentVar] != -1);
-            cond[parentVar] = assignment[parentVar];
-        }
-        */
-
-    FGLP *fglp = NULL;
-    /*
-    if (!nn->getParent()) {
-        fglp = m_fglpRoot;
-        if (m_fglpRoot) {
-            fglp->getVarUB(nn->getVar(),out);
-            return false;
-        }
-    }
-    */
-    // Not getting functions from parent FGLP copy because f values are different
-    //
-    for (int k=0; k<int(out.size());++k) {
-        cond[nn->getVar()] = k;
-        fglp = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), m_problem->getFunctions(),m_elimOrder[nn->getVar()],cond);
-        fglp->run(m_options->ndfglp < 0 ? 5 : m_options->ndfglp, m_options->ndfglps);
-        out[k] = fglp->getUBNonConstant();
-        delete fglp;
-    }
-
-
-
-    return true;
-
 }
 
 // Copy DaoOpt Function class into mex::Factor class structures

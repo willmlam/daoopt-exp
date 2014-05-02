@@ -366,9 +366,6 @@ public:
   bool doFGLP();
   bool doJGLP();
 
-  // Copies and conditions the problem in the root.
-  bool getNodeFGLPHeur(SearchNode *n, const vector<val_t> &assignment, vector<double> &out);
-
 public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
   virtual ~MiniBucketElim();

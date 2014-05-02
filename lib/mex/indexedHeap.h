@@ -81,9 +81,9 @@ public:
 	}
 
   void debug() {
-		std::cout<<"P: "; for (int i=0;i<_p.size();++i) std::cout<<_p[i]<<" "; std::cout<<"\n";
-		std::cout<<"I: "; for (int i=0;i<_id.size();++i) std::cout<<_id[i]<<" "; std::cout<<"\n";
-		std::cout<<"R: "; for (int i=0;i<_rev.size();++i) std::cout<<_rev[i]<<" "; std::cout<<"\n";
+		std::cout<<"P: "; for (size_t i=0;i<_p.size();++i) std::cout<<_p[i]<<" "; std::cout<<"\n";
+		std::cout<<"I: "; for (size_t i=0;i<_id.size();++i) std::cout<<_id[i]<<" "; std::cout<<"\n";
+		std::cout<<"R: "; for (size_t i=0;i<_rev.size();++i) std::cout<<_rev[i]<<" "; std::cout<<"\n";
 	}
 
 	void pop() { 

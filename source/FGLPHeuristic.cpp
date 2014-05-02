@@ -64,11 +64,10 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
 }
 
 size_t FGLPHeuristic::build(const std::vector<val_t> *assignment, bool computeTables) {
-    rootFGLP = new FGLP(m_problem->getNOrg(), m_problem->getDomains(), 
-            m_problem->getFunctions(), m_updateOrdering.back());
+    rootFGLP = new ResidualFGLP(m_problem, m_options->useNullaryShift);
 //    rootFGLP->setVerbose(true);
     rootFGLP->run(m_options->mplp, m_options->mplps);
-    m_globalUB = rootFGLP->getUB();
+    m_globalUB = rootFGLP->ub();
     return 0;
 }
 
@@ -81,7 +80,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         vector<double> &out) {
 
 //    cout << "var: " << var << endl;
-    FGLP *parentFGLP;
+    ResidualFGLP *parentFGLP;
     double parentCost;
 //    double parentCostShifted;
     // Is the root node?
@@ -146,24 +145,19 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     */
 
 
-    FGLP *varFGLP = new FGLP(m_problem->getN(),
-            m_problem->getDomains(),
-//       funs,
-            parentFGLP->getFactors(),
-            (m_options->useFglpBfs ? m_updateOrdering[var] : m_ordering[var]),
-            m_tempAssn);
+    ResidualFGLP *varFGLP = new ResidualFGLP(parentFGLP, m_tempAssn);
 
 //    varFGLP->setVerbose(true);
     varFGLP->run(m_options->ndfglp, m_options->ndfglps, m_options->ndfglpt);
 
-    totalIterationsRun += varFGLP->getRunIters();
-    if (varFGLP->getRunIters() > 0) {
+    totalIterationsRun += varFGLP->runiters();
+    if (varFGLP->runiters() > 0) {
         totalInitiated++;
     }
 
 //    cout << "FGLP size (MB): " << (varFGLP->getSize()*sizeof(double)) / (1024*1024.0)  << endl;
     
-    varFGLP->getVarUB(var, out);
+    varFGLP->GetVarUB(var, out);
     info->setFGLPStore(varFGLP);
     info->setOrigCostToNode(parentCost);
 
@@ -179,7 +173,7 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
     vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
     m_tempLabelsFGLP.clear();
     m_tempLabelsFGLP.resize(m_problem->getDomainSize(var), ELEM_ONE);
-    info->getFGLPStore()->getLabelAll(var,m_tempLabelsFGLP);
+    info->getFGLPStore()->GetLabelAll(var,m_tempLabelsFGLP);
 
     m_tempLabels.clear();
     m_tempLabels.resize(m_problem->getDomainSize(var), ELEM_ONE);
@@ -193,8 +187,8 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
 
     // Compute the difference in the costs going to the current node
 //    cout << "Difference in costs to node: " << endl;
-//    cout << info->getFGLPStore()->getConstant() << " , " << info->getOrigCostToNode() << endl;
-    double restCostDiff = info->getFGLPStore()->getConstant() OP_DIVIDE
+//    cout << info->getFGLPStore()->global_constant() << " , " << info->getOrigCostToNode() << endl;
+    double restCostDiff = info->getFGLPStore()->global_constant() OP_DIVIDE
             info->getOrigCostToNode();
 
     // Compute the difference in costs in selecting the next value
@@ -212,7 +206,7 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
 
 double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchNode *node) {
     assert(assignment[var] != NONE);
-    const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->getFactors();
+    const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->factors();
     double labelValue = ELEM_ONE;
     for (auto f : functions)
         if (f->getArity() == 1 && f->getScopeVec()[0] == var)
@@ -221,7 +215,7 @@ double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchN
 }
 
 void FGLPHeuristic::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
-    const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->getFactors();
+    const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->factors();
     double labelValue;
     for (int i=0; i<m_problem->getDomainSize(var); ++i) {
         labelValue = ELEM_ONE;
