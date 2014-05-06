@@ -4,6 +4,9 @@ using namespace std;
 
 FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po) 
 : Heuristic(p,pt,po), rootFGLP(nullptr), totalIterationsRun(0), totalInitiated(0) {
+
+    m_countVars.resize(p->getN(),0);
+    m_varsUpdated.resize(p->getN(),0);
     // Precompute lists of variables for each subproblem
     m_ordering.resize(p->getN());
     for (int i = 0; i < p->getN(); ++i) {
@@ -153,6 +156,12 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     totalIterationsRun += varFGLP->runiters();
     if (varFGLP->runiters() > 0) {
         totalInitiated++;
+    }
+
+    if (node->getParent()) {
+        int parentVar = node->getParent()->getVar();
+        m_countVars[parentVar]++;
+        m_varsUpdated[parentVar] += varFGLP->vars_updated().size();
     }
 
 //    cout << "FGLP size (MB): " << (varFGLP->getSize()*sizeof(double)) / (1024*1024.0)  << endl;

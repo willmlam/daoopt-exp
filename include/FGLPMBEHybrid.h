@@ -86,10 +86,20 @@ public:
         unsigned long long totalIterationsRun = fglpHeur->getTotalIterationsRun();
         unsigned long long totalInitiated = fglpHeur->getTotalInitiated();
 
+        const vector<unsigned long> &countVars = fglpHeur->getCountVars();
+        const vector<unsigned long> &varsUpdated = fglpHeur->getVarsUpdated();
+
         cout << "Total iterations run: " << totalIterationsRun << endl;
         cout << "Total initiated: " << totalInitiated << endl;
 
         cout << "Average iterations per node: " << totalIterationsRun / double(totalInitiated) << endl;
+
+        cout << "Average variables updated at each variable: " << endl;
+        cout << "var,depth,average" << endl;
+        for (int i = 0; i < m_problem->getN(); ++i) {
+            cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","
+                << varsUpdated[i]/double(countVars[i]) << endl;
+        }
     }
 
     inline virtual ~FGLPMBEHybrid() { 

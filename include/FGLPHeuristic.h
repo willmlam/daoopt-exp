@@ -51,6 +51,9 @@ protected:
     unsigned long long totalIterationsRun;
     unsigned long long totalInitiated;
 
+    vector<unsigned long> m_countVars;
+    vector<unsigned long> m_varsUpdated;
+
     
 public:
     FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po);
@@ -88,6 +91,9 @@ public:
 
     unsigned long long getTotalIterationsRun() { return totalIterationsRun; }
     unsigned long long getTotalInitiated() { return totalInitiated; }
+
+    const vector<unsigned long> &getCountVars() { return m_countVars; }
+    const vector<unsigned long> &getVarsUpdated() { return m_varsUpdated; }
 
     virtual ~FGLPHeuristic() { 
         if (rootFGLP)

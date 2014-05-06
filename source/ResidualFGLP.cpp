@@ -70,7 +70,7 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
     steady_clock::time_point time_end;
 
     int iter;
-    for (iter = 0; iter < max_updates || (max_updates = -1 && max_time > 0); 
+    for (iter = 0; iter < max_updates || (max_updates == -1 && max_time > 0); 
             ++iter) {
         time_end = steady_clock::now();
         if (max_time > 0 && 
@@ -99,6 +99,8 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
         }
         global_const_factor_->getTable()[0] OP_TIMESEQ 
             message_update->nullary_shift();
+
+        vars_updated_.insert(var_to_update);
 
         // Update messages affected by applied update
         // Replace the current message without modifying

@@ -51,6 +51,7 @@ class FGLPVariableUpdate {
         }
 
         inline void ReplaceVariableMessage(double *message) {
+            delete var_to_f_;
             var_to_f_ = message;
         }
 
@@ -203,6 +204,10 @@ class ResidualFGLP {
         inline double runtime() const { return runtime_; }
         inline double runiters() const { return runiters_; }
 
+        inline const set<int> &vars_updated() const {
+            return vars_updated_;
+        }
+
         size_t GetSize() const;
 
         inline virtual ~ResidualFGLP() {
@@ -252,6 +257,8 @@ class ResidualFGLP {
         double runtime_;
 
         int runiters_;
+
+        set<int> vars_updated_;
 
         // Priority queue to schedule updates
         vector<FGLPVariableUpdate*> message_updates_;
