@@ -92,10 +92,24 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
         FGLPVariableUpdate *message_update = 
                 message_updates_[var_to_update];
         for (Function *f : factors_by_variable_[var_to_update]) {
-            for (int v : f->getScopeVec()) 
-                to_recompute.insert(v);
+            double *f_to_v = message_update->factor_to_var_[f->getId()];
+            double *v_to_f = message_update->var_to_f_;
             Reparameterize(f, message_update->factor_to_var_[f->getId()],
                 message_update->var_to_f_,var_to_update);
+
+            // Check if the factor to var message is equal
+            // to the var to factor message (only 
+            // mark variables for recomputation if the messages
+            // are different
+            bool allSame = true;
+            for (int i = 0; i < problem_->getDomainSize(var_to_update); ++i) {
+                allSame = allSame && (f_to_v[i] == v_to_f[i] + message_update->nullary_shift());
+                if (!allSame) break;
+            }
+            if (!allSame) {
+                for (int v : f->getScopeVec()) 
+                    to_recompute.insert(v);
+            }
         }
         global_const_factor_->getTable()[0] OP_TIMESEQ 
             message_update->nullary_shift();
@@ -117,6 +131,7 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
             duration_cast<milliseconds>(time_end - time_start).count()) / 1000;
     runiters_ = iter;
 
+//    cout << "highest residual: " << message_queue_.top().first << endl;
     if (verbose_) {
         cout << "RFGLP (" << iter << " updates, " << runtime_ << " sec): " 
             << ub_ << endl;
@@ -227,8 +242,19 @@ void ResidualFGLP::Condition(const vector<Function*> &fns,
         }
         else {
             if (new_f->getArity() != f->getArity()) {
-                for (int v : new_f->getScopeVec())
-                    vars_to_update_.insert(v); 
+                for (int v : new_f->getScopeVec()) {
+                    // No need to check if we determined that we will already update it
+                    if (vars_to_update_.count(v)) continue;
+                    double *cur_f_to_v = message_updates_[v]->factor_to_var_[new_f->getId()];
+                    double *temp_mm = MaxMarginal(new_f,v);
+                    for (int i = 0; i < problem_->getDomainSize(v); ++i) {
+                        if (cur_f_to_v[i] != temp_mm[i]) {
+                            vars_to_update_.insert(v); 
+                            break;
+                        }
+                    }
+                    delete temp_mm;
+                }
             }
             factors_.push_back(new_f);
         }
