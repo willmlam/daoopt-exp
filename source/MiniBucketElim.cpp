@@ -1239,8 +1239,11 @@ bool MiniBucketElim::doFGLP() {
     */
 
       // My version of FGLP
-    m_fglpRoot = new FGLP(m_problem,m_options->useNullaryShift);
-    m_fglpRoot->Run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps);
+    if (m_options->usePriority)
+       m_fglpRoot = new PriorityFGLP(m_problem,m_options->useNullaryShift);
+    else
+       m_fglpRoot = new FGLP(m_problem,m_options->useNullaryShift);
+    m_fglpRoot->Run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps, m_options->mplpt);
     m_fglpRoot->set_owns_factors(false);
     m_problem->replaceFunctions(m_fglpRoot->factors(),true);
     changedFunctions = true;

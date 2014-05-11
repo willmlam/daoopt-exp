@@ -105,6 +105,8 @@ public:
     }
 
     inline virtual ~FGLPMBEHybrid() { 
+        if (fglp)
+            delete fglp;
         if (fglpHeur)
             delete fglpHeur;
         if (mbeHeur)

@@ -36,6 +36,7 @@
 
 #include "mex/mbe.h"
 #include "FGLP.h"
+#include "PriorityFGLP.h"
 
 
 /* The overall minibucket elimination */

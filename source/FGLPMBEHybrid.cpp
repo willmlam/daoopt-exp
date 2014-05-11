@@ -10,6 +10,7 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
         else
             fglp = new FGLP(m_problem, po->useNullaryShift);
         fglp->Run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps, m_options->mplpt);
+        fglp->set_owns_factors(false);
         m_problem->replaceFunctions(fglp->factors());
         m_pseudotree->addFunctionInfo(m_problem->getFunctions()); 
         m_options->mplp = 0;
