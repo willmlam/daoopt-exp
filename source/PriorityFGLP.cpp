@@ -204,19 +204,13 @@ double PriorityFGLP::MessageDist(double *m1, double *m2, double ns, int var) {
 //        dist = max(dist, fabs(m1[i] - m2[i]));
         double m2_orig = m2[i] + ns;
         double diff;
-        if (isinf(m1[i]) && isinf(m2_orig)) {
+        if (std::isinf(m1[i]) && std::isinf(m2_orig)) {
             diff = 0;
         }
         else {
             diff = fabs(m1[i] - m2_orig);
         }
         dist += diff;
-        if (isnan(dist)) {
-            cout << m1[i] << " " << m2[i] << " " << ns << endl;
-            cout << m2[i] + ns << endl;
-            cout << m1[i] - (m2[i] + ns) << endl;
-            cin.get();
-        }
     }
     return dist;
 }
