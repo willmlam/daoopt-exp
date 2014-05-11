@@ -80,6 +80,12 @@ public:
 		}
 	}
 
+    double getP(size_t R) {
+        size_t I=_rev[R];
+        if (I==0) return -1;
+        return _p[I-1]; 
+    }
+
   void debug() {
 		std::cout<<"P: "; for (size_t i=0;i<_p.size();++i) std::cout<<_p[i]<<" "; std::cout<<"\n";
 		std::cout<<"I: "; for (size_t i=0;i<_id.size();++i) std::cout<<_id[i]<<" "; std::cout<<"\n";

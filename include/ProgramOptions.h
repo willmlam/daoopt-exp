@@ -55,6 +55,7 @@ public:
   bool useShiftedLabels; // use shifted labels induced by FGLP
   bool useFglpBfs; // use BFS update ordering for FGLP
   bool useNullaryShift; // use FGLP update that shifts maximums into a nullary function
+  bool usePriority; // use prioritized FGLP update schedule
   int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
   double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
   double ndfglpt; // convergence tolerance for FGLP

@@ -3,6 +3,7 @@
 #include "Problem.h"
 #include "MiniBucketElim.h"
 #include "FGLP.h"
+#include "PriorityFGLP.h"
 #include "ResidualFGLP.h"
 #include "ProgramOptions.h"
 #include "Graph.h"
@@ -117,13 +118,17 @@ int main(int argc, char **argv) {
 
     // Preprocess problem first to convergence
     /*
-    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,po->useNullaryShift));
-//    fglp->setVerbose(false);
-    fglp->run(1000,po->ndfglps,po->ndfglpt);
+    shared_ptr<FGLP> fglp(new FGLP(p.get(),po->useNullaryShift));
+    fglp->set_verbose(false);
+    fglp->Run(1000,po->ndfglps,po->ndfglpt);
     */
 
+    /*
     shared_ptr<ResidualFGLP> rfglp(new ResidualFGLP(p.get(),po->useNullaryShift));
-    rfglp->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    rfglp->Run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    */
+    shared_ptr<PriorityFGLP> pfglp(new PriorityFGLP(p.get(),po->useNullaryShift));
+    pfglp->Run(299000,po->ndfglps,po->ndfglpt);
 
 
 
@@ -140,7 +145,7 @@ int main(int argc, char **argv) {
     }
     */
 
-    p->replaceFunctions(rfglp->factors(),true);
+    p->replaceFunctions(pfglp->factors(),true);
 
 
     vector<double> fMax(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
@@ -158,15 +163,15 @@ int main(int argc, char **argv) {
     vector<int> bOrdering = bfsOrdering(p,linearOrdering,vA);
 
     /*
-    shared_ptr<FGLP> fglp2(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),linearOrdering,mAssn,fglp->getVarFactorMaxIsZero(),po->useNullaryShift));
-//fglp2->run(10,po->ndfglps,po->ndfglpt);
-    fglp2->setVerbose(true);
-    fglp2->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    shared_ptr<FGLP> fglp2a(new FGLP(fglp.get(),mAssn));
+    fglp2a->set_verbose(false);
+    fglp2a->Run(1,po->ndfglps,po->ndfglpt);
     */
+    
 
-    shared_ptr<ResidualFGLP> fglp2(new ResidualFGLP(rfglp.get(),mAssn));
-    fglp2->set_verbose(true);
-    fglp2->run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    shared_ptr<PriorityFGLP> fglp2(new PriorityFGLP(pfglp.get(),mAssn));
+    fglp2->set_verbose(false);
+    fglp2->Run(po->ndfglp,po->ndfglps,po->ndfglpt);
 
     p->condition(mAssn);
     vector<double> fMaxAfter(p->getFunctions().size(),-std::numeric_limits<double>::infinity());

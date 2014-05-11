@@ -74,6 +74,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("useShiftedLabels","use shifted labels induced by FGLP")
       ("useFglpBfs","use BFS based update ordering for FGLP")
       ("useNullaryShift","use FGLP update that shifts maximums into a nullary function")
+      ("usePriority","use prioritized FGLP update schedule")
       ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
       ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
       ("ndfglpt", po::value<double>()->default_value(1e-7), "convergence tolerance for FGLP at every node")
@@ -290,6 +291,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->useNullaryShift = true;
     else
         opt->useNullaryShift = false;
+
+    if (vm.count("usePriority"))
+        opt->usePriority = true;
+    else
+        opt->usePriority = false;
 
     if (vm.count("ndfglp"))
         opt->ndfglp = vm["ndfglp"].as<int>();

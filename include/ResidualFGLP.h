@@ -91,6 +91,7 @@ class FGLPVariableUpdate {
                     residual_ += pow(prev_nullary_shift_ - nullary_shift_, 2);
                     break;
                 case Distance::LInf:
+                    residual_ = ELEM_ZERO;
                     for (int i = 0; i < domain_; ++i) {
                         residual_ = max(residual_, fabs(prev_var_to_f_[i] - var_to_f_[i]));
                     }
@@ -181,7 +182,7 @@ class ResidualFGLP {
 
         ResidualFGLP(ResidualFGLP *parentFGLP, const map<int,val_t> &assignment);
         
-        virtual void run(int maxUpdates, double maxTime, 
+        virtual void Run(int maxUpdates, double maxTime, 
                 double tolerance=DEFAULT_RESIDUAL_TOLERANCE);
 
         void GetVarUB(int var, vector<double> &out);
@@ -193,6 +194,7 @@ class ResidualFGLP {
         }
 
         void GetLabelAll(int var, vector<double> &out);
+        size_t GetSize() const;
 
         inline void set_verbose(bool v) { verbose_ = v; }
         inline void set_owns_factors(bool o) { owns_factors_ = o; }
@@ -208,7 +210,6 @@ class ResidualFGLP {
             return vars_updated_;
         }
 
-        size_t GetSize() const;
 
         inline virtual ~ResidualFGLP() {
             if (owns_factors_)
@@ -263,6 +264,8 @@ class ResidualFGLP {
         // Priority queue to schedule updates
         vector<FGLPVariableUpdate*> message_updates_;
         mex::indexedHeap message_queue_; 
+
+        vector<int> distance_;
 
                         
 };

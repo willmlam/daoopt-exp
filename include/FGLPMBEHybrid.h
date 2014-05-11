@@ -18,6 +18,8 @@ class FGLPMBEHybrid : public Heuristic {
     FGLPHeuristic *fglpHeur;
     MiniBucketElim *mbeHeur;
 
+    FGLP *fglp;
+
     vector<unsigned long> timesFGLPUsed;
     vector<unsigned long> timesMBEUsed;
 

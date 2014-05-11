@@ -13,7 +13,8 @@ ResidualFGLP::ResidualFGLP(Problem *p,
     ub_(ELEM_ONE),
     use_nullary_shift_(use_nullary_shift),
     verbose_(true),
-    message_updates_(vector<FGLPVariableUpdate*>(p->getN(),nullptr)) {
+    message_updates_(vector<FGLPVariableUpdate*>(p->getN(),nullptr)),
+    distance_(p->getN(), numeric_limits<int>::max()) {
 
     for (Function *f : p->getFunctions()) {
         if (f->getArity() == 0) {
@@ -46,7 +47,8 @@ ResidualFGLP::ResidualFGLP(ResidualFGLP *parent_fglp,
     use_nullary_shift_(parent_fglp->use_nullary_shift_),
     verbose_(false),
     message_updates_(parent_fglp->message_updates_),
-    message_queue_(parent_fglp->message_queue_) {
+    message_queue_(parent_fglp->message_queue_),
+    distance_(problem_->getN(), numeric_limits<int>::max()) {
 
     Condition(parent_fglp->factors(), assignment);
 
@@ -59,7 +61,7 @@ ResidualFGLP::ResidualFGLP(ResidualFGLP *parent_fglp,
         ComputeVariableMessage(v, true);
 }
 
-void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
+void ResidualFGLP::Run(int max_updates, double max_time, double tolerance) {
     double diff = numeric_limits<double>::max();
     UpdateUB();
     if (verbose_) {
@@ -82,16 +84,26 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
         if (fabs(dist) < tolerance || std::isnan(dist)) break;
 
         int var_to_update = message_queue_.top().second;
+        cout << "Updating var: " << var_to_update << endl;
+        cout << "(distance: " << distance_[var_to_update] << ")" << endl;
 
         message_queue_.pop();
 
         set<int> to_recompute;
-        to_recompute.insert(var_to_update);
+        // no need to recompute variable that was just updated
+//        to_recompute.insert(var_to_update);
 
         // Apply update from stored messages
         FGLPVariableUpdate *message_update = 
                 message_updates_[var_to_update];
         for (Function *f : factors_by_variable_[var_to_update]) {
+            int min_dist = numeric_limits<int>::max();
+            for (int v : f->getScopeVec()) {
+                min_dist = min(min_dist, distance_[v]);
+            }
+            for (int v : f->getScopeVec()) {
+                distance_[v] = min(distance_[v], 1 + min_dist);
+            }
             double *f_to_v = message_update->factor_to_var_[f->getId()];
             double *v_to_f = message_update->var_to_f_;
             Reparameterize(f, message_update->factor_to_var_[f->getId()],
@@ -110,6 +122,7 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
                 for (int v : f->getScopeVec()) 
                     to_recompute.insert(v);
             }
+            
         }
         global_const_factor_->getTable()[0] OP_TIMESEQ 
             message_update->nullary_shift();
@@ -138,26 +151,6 @@ void ResidualFGLP::run(int max_updates, double max_time, double tolerance) {
     }
 }
 
-void ResidualFGLP::GetLabelAll(int var, vector<double> &out) {
-    out.clear();
-    out.resize(problem_->getDomainSize(var), ELEM_ONE);
-
-    // For each function, check if it's unary and contains the variable
-    for (Function *f : factors_) {
-        if (f->getArity() == 1 && f->hasInScope(var)) {
-            for (size_t i = 0; i < out.size(); ++i) {
-                out[i] OP_TIMESEQ f->getTable()[i];
-            }
-        }
-    }
-}
-
-size_t ResidualFGLP::GetSize() const {
-    size_t s = 0;
-    for (Function *f : factors_)
-        s += f->getTableSize();
-    return s;
-}
 
 void ResidualFGLP::ComputeVariableMessage(int v, bool replace_mode) {
 
@@ -245,6 +238,7 @@ void ResidualFGLP::Condition(const vector<Function*> &fns,
                 for (int v : new_f->getScopeVec()) {
                     // No need to check if we determined that we will already update it
                     if (vars_to_update_.count(v)) continue;
+                    distance_[v] = 0;
                     double *cur_f_to_v = message_updates_[v]->factor_to_var_[new_f->getId()];
                     double *temp_mm = MaxMarginal(new_f,v);
                     for (int i = 0; i < problem_->getDomainSize(v); ++i) {
@@ -342,6 +336,27 @@ void ResidualFGLP::GetVarUB(int var, vector<double> &out) {
     }
 }
 
+void ResidualFGLP::GetLabelAll(int var, vector<double> &out) {
+    out.clear();
+    out.resize(problem_->getDomainSize(var), ELEM_ONE);
+
+    // For each function, check if it's unary and contains the variable
+    for (Function *f : factors_) {
+        if (f->getArity() == 1 && f->hasInScope(var)) {
+            for (size_t i = 0; i < out.size(); ++i) {
+                out[i] OP_TIMESEQ f->getTable()[i];
+            }
+        }
+    }
+}
+
+size_t ResidualFGLP::GetSize() const {
+    size_t s = 0;
+    for (Function *f : factors_)
+        s += f->getTableSize();
+    return s;
+}
+
 double *ResidualFGLP::MaxMarginal(Function *f, int v) {
     assert(f->hasInScope(v));
     size_t table_size = problem_->getDomainSize(v);
@@ -415,3 +430,4 @@ void ResidualFGLP::Reparameterize(Function *f, double *mm, double *avg_mm,
 }
 
 
+ 

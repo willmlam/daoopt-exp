@@ -5,11 +5,12 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
     : Heuristic(p,pt,po) {
     // do any original preprocessing first
     if (m_options!=NULL && (m_options->mplp > 0 || m_options->mplps > 0)) {
-        FGLP* fglp = new FGLP(m_problem->getN(), m_problem->getDomains(), 
-                m_problem->getFunctions(), m_pseudotree->getElimOrder(), 
-                po->useNullaryShift);
-        fglp->run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps,0);
-        m_problem->replaceFunctions(fglp->getFactors());
+        if (m_options->usePriority)
+            fglp = new PriorityFGLP(m_problem, po->useNullaryShift);
+        else
+            fglp = new FGLP(m_problem, po->useNullaryShift);
+        fglp->Run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps, m_options->mplpt);
+        m_problem->replaceFunctions(fglp->factors());
         m_pseudotree->addFunctionInfo(m_problem->getFunctions()); 
         m_options->mplp = 0;
         m_options->mplps = 0;
@@ -77,6 +78,10 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
 
 size_t FGLPMBEHybrid::build(const std::vector<val_t> *assignment, bool computeTables) {
     fglpHeur->build(assignment,computeTables);
+    if (m_options->usePriority) {
+        PriorityFGLP * pfglp = dynamic_cast<PriorityFGLP*>(fglpHeur->getRootFGLP());
+        pfglp->set_var_priority(dynamic_cast<PriorityFGLP*>(fglp)->var_priority());
+    }
     if (m_options->fglpMBEHeur)
         return mbeHeur->build(assignment,computeTables);
     else

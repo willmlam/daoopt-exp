@@ -67,9 +67,12 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
 }
 
 size_t FGLPHeuristic::build(const std::vector<val_t> *assignment, bool computeTables) {
-    rootFGLP = new ResidualFGLP(m_problem, m_options->useNullaryShift);
+    if (m_options->usePriority) 
+        rootFGLP = new PriorityFGLP(m_problem, m_options->useNullaryShift);
+    else
+        rootFGLP = new FGLP(m_problem, m_options->useNullaryShift);
 //    rootFGLP->setVerbose(true);
-    rootFGLP->run(m_options->mplp, m_options->mplps);
+    rootFGLP->Run(m_options->mplp, m_options->mplps);
     m_globalUB = rootFGLP->ub();
     return 0;
 }
@@ -83,7 +86,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
         vector<double> &out) {
 
 //    cout << "var: " << var << endl;
-    ResidualFGLP *parentFGLP;
+    FGLP *parentFGLP;
     double parentCost;
 //    double parentCostShifted;
     // Is the root node?
@@ -148,10 +151,14 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     */
 
 
-    ResidualFGLP *varFGLP = new ResidualFGLP(parentFGLP, m_tempAssn);
+    FGLP *varFGLP;
+    if (m_options->usePriority)
+        varFGLP = new PriorityFGLP(dynamic_cast<PriorityFGLP*>(parentFGLP), m_tempAssn);
+    else
+        varFGLP = new FGLP(parentFGLP, m_tempAssn);
 
 //    varFGLP->setVerbose(true);
-    varFGLP->run(m_options->ndfglp, m_options->ndfglps, m_options->ndfglpt);
+    varFGLP->Run(m_options->ndfglp, m_options->ndfglps, m_options->ndfglpt);
 
     totalIterationsRun += varFGLP->runiters();
     if (varFGLP->runiters() > 0) {

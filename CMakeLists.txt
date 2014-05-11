@@ -105,6 +105,7 @@ set(FILES
   ./source/ProgramOptions.cpp
   ./source/Pseudotree.cpp
   ./source/Random.cpp
+  ./source/PriorityFGLP.cpp
   ./source/ResidualFGLP.cpp
   ./source/Search.cpp
   ./source/SearchMaster.cpp

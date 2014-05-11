@@ -4,583 +4,350 @@
 using namespace std;
 using namespace std::chrono;
 
-FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, bool useNullaryShift) 
+FGLP::FGLP(Problem *p, bool use_nullary_shift)
     :  
-    m_useNullaryShift(useNullaryShift),
-    m_nVars(nVars),
-    m_skipVars(false),
-    m_varFactorMaxIsZero(nVars, true),
-    m_domains(domains),
-    m_updateOrdering(ordering),
-    m_ownsFactors(true),
-    m_factorsByVariable(nVars, vector<Function*>()), 
-    m_unaryFactors(nVars, NULL),
-    m_globalConstFactor(NULL),
-    m_maxMarginals(nVars, vector<double*>()),
-    m_forceUpdateVars(nVars, false),
-    m_UB(ELEM_ONE),
-    m_UBNonConstant(ELEM_ONE),
-    m_verbose(true) {
+    problem_(p),
+    owns_factors_(true),
+    factors_by_variable_(p->getN(), vector<Function*>()),
+    global_const_factor_(nullptr),
+    max_marginals_(p->getN(), vector<double*>()),
+    ub_(ELEM_ONE),
+    use_nullary_shift_(use_nullary_shift),
+    verbose_(true) {
 
-
-
-    // copy factors and create a mapping of variables to factors
-    //for (int i=0; i< fns.size(); ++i) cout << *fns[i] << endl;
-
-
-    for (size_t i = 0; i < fns.size(); ++i) {
-
-        // Check if factor exists in this subproblem
-        bool factorExists = false;
-        vector<int>::const_iterator it = m_updateOrdering.begin();
-        
-        for (; it != m_updateOrdering.end(); ++it) {
-            if (fns[i]->hasInScope(*it)) factorExists = true;
-        }
-        if (fns[i]->getArity() == 0) m_globalConstFactor = fns[i]->clone();
-        
-        if (!factorExists) {
+    for (Function *f : problem_->getFunctions()) {
+        if (f->getArity() == 0) {
+            global_const_factor_ = f->clone();
             continue;
         }
-
-        m_factors.push_back(fns[i]->clone());
-        const vector<int> &scope = m_factors.back()->getScopeVec();
-        vector<int>::const_iterator itS = scope.begin();
-        for (; itS != scope.end(); ++itS) {
-            m_factorsByVariable[*itS].push_back(m_factors.back());    
-            if (scope.size() == 1) m_unaryFactors[*itS] = m_factors.back();
+        factors_.push_back(f->clone());
+        for (int vs : factors_.back()->getScopeVec()) {
+            factors_by_variable_[vs].push_back(factors_.back());
         }
     }
-    if (m_globalConstFactor != NULL)
-        m_factors.push_back(m_globalConstFactor);
-
-    // allocate max marginal storage
-    for (size_t v = 0; v < m_factorsByVariable.size(); ++v) {
-        m_maxMarginals[v].resize(m_factorsByVariable[v].size(), NULL);
+    if (global_const_factor_) {
+        factors_.push_back(global_const_factor_);
     }
 
-    if (m_useNullaryShift) updateVarFactorMaxIsZero();
 
-//    addToUpdateOrdering(m_ordering[1]);
-//    populateOrdering();
+    // allocate max marginal storage
+    for (int i = 0; i < problem_->getN(); ++i) {
+        max_marginals_[i].resize(factors_by_variable_[i].size(), nullptr);
+    }
+
 }
 
-FGLP::FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment, const vector<bool> &zeroFlags, bool useNullaryShift) 
+FGLP::FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment)
     : 
-    m_useNullaryShift(useNullaryShift),
-    m_nVars(nVars),
-    m_skipVars(true),
-    m_varFactorMaxIsZero(zeroFlags),
-    m_domains(domains),
-    m_updateOrdering(ordering), 
-    m_ownsFactors(true),
-    m_factorsByVariable(nVars, vector<Function*>()), 
-    m_unaryFactors(nVars, NULL),
-    m_globalConstFactor(NULL),
-    m_maxMarginals(nVars, vector<double*>()),
-    m_forceUpdateVars(nVars, false),
-    m_UB(ELEM_ONE),
-    m_verbose(false) {
+    problem_(parent_fglp->problem_),
+    owns_factors_(true),
+    factors_by_variable_(problem_->getN(), vector<Function*>()),
+    global_const_factor_(nullptr),
+    max_marginals_(problem_->getN(), vector<double*>()),
+    ub_(ELEM_ONE),
+    use_nullary_shift_(parent_fglp->use_nullary_shift_),
+    verbose_(false) {
 
-    condition(fns,assignment);
+    Condition(parent_fglp->factors(),assignment);
 
-
-    for (size_t i = 0; i < m_factors.size(); ++i) {
-
-//        m_factors[i] = fns[i]->clone();
-        const vector<int> &scope = m_factors[i]->getScopeVec();
-        vector<int>::const_iterator itS = scope.begin();
-        for (; itS != scope.end(); ++itS) {
-            m_factorsByVariable[*itS].push_back(m_factors[i]);    
-            if (scope.size() == 1) m_unaryFactors[*itS] = m_factors[i];
+    for (Function *f : factors_) {
+        for (int vs : f->getScopeVec()) {
+            factors_by_variable_[vs].push_back(f);
         }
     }
 
     // allocate max marginal storage
-    for (size_t v = 0; v < m_factorsByVariable.size(); ++v) {
-        m_maxMarginals[v].resize(m_factorsByVariable[v].size(), NULL);
-    }
-//    populateOrdering();
-
-}
-
-double FGLP::updateUB() {
-    double oldUB = m_UB;
-    if (!m_useNullaryShift) {
-        m_UB = ELEM_ONE;
-        m_UBNonConstant = ELEM_ONE;
-        vector<Function*>::const_iterator itF = m_factors.begin();
-        for (; itF != m_factors.end(); ++itF) {
-            // Find the maximum value of the factor
-            double z = ELEM_ZERO;
-            for (size_t i=0; i<(*itF)->getTableSize(); ++i) {
-                z = max(z,(*itF)->getTable()[i]);
-            }
-            m_UB OP_TIMESEQ z;
-            if ((*itF)->getArity() > 0) m_UBNonConstant OP_TIMESEQ z;
-        }
-    }
-    // If using nullary shift, the bound is collected in the nullary function
-    else {
-        m_UB = m_globalConstFactor->getTable()[0];
-    } 
-    return m_UB OP_DIVIDE oldUB;
-}
-
-void FGLP::getVarUB(int var, vector<double> &out) {
-    vector<Function*>::const_iterator itF = m_factors.begin();
-    set<int>::const_iterator itS;
-    int i;
-
-//    cout << endl;
-    for (; itF != m_factors.end(); ++itF) {
-        if ((*itF)->getArity() == 0) continue;
-        // If var is not in the factor, take the maximum value
-        if (!(*itF)->hasInScope(var)) {
-            // Find the maximum value of the factor
-            double z = ELEM_ZERO;
-            for (size_t i=0; i<(*itF)->getTableSize(); ++i) {
-                z = max(z,(*itF)->getTable()[i]);
-            }
-            for (int i=0; i<m_domains[var]; ++i) {
-                out[i] OP_TIMESEQ z;
-            }
-            continue;
-        }
-
-        // Skip if unary factor with the current variable scope (would correspond to node label)
-        if ((*itF)->getArity() == 1 && (*itF)->hasInScope(var)) {
-            /*
-            cout << " unary [ ";
-            for (size_t k=0; k<(*itF)->getTableSize(); ++k) {
-                cout << (*itF)->getTable()[k] << " ";
-            }
-           , bool useNullaryShift = false cout << "]" << endl;
-            */
-
-            continue;
-        }
-
-//        cout << **itF << endl;
-        
-
-        // Generate a tuple to iterate over the factor
-        val_t *tuple = new val_t[(*itF)->getArity()];
-        val_t *unfixedTuple = tuple + 1;
-
-        for (i=0;i<(*itF)->getArity();++i) tuple[i] = 0;
-
-        vector<val_t> unfixedDomains;
-        for (itS = (*itF)->getScopeSet().begin(); itS != (*itF)->getScopeSet().end(); ++itS) {
-            if (*itS != var) unfixedDomains.push_back(m_domains[*itS]);    
-        }
-
-        vector<val_t> varDomain;
-        varDomain.push_back(m_domains[var]);
-        
-        vector<val_t*> idxMap;
-        for (i=0, itS=(*itF)->getScopeSet().begin(); itS != (*itF)->getScopeSet().end(); ++itS) {
-            if (*itS == var) 
-                idxMap.push_back(&tuple[0]);
-            else 
-                idxMap.push_back(&unfixedTuple[i++]);
-        }
-        
-        size_t idx=0;
-        do {
-            // Find the best configuration for current varTuple
-            double z = ELEM_ZERO;
-            do {
-                z = max(z,(*itF)->getValuePtr(idxMap));
-            } while (increaseTuple(idx,unfixedTuple,unfixedDomains));
-//            cout << z << endl;
-            out[tuple[0]] OP_TIMESEQ z;
-//            cout << "Out tuple " << int(tuple[0]) << " " << out[tuple[0]] << endl;
-        } while (increaseTuple(idx,tuple,varDomain));
-        delete [] tuple;
-    }
-
-    if(m_globalConstFactor) {
-//        cout << "GConst: " << m_globalConstFactor->getTable()[0] << endl;
+    for (size_t i = 0; i < factors_by_variable_.size(); ++i) {
+        max_marginals_[i].resize(factors_by_variable_[i].size(), NULL);
     }
 }
 
-void FGLP::run(int maxIter, double maxTime, double tolerance) {
-
+void FGLP::Run(int max_iter, double max_time, double tolerance) {
     double diff = numeric_limits<double>::max();
-    updateUB();
-    if (m_verbose) {
-        cout << "Initial UB: " << m_UB << endl;
-        /*
-        for(Function *f : m_factors) {
-            cout << *f << endl;
-            cout << f->getTableSize() << endl;
-            cout << " ";
-            for (size_t i=0; i<f->getTableSize(); ++i) {
-                cout << f->getTable()[i] << " ";
-            }
-            cout << endl;
-        }
-        */
+    UpdateUB();
+    if (verbose_) {
+        cout << "Initial UB: " << ub_ << endl;
     }
-    steady_clock::time_point timeStart = steady_clock::now();
-    steady_clock::time_point timeEnd;
-
+    steady_clock::time_point time_start = steady_clock::now();
+    steady_clock::time_point time_end;
 
     int iter;
-    for (iter = 0; iter < maxIter || (maxIter == -1 && maxTime > 0); ++iter) {
-        timeEnd = steady_clock::now();
-        if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
-        if (fabs(diff) < tolerance || std::isnan(diff)) break;
-//        vector<int>::const_reverse_iterator rit = m_ordering.rbegin();
-//        m_updateOrdering = m_ordering;
-//        cout << m_updateOrdering << endl;
-        vector<int>::const_iterator it = m_updateOrdering.begin();
-        for (; it != m_updateOrdering.end(); ++it) {
-//        for (; rit != m_ordering.rend(); ++rit) {
-            timeEnd = steady_clock::now();
-            if (maxTime > 0 && duration_cast<seconds>(timeEnd-timeStart).count() >= maxTime) break;
-            // update variable v this iteration
-            int v = *it;
+    for (iter = 0; iter < max_iter || (max_iter == -1 && max_time > 0); ++iter) {
+        time_end = steady_clock::now();
+        if (max_time > 0 && 
+                duration_cast<seconds>(time_end - time_start).count() >= max_time) 
+            break;
 
-            if (v >= int(m_factorsByVariable.size())) continue;
+        if (fabs(diff) < tolerance || std::isnan(diff)) break;
+
+        // Basic round robin update
+        for (int v = 0; v < problem_->getN(); ++v) {
+            vars_updated_.insert(v);
+            time_end = steady_clock::now();
+            if (max_time > 0 && 
+                    duration_cast<seconds>(time_end - time_start).count() >= max_time) 
+                break;
+
+            if (v >= int(factors_by_variable_.size())) continue;
 
             // Skip this variable, no factors have this variable
-            if (m_factorsByVariable[v].size() == 0) continue;
-
-            // If all of the factors on this variable have maximum 0, skip this variable update
-//            if (m_useNullaryShift && m_skipVars && m_varFactorMaxIsZero[v]) continue;
-
-            // *May not be needed*
-            /*
-            // Check if a unary factor exists for it and create it if it does not
-            if (!m_unaryFactors[v]) {
-                int fid = m_factors.size();
-                set<int> scope;
-                scope.insert(v);
-                double *newTable = new double[m_domains[v]];
-                m_factors.push_back(
-                        new FunctionBayes(m_factors.size(),
-                            m_problem,scope,newTable,m_problem->getDomainSize(v)));
-                m_unaryFactors[v] = m_factors.back();
-            }
-            */
+            if (factors_by_variable_[v].size() == 0) continue;
 
             // To store max marginals of each of the functions
 
-            vector<double*> &varMaxMarginals = m_maxMarginals[v];
+            vector<double*> &var_max_marginals = max_marginals_[v];
 
-            vector<double> mmMax(varMaxMarginals.size(),
+            vector<double> mm_max(var_max_marginals.size(),
                     -numeric_limits<double>::max());
 
-            size_t tableSize = m_domains[v];
-            double gcBefore = m_globalConstFactor->getTable()[0];
-            double totalNullaryShift = ELEM_ONE;
+            size_t table_size = problem_->getDomainSize(v);
+            double total_nullary_shift = ELEM_ONE;
             // Compute max marginals and shifted versions
-            for (size_t i = 0; i < m_factorsByVariable[v].size(); ++i) {
-                varMaxMarginals[i] = maxMarginal(m_factorsByVariable[v][i], v);
+            for (size_t i = 0; i < factors_by_variable_[v].size(); ++i) {
+                var_max_marginals[i] = MaxMarginal(factors_by_variable_[v][i], v);
 
-                if (m_useNullaryShift) {
+                if (use_nullary_shift_) {
 //                    cout << "MM" << *m_factorsByVariable[v][i] << endl;
-                    for (size_t j = 0; j < tableSize; ++j) {
-                        mmMax[i] = max(mmMax[i], varMaxMarginals[i][j]);
+                    for (size_t j = 0; j < table_size; ++j) {
+                        mm_max[i] = max(mm_max[i], var_max_marginals[i][j]);
                     }
-                    totalNullaryShift OP_TIMESEQ mmMax[i];
+                    total_nullary_shift OP_TIMESEQ mm_max[i];
 
                     // Shift max into the global constant
-                    m_globalConstFactor->getTable()[0] OP_TIMESEQ mmMax[i];
-
-                    // DEBUG output max marginals
-                    /*
-                    cout << "max marginals: " << endl;
-                    for (size_t j = 0; j < tableSize; ++j) {
-                        cout << varMaxMarginals[i][j] << " "
-                            << varMaxMarginalsShifted[i][j] << endl;
-                    }
-                    */
+                    global_const_factor_->getTable()[0] OP_TIMESEQ mm_max[i];
                 }
-            }
-            if (m_useNullaryShift && !m_forceUpdateVars[v] && m_skipVars && gcBefore == m_globalConstFactor->getTable()[0]) {
-                for (size_t i=0; i<m_factorsByVariable[v].size(); ++i) {
-                    delete varMaxMarginals[i];
-                    varMaxMarginals[i] = NULL;
-                }
-                continue;
             }
 
             // Compute average max marginal
-            double *avgMaxMarginalTable = new double[tableSize];
+            double *avg_mm = new double[table_size];
 
-            for (unsigned int i=0; i<tableSize; ++i) avgMaxMarginalTable[i] = ELEM_ONE;
+            for (size_t i = 0; i < table_size; ++i) avg_mm[i] = ELEM_ONE;
 
-            vector<double*>::iterator itMM = varMaxMarginals.begin();
-            vector<double*>::iterator itMMEnd = varMaxMarginals.end();
-
-            for (; itMM != itMMEnd; ++itMM) {
-                for (unsigned int i=0; i<tableSize; ++i)
-                    avgMaxMarginalTable[i] OP_TIMESEQ (*itMM)[i];
+            for (double *mm : var_max_marginals) {
+                for (size_t i = 0; i < table_size; ++i)
+                    avg_mm[i] OP_TIMESEQ mm[i];
             }
-            for (unsigned int i=0; i<tableSize; ++i) {
-                if (m_useNullaryShift)
-                    avgMaxMarginalTable[i] OP_DIVIDEEQ totalNullaryShift;
-                avgMaxMarginalTable[i] = OP_ROOT(avgMaxMarginalTable[i],varMaxMarginals.size());
+            for (size_t i = 0; i < table_size; ++i) {
+                if (use_nullary_shift_)
+                    avg_mm[i] OP_DIVIDEEQ total_nullary_shift;
+                avg_mm[i] = OP_ROOT(avg_mm[i],var_max_marginals.size());
             }
 
             // Reparameterize
-            for (size_t i=0; i<m_factorsByVariable[v].size(); ++i) {
-                reparameterize(m_factorsByVariable[v][i],varMaxMarginals[i],avgMaxMarginalTable,v);
-                delete varMaxMarginals[i];
-                varMaxMarginals[i] = NULL;
+            for (size_t i = 0; i < factors_by_variable_[v].size(); ++i) {
+                Reparameterize(factors_by_variable_[v][i],
+                        var_max_marginals[i],avg_mm,v);
+                delete var_max_marginals[i];
+                var_max_marginals[i] = NULL;
             }
-            delete avgMaxMarginalTable;
-            if (m_useNullaryShift) updateVarFactorMaxIsZero();
+            delete avg_mm;
         }
-        diff = updateUB();
-        if (m_verbose) {
-            cout << "UB: " << m_UB << " (d=" << diff << ")" << endl;
+        diff = UpdateUB();
+        if (verbose_) {
+            cout << "UB: " << ub_ << " (d=" << diff << ")" << endl;
             /*
             cout << "constant: " << m_globalConstFactor->getTable()[0] << endl;
             cout << "non-const UB: " << m_UBNonConstant << endl;
             */
         }
     }
-    timeEnd = steady_clock::now();
-    m_runtime = double(duration_cast<milliseconds>(timeEnd-timeStart).count()) / 1000;
-    m_runiters = iter;
+    time_end = steady_clock::now();
+    runtime_ = double(duration_cast<milliseconds>(
+                time_end - time_start).count()) / 1000;
+    runiters_ = iter;
 
-    if (m_verbose) {
-        cout << "FGLP (" << iter << " iter, " << m_runtime << " sec): " << m_UB << endl;
-        /*
-        for(Function *f : m_factors) {
-            cout << *f << endl;
-            cout << f->getTableSize() << endl;
-            cout << " ";
-            for (size_t i=0; i<f->getTableSize(); ++i) {
-                cout << f->getTable()[i] << " ";
-            }
-            cout << endl;
-        }
-        */
+    if (verbose_) {
+        cout << "FGLP (" << iter << " iter, " << runtime_ << " sec): " << ub_ << endl;
     }
 
 }
-    
-double *FGLP::maxMarginal(Function *f, int v) {
-    assert(f->hasInScope(v));
-    size_t tableSize = m_domains[v];
-    double *newTable = new double[tableSize];
-    for (size_t i=0; i<tableSize; ++i) newTable[i] = ELEM_ZERO;
 
-    // Tuple corresponds to the same vars, but v is moved to the front
-    val_t *tuple = new val_t[f->getScopeSet().size()];
-    val_t *elimTuple = tuple + 1;
-
-    set<int>::const_iterator itS;
-
-    vector<val_t> elimDomains;
-    for (itS = f->getScopeSet().begin(); itS != f->getScopeSet().end(); ++itS) {
-        if (*itS != v) elimDomains.push_back(m_domains[*itS]);    
-    }
-
-    vector<val_t> varDomain;
-    varDomain.push_back(m_domains[v]);
-
-    for (int i=0; i<f->getArity(); ++i) tuple[i] = 0;
-
-    vector<val_t*> idxMap;
-
-    int i;
-    for (i=0, itS = f->getScopeSet().begin(); itS != f->getScopeSet().end(); ++itS) {
-        if (*itS == v) 
-            idxMap.push_back(&tuple[0]);
-        else
-            idxMap.push_back(&elimTuple[i++]);
-    }
-
-    size_t idx;
-    // iterate over all values non-v variables
-    do {
-        idx=0;
-        do {
-            //cout << idx << endl;
-            newTable[idx] = max(newTable[idx],f->getValuePtr(idxMap));
-        } while (increaseTuple(idx,tuple,varDomain));
-    } while (increaseTuple(idx,elimTuple,elimDomains));
-
-    delete [] tuple;
-
-//    for (int i=0; i<int(tableSize);++i) cout << newTable[i] << endl;
-    return newTable;
-}
-
-void FGLP::reparameterize(Function *f, double *maxMarginal, double *averageMaxMarginal, int v) {
-    assert(f->hasInScope(v));
-    vector<val_t> domains;
-    domains.reserve(f->getArity());
-    set<int>::const_iterator itS;
-    int i;
-
-    val_t *tuple = new val_t[f->getArity()];
-    for (i=0;i<f->getArity();++i) tuple[i] = 0;
-
-    val_t *mmVal = NULL;
-
-    for (i=0,itS=f->getScopeSet().begin(); itS!=f->getScopeSet().end(); ++i,++itS) {
-        domains.push_back(m_domains[*itS]);
-        if (*itS == v) mmVal = &tuple[i];
-    }
-
-    size_t idx = 0;
-    do {
-        // if the max-marginal value passed is -inf (0), then this is a hard constraint
-        if (std::isinf(averageMaxMarginal[*mmVal]))
-            f->getTable()[idx] = ELEM_ZERO;
-        else
-            f->getTable()[idx] OP_TIMESEQ (averageMaxMarginal[*mmVal] OP_DIVIDE maxMarginal[*mmVal]);
-    } while(increaseTuple(idx,tuple,domains));
-    delete [] tuple;
-
-}
-
-void FGLP::condition(const vector<Function*> &fns, const map<int,val_t> &assignment) {
-
-    double globalConstant = ELEM_ONE;
-    int arityZeroFnIdx = -1;
-//    cout << assignment << endl;
-    for (size_t i = 0; i < fns.size(); ++i) {
-        if (fns[i]->getArity() == 0) {
-            globalConstant OP_TIMESEQ fns[i]->getTable()[0];
-            arityZeroFnIdx = i;
-            continue;
-        }
-
-        /*
-        // Check if factor exists in this subproblem
-        bool factorExists = false;
-        vector<int>::const_iterator it = m_ordering.begin();
-        for (; it!=m_ordering.end(); ++it) {
-            if (fns[i]->hasInScope(*it)) factorExists = true;
-        }
-        
-        if (!factorExists) {
-            continue;
-        }
-        */
-
-        /*
-        for (int j=0; j<fns[i]->getTableSize(); ++j) {
-            cout << " " << fns[i]->getTable()[j] << endl;
-        }
-        cout << endl;
-        */
-        Function *new_fn = fns[i]->substitute(assignment);
-
-        // Function changed, place other variables in update ordering
-        /*
-        if (new_fn->getArity() != fns[i]->getArity()) {
-//            cout << "new arity: " << new_fn->getArity() << " , old arity:" << fns[i]->getArity() << endl;
-            for (int v : new_fn->getScopeVec()) {
-//                cout << "Adding to initial update ordering: " << v << endl;
-                addToUpdateOrdering(v);
-            }
-        }
-        */
-        if (new_fn->getArity() != fns[i]->getArity()) {
-            for (int v : new_fn->getScopeVec()) 
-                m_forceUpdateVars[v] = true;
-        }
-
-        if (new_fn->isConstant()) {
-//            cout << "Changed function is constant (nothing to add)" << endl;
-            globalConstant OP_TIMESEQ new_fn->getTable()[0];
-            delete new_fn;
-        } else {
-            // Check if the maximum is no longer zero
-            if (m_useNullaryShift) {
-                double maxVal = -numeric_limits<double>::max();
-                for (size_t i = 0; i < new_fn->getTableSize(); ++i) {
-                    maxVal = max(maxVal, new_fn->getTable()[i]);
-                }
-                if (maxVal != ELEM_ONE) {
-                    for (int var : new_fn->getScopeVec()) {
-                        m_varFactorMaxIsZero[var] = false;
-                    }
-                }
-
-            }
-            m_factors.push_back(new_fn);
-        }
-    }
-
-    Function *constFun = fns[arityZeroFnIdx]->clone();
-    constFun->getTable()[0] = globalConstant;
-    m_globalConstFactor = constFun;
-    m_factors.push_back(m_globalConstFactor);
-}
-
-void FGLP::getLabelAll(int var, vector<double> &out) {
+void FGLP::GetLabelAll(int var, vector<double> &out) {
     out.clear();
-    out.resize(m_domains[var],ELEM_ONE);
-    // For each function, check if its unary and contains the variable
-    for (const auto &f : m_factors) {
+    out.resize(problem_->getDomainSize(var), ELEM_ONE);
+
+    // For each function, check if it's unary and contains the variable
+    for (Function *f : factors_) {
         if (f->getArity() == 1 && f->hasInScope(var)) {
-            for (size_t i=0; i < out.size(); ++i) {
+            for (size_t i = 0; i < out.size(); ++i) {
                 out[i] OP_TIMESEQ f->getTable()[i];
             }
         }
     }
 }
 
-void FGLP::updateVarFactorMaxIsZero() {
-    for (size_t i = 0; i < m_varFactorMaxIsZero.size(); ++i) 
-        m_varFactorMaxIsZero[i] = true;
-    for (const auto &f : m_factors) {
-        double maxVal = -numeric_limits<double>::max();
-        for (size_t i = 0; i < f->getTableSize(); ++i) {
-            maxVal = max(maxVal, f->getTable()[i]);
+size_t FGLP::GetSize() const {
+    size_t s = 0;
+    for (Function *f : factors_)
+        s += f->getTableSize();
+    return s;
+}
+
+void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn) {
+    double *table_const = new double[1];
+    table_const[0] = ELEM_ONE;
+    for (Function *f : fns) {
+        if (f->getArity() == 0) {
+            table_const[0] OP_TIMESEQ f->getTable()[0];
+            continue;
         }
-        if (maxVal != ELEM_ONE) {
-//            cout << "Found maxVal = " << maxVal << " for " << *f << endl;
-            for (int var : f->getScopeVec()) {
-                m_varFactorMaxIsZero[var] = false;
-            }
+
+        Function *new_f = f->substitute(assn);
+
+        // If function changes, we will need to recompute the updates
+        // for all of the variables in this function
+
+        if (new_f->isConstant()) {
+            table_const[0] OP_TIMESEQ new_f->getTable()[0];
+            delete new_f;
         }
+        else {
+            factors_.push_back(new_f);
+        }
+    }
+    global_const_factor_ = new FunctionBayes(factors_.back()->getId()+1, 
+                problem_, set<int>(), table_const, 1);
+    factors_.push_back(global_const_factor_);
+
+}
+
+double FGLP::UpdateUB() {
+    double old_ub = ub_;
+    if (!use_nullary_shift_) {
+        ub_ = ELEM_ONE;
+        for (Function *f : factors_) {
+            double z = ELEM_ZERO;
+            for (size_t i = 0; i < f->getTableSize(); ++i)
+                z = max(z,f->getTable()[i]);
+            ub_ OP_TIMESEQ z;
+        }
+    }
+    // If using nullary shift, the bound is collected in the nullary function
+    else {
+        ub_ = global_const_factor_->getTable()[0];
+    } 
+    return ub_ OP_DIVIDE old_ub;
+}
+
+void FGLP::GetVarUB(int var, vector<double> &out) {
+    for (Function *f : factors_) {
+        if (f->getArity() == 0) continue;
+        // If the factor does not have the variable, take the maximum
+        if (!f->hasInScope(var)) {
+            double z = ELEM_ZERO;
+            for (size_t i = 0; i < f->getTableSize(); ++i)
+                z = max(z, f->getTable()[i]);
+            for (int i = 0; i < problem_->getDomainSize(var); ++i)
+                out[i] OP_TIMESEQ z;
+            continue;
+        }
+
+        if (f->getArity() == 1 && f->hasInScope(var)) continue;
+
+        // Otherwise, take the maximum of the the subtable
+        val_t *tuple = new val_t[f->getArity()];
+        val_t *unfixed_tuple = tuple + 1;
+
+        for (int i = 0; i < f->getArity(); ++i) tuple[i] = 0;
+
+        vector<val_t> unfixed_domains;
+        for (int v : f->getScopeSet())
+            if (v != var) unfixed_domains.push_back(problem_->getDomainSize(v));
+
+        vector<val_t> var_domain;
+        var_domain.push_back(problem_->getDomainSize(var));
+
+        vector<val_t*> idx_map;
+        int i = 0;
+        for (int v : f->getScopeSet()) {
+            if (v == var)
+                idx_map.push_back(&tuple[0]);
+            else
+                idx_map.push_back(&unfixed_tuple[i++]);
+        }
+
+        size_t idx = 0;
+        do {
+            double z = ELEM_ZERO;
+            do {
+                z = max(z, f->getValuePtr(idx_map));
+            } while (increaseTuple(idx, unfixed_tuple, unfixed_domains));
+            out[tuple[0]] OP_TIMESEQ z;
+        } while (increaseTuple(idx, tuple, var_domain));
+        delete [] tuple;
     }
 }
 
-/*
-void FGLP::populateOrdering(int dist) {
-    queue<int> newVars;
-    for (int k : m_updateOrdering) {
-        newVars.push(k);
-    }
-    int firstAdded;
-    for (int k=0; k<dist; ++k) {
-//        cout << k << endl;
-        if (newVars.empty()) {
-            break;
-        }
-        firstAdded = NONE;
-        while(!newVars.empty() && newVars.front() != firstAdded) {
-            int currentVar = newVars.front();
-            newVars.pop();
-            for (Function *f : m_factorsByVariable[currentVar]) {
-                for (int k : f->getScopeVec()) {
-                    if (addToUpdateOrdering(k)) {
-                        newVars.push(k);
-                        if (firstAdded == NONE) firstAdded = k;
-                    }
-                }
-            }
-        }
-    }
-}
-*/
+    
+double *FGLP::MaxMarginal(Function *f, int v) {
+    assert(f->hasInScope(v));
+    size_t table_size = problem_->getDomainSize(v);
+    double *new_table = new double[table_size];
+    for (size_t i = 0; i < table_size; ++i) new_table[i] = ELEM_ZERO;
 
-size_t FGLP::getSize() const {
-    size_t S = 0;
-    for (const auto &f : m_factors) {
-        S += f->getTableSize();
+    val_t *tuple = new val_t[f->getArity()];
+    val_t *elim_tuple = tuple + 1;
+
+    vector<val_t> elim_domains;
+    for (int vs : f->getScopeSet()) {
+        if (vs != v) elim_domains.push_back(problem_->getDomainSize(vs));
     }
-    return S;
+
+    vector<val_t> var_domain;
+    var_domain.push_back(problem_->getDomainSize(v));
+
+    for (int i = 0; i < f->getArity(); ++i) tuple[i] = 0;
+
+    vector<val_t*> idx_map;
+
+    int i = 0;
+    for (int vs : f->getScopeSet()) {
+        if (vs == v)
+            idx_map.push_back(&tuple[0]);
+        else
+            idx_map.push_back(&elim_tuple[i++]);
+    }
+
+    size_t idx;
+    // iterate over all values non-v variables
+    do {
+        idx = 0;
+        do {
+            new_table[idx] = max(new_table[idx], f->getValuePtr(idx_map));
+        } while (increaseTuple(idx, tuple, var_domain));
+    } while (increaseTuple(idx, elim_tuple, elim_domains));
+    delete [] tuple;
+
+    return new_table;
 }
+
+void FGLP::Reparameterize(Function *f, double *mm, double *avg_mm, int var) {
+    assert(f->hasInScope(var));
+    vector<val_t> domains;
+
+    val_t *tuple = new val_t[f->getArity()];
+    for (int i = 0; i < f->getArity(); ++i) tuple[i] = 0;
+
+    val_t *mm_val = NULL;
+
+    int i = 0;
+    for (int vs : f->getScopeSet()) {
+        domains.push_back(problem_->getDomainSize(vs));
+        if (vs == var) mm_val = &tuple[i];
+        i++;
+    }
+
+    assert(int(domains.size()) == f->getArity());
+
+    size_t idx = 0;
+    do {
+        if (std::isinf(avg_mm[*mm_val]))
+            f->getTable()[idx] = ELEM_ZERO;
+        else
+            f->getTable()[idx] OP_TIMESEQ 
+                (avg_mm[*mm_val] OP_DIVIDE mm[*mm_val]);
+    } while(increaseTuple(idx, tuple, domains));
+    delete [] tuple;
+}
+
+

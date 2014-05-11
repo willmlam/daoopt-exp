@@ -1,162 +1,114 @@
 #ifndef _FGLP_H_
 #define _FGLP_H_
 
+#include "Problem.h"
 #include "Function.h"
-
-class SearchNode;
 
 
 // FGLP class, holds a reference to the source problem to be reparmaeterized and 
 // generates/stores a reparameterized version of the problem
 
 class FGLP {
-protected:
+public:
     static constexpr double DEFAULT_TOLERANCE = 1e-7;
-//    static constexpr int DEFAULT_UPDATE_DISTANCE = std::numeric_limits<int>::max();
-    /*
-    // Problem to reparameterize
-    Problem *m_problem;
 
-    // Local copy of the problem that will have its factors overwritten
-    Problem *m_problemLocal;
-    */
+    // Default constructor: does nothing
+    FGLP() { }
 
-    // Use version of update that shifts the max-marginals into the nullary function?
-    bool m_useNullaryShift;
+    // Constructor for reparameterizing the original problem
+    FGLP(Problem *p, bool use_nullary_shift = false);
 
-    // Number of variables
-    int m_nVars;
+    // Constructor for reparameterizing dynamically during search
+    FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment);
 
-    // Domain sizes of variables
-    const vector<val_t> &m_domains;
+    virtual void Run(int max_iter, double max_time, double tolerance=DEFAULT_TOLERANCE);
 
-    // Local copy of all of the functions of the problem
-    vector<Function*> m_factors;
+    // Get the upper bounds with respect to all assignments to a variable
+    void GetVarUB(int var, vector<double> &out);
 
-    // Does this class own its factors?
-    bool m_ownsFactors;
+    // Get the upper bound produced directly from reparameterization
+    inline double ub() const { return ub_; }
 
-    // Mapping of variables to factors
-    vector<vector<Function*> > m_factorsByVariable;
+    // Get the constant value (nullary function value)
+    inline double global_constant() const { 
+        return global_const_factor_->getTable()[0]; 
+    }
 
-    // Map to unary factors
-    vector<Function*> m_unaryFactors;
+    void GetLabelAll(int var, vector<double> &out);
 
-    // Pointer to global constant factor
-    Function *m_globalConstFactor;
+    inline void set_verbose(bool v) { verbose_ = v; }
+    inline void set_owns_factors(bool o) { owns_factors_ = o; }
 
+    inline const vector<Function*> &factors() const { return factors_; }
 
-    // Store the variables that must be updated
-    // (Conditioning definitely affects these variables in general)
-    // (only needed for first iteration?) (rest can do zero check?)
-    vector<bool> m_forceUpdateVars;
+    inline const set<int> vars_updated() const { return vars_updated_; }
 
-    // Stores the current upper bound of the problem
-    // (computed by taking the product of the max values of each factor)
-    double m_UB;
+    inline double runtime() const { return runtime_; }
+    inline double runiters() const { return runiters_; }
 
-    // Stores the upper bound for the non constant portion of the problem
-    double m_UBNonConstant;
+    size_t GetSize() const;
 
-    // Use verbose output (show bound progression)
-    bool m_verbose;
-
-    // store the time it took to run
-    double m_runtime;
-
-    // store the number of iterations it took
-    int m_runiters;
-
+    virtual ~FGLP() {
+        if (owns_factors_) {
+            for (Function *f : factors_) delete f;
+        }
+    }
+protected:
     // condition the functions in fns according to the assignment and fill them 
     // into m_factors. Also removes factors not in the subproblem
-    void condition(const vector<Function*> &fns, const map<int,val_t> &assignment);
+    virtual void Condition(const vector<Function*> &fns, 
+            const map<int,val_t> &assignment);
 
     // Updates UB and returns the amount it changed
     // Not used when using nullary shift version, which updates the UB on the fly
     // Simply sets the UB value instead.
-    double updateUB();
+    double UpdateUB();
 
     // Utility function to compute the max marginal of a function
-    double *maxMarginal(Function *f, int v);
+    double *MaxMarginal(Function *f, int v);
 
     // Utility function to reparameterize a function given its max marginal and average max marginal
-    void reparameterize(Function *f, double *maxMarginal, double *averageMaxMarginal, int v);
+    void Reparameterize(Function *f, double *mm, double *avg_mm, int v);
 
+    // Problem to reparameterize
+    Problem *problem_;
 
-private:
-    // Update ordering for each iteration
-    const vector<int> &m_updateOrdering;
+    // Does this class own its factors?
+    bool owns_factors_;
+
+    // Local copy of all of the functions of the problem
+    vector<Function*> factors_;
+
+    // Mapping of variables to factors
+    vector<vector<Function*> > factors_by_variable_;
+
+    // Pointer to global constant factor
+    Function *global_const_factor_;
 
     // Storage of max marginals during tightening
-    vector<vector<double*> >m_maxMarginals;
+    vector<vector<double*> > max_marginals_;
 
-    // Skip variable updates if zero?
-    bool m_skipVars;
+    set<int> vars_updated_;
 
-    // Flags for each variable to determine if all of their functions are zero
-    vector<bool> m_varFactorMaxIsZero;
+    // Stores the current upper bound of the problem
+    // (computed by taking the product of the max values of each factor)
+    // (or if using nullary shift, taking the nullary function value)
+    double ub_;
 
-    // Goes through each function to check if the function maximum is 0
-    // if not, mark it in the vector
-    void updateVarFactorMaxIsZero();
+    // Use version of update that shifts the max-marginals into the nullary function?
+    bool use_nullary_shift_;
 
-public:
-    // Constructor for reparameterizing the original problem
-    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, bool useNullaryShift = false);
+    // Use verbose output (show bound progression)
+    bool verbose_;
 
-    // Constructor for reparameterizing dynamically during search
-    FGLP(int nVars, const vector<val_t> &domains, const vector<Function*> &fns, const vector<int> &ordering, const map<int,val_t> &assignment, const vector<bool> &zeroFlags, bool useNullaryShift = false);
+    // store the time it took to run
+    double runtime_;
 
-    virtual void run(int maxIter, double maxTime, double tolerance=DEFAULT_TOLERANCE);
+    // store the number of iterations it took
+    int runiters_;
 
-    // Get the upper bounds with respect to all assignments to a variable
-    void getVarUB(int var, vector<double> &out);
 
-    // Get the upper bound produced directly from reparameterization
-    inline double getUB() const { return m_UB; }
 
-    // Get the upper bound produced directly from reparameterization for only 
-    // the non constant portion of the problem
-    inline double getUBNonConstant() const { return m_UBNonConstant; }
-
-    // Get the constant value (nullary function value)
-    inline double getConstant() const { return m_globalConstFactor->getTable()[0]; }
-
-    // Get the flags stating whether all of the functions containing a variable
-    // have maximums at 0.
-    inline const vector<bool> &getVarFactorMaxIsZero() const {
-        return m_varFactorMaxIsZero;
-    }
-    void getLabelAll(int var, vector<double> &out);
-
-    /*
-    inline bool addToUpdateOrdering(int v) {
-        if (!m_inUpdateOrdering[v]) {
-            m_updateOrdering.push_back(v);
-            m_inUpdateOrdering[v] = true;
-            return true;
-        }
-        return false;
-    }
-    */
-//    void populateOrdering(int dist=DEFAULT_UPDATE_DISTANCE);
-
-    inline void setVerbose(bool v) { m_verbose = v; }
-    inline void setOwnsFactors(bool o) { m_ownsFactors = o; }
-
-    inline const vector<Function*> &getFactors() const { return m_factors; }
-
-    inline double getRuntime() const { return m_runtime; }
-    inline double getRunIters() const { return m_runiters; }
-
-    size_t getSize() const;
-
-    ~FGLP() {
-        if (m_ownsFactors) {
-            for (size_t i = 0; i < m_factors.size(); ++i)
-                delete m_factors[i];
-        }
-    }
 
 };
 
