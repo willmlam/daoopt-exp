@@ -37,10 +37,10 @@ int main(int argc, char **argv) {
     }
 
     // do FGLP preprocessing here
-    shared_ptr<FGLP> fglp(new FGLP(p->getN(),p->getDomains(),p->getFunctions(),elim));
-    fglp->run(po->mplp, po->mplps, po->mplpt);
+    shared_ptr<FGLP> fglp(new FGLP(p.get(),po->useNullaryShift));
+    fglp->Run(po->mplp, po->mplps, po->mplpt);
             
-    p->replaceFunctions(fglp->getFactors(),true);
+    p->replaceFunctions(fglp->factors(),true);
 
     // Output reduced network?
     if (!po->out_reducedFile.empty()) {

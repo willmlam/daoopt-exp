@@ -19,7 +19,8 @@ public:
     FGLP(Problem *p, bool use_nullary_shift = false);
 
     // Constructor for reparameterizing dynamically during search
-    FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment);
+    // Additionally takes in the set of variables 
+    FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment, const set<int> &subVars);
 
     virtual void Run(int max_iter, double max_time, double tolerance=DEFAULT_TOLERANCE);
 
@@ -46,6 +47,11 @@ public:
     inline double runtime() const { return runtime_; }
     inline double runiters() const { return runiters_; }
 
+    inline const vector<double> &bound_contribs() const { return bound_contribs_; }
+
+
+    inline const vector<map<int,vector<double>>> &total_shift() const { return total_shift_; }
+
     size_t GetSize() const;
 
     virtual ~FGLP() {
@@ -57,7 +63,7 @@ protected:
     // condition the functions in fns according to the assignment and fill them 
     // into m_factors. Also removes factors not in the subproblem
     virtual void Condition(const vector<Function*> &fns, 
-            const map<int,val_t> &assignment);
+            const map<int,val_t> &assignment, const set<int> &subVars);
 
     // Updates UB and returns the amount it changed
     // Not used when using nullary shift version, which updates the UB on the fly
@@ -69,6 +75,9 @@ protected:
 
     // Utility function to reparameterize a function given its max marginal and average max marginal
     void Reparameterize(Function *f, double *mm, double *avg_mm, int v);
+
+    // (For debugging) Prints out all of the factors
+    virtual void PrintAllFactors() const;
 
     // Problem to reparameterize
     Problem *problem_;
@@ -85,10 +94,19 @@ protected:
     // Pointer to global constant factor
     Function *global_const_factor_;
 
+    // vector of individual bound contributions from each variable
+    vector<double> bound_contribs_;
+
+    // storage of total cost shift across each function
+    vector<map<int,vector<double>>> total_shift_;
+
     // Storage of max marginals during tightening
     vector<vector<double*> > max_marginals_;
 
     set<int> vars_updated_;
+
+    // Stores the portion of the nullary function from conditioning
+    double conditioned_cost_;
 
     // Stores the current upper bound of the problem
     // (computed by taking the product of the max values of each factor)

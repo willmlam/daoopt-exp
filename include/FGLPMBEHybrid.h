@@ -67,7 +67,8 @@ public:
 
     inline bool isAccurate() {
         assert(m_pseudotree);
-        return mbeHeur && (m_pseudotree->getWidthCond() <= mbeHeur->getIbound());
+//        return mbeHeur && (m_pseudotree->getWidthCond() <= mbeHeur->getIbound());
+        return false;
     }
 
     size_t computeMBEMemory(int ibound);

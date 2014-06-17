@@ -2,7 +2,7 @@
 using namespace std;
 
 FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
-    : Heuristic(p,pt,po) {
+    : Heuristic(p,pt,po), fglp(nullptr) {
     // do any original preprocessing first
     if (m_options!=NULL && (m_options->mplp > 0 || m_options->mplps > 0)) {
         if (m_options->usePriority)
@@ -112,8 +112,10 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     if (m_options->fglpMBEHeur)
         mbeHeur->getHeurAll(var,assignment,node,mbeOut);
 
-//    cout << "FGLP:"<< fglpOut << endl;
-//    cout << "MBE :"<< mbeOut << endl;
+    /*
+    cout << "FGLP:"<< fglpOut << endl;
+    cout << "MBE :"<< mbeOut << endl;
+    */
 
     // Count the number of possible prunings for each heuristics wrt to the 
     // values (only if the other heuristic doesn't prune)

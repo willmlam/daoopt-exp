@@ -41,6 +41,7 @@ protected:
     vector<double> m_tempLabels;
 
     vector<set<int>> m_subproblemFunIds;
+    vector<set<int>> m_subproblemVars;
 
     // Cannot do this with AO search
     // Whenever getHeur is called, this is popped until the top of the stack
@@ -48,6 +49,7 @@ protected:
 //    std::stack<pair<SearchNode*,vector<FGLP*>>> fglpStore;
 //
     void computeSubproblemFunIds();
+    void computeSubproblemVars();
 
     unsigned long long totalIterationsRun;
     unsigned long long totalInitiated;

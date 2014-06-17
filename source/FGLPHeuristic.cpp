@@ -63,6 +63,7 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
         g.removeNode(v);
     }
     computeSubproblemFunIds();
+    computeSubproblemVars();
 
 }
 
@@ -82,8 +83,7 @@ double FGLPHeuristic::getHeur(int var, const vector<val_t> &assignment, SearchNo
     return ELEM_ZERO;
 }
 
-void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchNode *node,
-        vector<double> &out) {
+void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
 
 //    cout << "var: " << var << endl;
     FGLP *parentFGLP;
@@ -155,9 +155,9 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     if (m_options->usePriority)
         varFGLP = new PriorityFGLP(dynamic_cast<PriorityFGLP*>(parentFGLP), m_tempAssn);
     else
-        varFGLP = new FGLP(parentFGLP, m_tempAssn);
+        varFGLP = new FGLP(parentFGLP, m_tempAssn, m_subproblemVars[var]);
 
-//    varFGLP->setVerbose(true);
+//    varFGLP->set_verbose(true);
     varFGLP->Run(m_options->ndfglp, m_options->ndfglps, m_options->ndfglpt);
 
     totalIterationsRun += varFGLP->runiters();
@@ -174,6 +174,7 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 //    cout << "FGLP size (MB): " << (varFGLP->getSize()*sizeof(double)) / (1024*1024.0)  << endl;
     
     varFGLP->GetVarUB(var, out);
+//    cout << "var UB: " << out << endl;
     info->setFGLPStore(varFGLP);
     info->setOrigCostToNode(parentCost);
 
@@ -204,17 +205,17 @@ void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment,
     // Compute the difference in the costs going to the current node
 //    cout << "Difference in costs to node: " << endl;
 //    cout << info->getFGLPStore()->global_constant() << " , " << info->getOrigCostToNode() << endl;
-    double restCostDiff = info->getFGLPStore()->global_constant() OP_DIVIDE
-            info->getOrigCostToNode();
+//    double restCostDiff = info->getFGLPStore()->global_constant() OP_DIVIDE info->getOrigCostToNode();
 
     // Compute the difference in costs in selecting the next value
     for (size_t i=0; i<out.size(); ++i) {
 //        cout << "Difference in assignment (" << i << "): " << endl;
 //        cout << m_tempLabelsFGLP[i] << " , " << m_tempLabels[i] << endl;
         edgeCostDiff = m_tempLabelsFGLP[i] OP_DIVIDE m_tempLabels[i];
-        adjustment = restCostDiff OP_TIMES edgeCostDiff;
+        adjustment = info->getOrigCostToNode();
+        adjustment += m_tempLabels[i];
         if (adjustment != 0 && !std::isnan(adjustment)) {
-            out[i] OP_TIMESEQ adjustment;
+            out[i] OP_DIVIDEEQ adjustment;
 //            cout << "Adjusted: " << adjustment << endl;
         }
     }
@@ -290,12 +291,24 @@ void FGLPHeuristic::computeSubproblemFunIds() {
         for (Function *f : m_pseudotree->getNode(*itV)->getFunctions()) {
             m_subproblemFunIds[*itV].insert(f->getId());
         }
-        for (Function *f : m_pseudotree->getNode(*itV)->getParent()->getFunctions()) {
-            m_subproblemFunIds[*itV].insert(f->getId());
-        }
         for (int id : m_subproblemFunIds[*itV]) {
             m_subproblemFunIds[m_pseudotree->getNode(*itV)->
                 getParent()->getVar()].insert(id);
+        }
+    }
+}
+
+void FGLPHeuristic::computeSubproblemVars() {
+    m_subproblemVars.clear();
+    m_subproblemVars.resize(m_problem->getN(), set<int>());
+
+    // For each node, add all of its current variables to its parent
+    for (auto itV = m_ordering.back().rbegin(); itV != m_ordering.back().rend(); ++itV) {
+        if (*itV == m_pseudotree->getRoot()->getVar()) continue;
+        m_subproblemVars[*itV].insert(*itV);
+        for (int v : m_subproblemVars[*itV]) {
+            m_subproblemVars[m_pseudotree->getNode(*itV)->
+                getParent()->getVar()].insert(v);
         }
     }
 }
