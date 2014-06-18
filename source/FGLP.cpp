@@ -29,7 +29,8 @@ FGLP::FGLP(Problem *p, bool use_nullary_shift)
     }
 
     // Allocate total shift
-    total_shift_.resize(factors_.size(), map<int,vector<double>>());
+    total_shift_.resize(factors_.size()+1, map<int,vector<double>>());
+    cout << "Total shift size: " << total_shift_.size() << endl;
     for (Function *f : factors_) {
         for (int v : f->getScopeVec()) {
             total_shift_[f->getId()][v].resize(problem_->getDomainSize(v), ELEM_ONE);
