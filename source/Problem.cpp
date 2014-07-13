@@ -26,6 +26,8 @@
 #include <sstream>
 #include <fstream>
 
+#include "UAI2012.h"
+
 //extern time_t time_start;
 //
 
@@ -554,12 +556,13 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
 
   in.open(evid.c_str());
 
+  /*
   in >> x; // Number of evidence samples
   if (x > 1) {
       myerror("Warning: Ignoring all but one evidence sample.\n");
   }
+  */
 
-  if (x > 0) {
     in >> x;
     m_e = x; // Number of evidence variables
 
@@ -574,7 +577,6 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
         }
         m_evidence.insert(make_pair(x,xs));
     }
-  }
 
   in.close();
 
@@ -773,6 +775,7 @@ void Problem::updateSolution(double cost,
     BOOST_FOREACH( int v, outputAssg ) {
       ss << ' ' << v;
     }
+    UAI2012::outputSolutionValT(outputAssg);
   }
 #endif
 

@@ -85,6 +85,9 @@ public:
   int slsTime; // time per SLS iteration (in seconds)
   int aobbLookahead;  // max. number of nodes for parallel static AOBB subproblem lookahead
 
+  /* CVO */
+  bool order_cvo; // Use Kalev Kask's variable ordering code
+
   /* 
    * DYNAMIC HEURISTIC OPTIONS
    */

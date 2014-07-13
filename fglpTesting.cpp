@@ -117,18 +117,18 @@ int main(int argc, char **argv) {
     for (size_t i=0; i<elim.size();++i) linearOrdering.push_back(i);
 
     // Preprocess problem first to convergence
-    /*
     shared_ptr<FGLP> fglp(new FGLP(p.get(),po->useNullaryShift));
-    fglp->set_verbose(false);
+//    fglp->set_verbose(false);
     fglp->Run(1000,po->ndfglps,po->ndfglpt);
-    */
 
     /*
     shared_ptr<ResidualFGLP> rfglp(new ResidualFGLP(p.get(),po->useNullaryShift));
     rfglp->Run(po->ndfglp,po->ndfglps,po->ndfglpt);
     */
+    /*
     shared_ptr<PriorityFGLP> pfglp(new PriorityFGLP(p.get(),po->useNullaryShift));
     pfglp->Run(299000,po->ndfglps,po->ndfglpt);
+    */
 
 
 
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     }
     */
 
-    p->replaceFunctions(pfglp->factors(),true);
+    p->replaceFunctions(fglp->factors(),true);
 
 
     vector<double> fMax(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
@@ -160,18 +160,18 @@ int main(int argc, char **argv) {
     int vA = 0;
     mAssn[vA] = 0;
 
-    vector<int> bOrdering = bfsOrdering(p,linearOrdering,vA);
+//    vector<int> bOrdering = bfsOrdering(p,linearOrdering,vA);
 
-    /*
-    shared_ptr<FGLP> fglp2a(new FGLP(fglp.get(),mAssn));
-    fglp2a->set_verbose(false);
-    fglp2a->Run(1,po->ndfglps,po->ndfglpt);
-    */
+    shared_ptr<FGLP> fglp2(new FGLP(fglp.get(),mAssn,set<int>(linearOrdering.begin(), linearOrdering.end())));
+    fglp2->set_verbose(true);
+    fglp2->Run(100,po->ndfglps,po->ndfglpt);
     
 
+    /*
     shared_ptr<PriorityFGLP> fglp2(new PriorityFGLP(pfglp.get(),mAssn));
     fglp2->set_verbose(false);
     fglp2->Run(po->ndfglp,po->ndfglps,po->ndfglpt);
+    */
 
     p->condition(mAssn);
     vector<double> fMaxAfter(p->getFunctions().size(),-std::numeric_limits<double>::infinity());
@@ -239,7 +239,6 @@ int main(int argc, char **argv) {
         cout << "change: " << changes[fid] /*<< " | " << changesMin[fid]*/ << endl;
     }
 
-    /*
     for (size_t fid = 0; fid < fOrig.size(); ++fid) {
         Function *f = fOrig[fid];
         Function *fs = fShifted[fid];
@@ -249,7 +248,6 @@ int main(int argc, char **argv) {
         }
         cout << endl;
     }
-    */
 
     cout << "total positive change: " << totalPositiveChange << endl;
     cout << "total negative change: " << totalNegativeChange << endl;

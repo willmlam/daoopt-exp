@@ -23,6 +23,11 @@
 
 #include "Main.h"
 
+#include "UAI2012.h"
+string UAI2012::filename = "";
+
+#include "cvo/ARP/ARPall.hxx"
+
 #define VERSIONINFO "1.1.2"
 
 time_t _time_start, _time_pre;
@@ -44,6 +49,10 @@ bool Main::parseOptions(int argc, char** argv) {
   rand::seed(opt->seed);
 
   m_options.reset(opt);
+
+  size_t idx = m_options->in_problemFile.find_last_of("/");
+  UAI2012::filename = m_options->in_problemFile.substr(idx + 1) + ".MPE";
+
   return true;
 }
 
@@ -133,9 +142,38 @@ bool Main::findOrLoadOrdering() {
   double timediff = 0.0;
   time(&time_order_start);
 
+  scoped_ptr<ARE::Graph> cvoGraph;
+  scoped_ptr<ARE::Graph> cvoMasterGraph;
+  scoped_ptr<CMauiAVLTreeSimple> cvoAvlVars2CheckScore;
+  scoped_ptr<ARE::AdjVarMemoryDynamicManager> cvoTempAdjVarSpace;
+
+  if (m_options->order_cvo) {
+    vector< const vector<int>* > fn_signatures;
+    BOOST_FOREACH( Function* f, m_problem->getFunctions() )
+    { fn_signatures.push_back(& f->getScopeVec()); }
+
+    cvoMasterGraph.reset(new ARE::Graph);
+    cvoMasterGraph->Create(m_problem->getN(), fn_signatures);
+    if (!cvoMasterGraph->_IsValid)
+      return false;
+
+    cvoAvlVars2CheckScore.reset(new CMauiAVLTreeSimple);
+    cvoTempAdjVarSpace.reset(new ARE::AdjVarMemoryDynamicManager(ARE_TempAdjVarSpaceSize));
+
+    cvoMasterGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
+        INT_MAX, false, true, 10, -1, 0.0, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
+    cvoMasterGraph->ReAllocateEdges();
+
+    cvoGraph.reset(new ARE::Graph);
+  }
+
+
   // Search for variable elimination ordering, looking for min. induced
   // width, breaking ties via pseudo tree height
   cout << "Searching for elimination ordering,";
+  if (m_options->order_cvo) {
+    cout << " CVO,";
+  }
   if (m_options->order_iterations != NONE)
     cout << " " << m_options->order_iterations << " iterations";
   if (m_options->order_timelimit != NONE)
@@ -152,7 +190,22 @@ bool Main::findOrLoadOrdering() {
 
     vector<int> elimCand;  // new ordering candidate
     bool improved = false;  // improved in this iteration?
-    int new_w = m_pseudotree->eliminate(g, elimCand, w, m_options->order_tolerance);
+    int new_w;
+    if (m_options->order_cvo) {
+      *cvoGraph = *cvoMasterGraph;
+      new_w = cvoGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
+          w, true, false, 10, -1, 0.0, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
+      if (new_w != 0)
+        new_w = INT_MAX;
+      else {
+        new_w = cvoGraph->_VarElimOrderWidth;
+        elimCand.assign(cvoGraph->_VarElimOrder,
+            cvoGraph->_VarElimOrder + cvoGraph->_nNodes);
+      }
+    }
+    else {
+      new_w = m_pseudotree->eliminate(g, elimCand, w, m_options->order_tolerance);
+    }
     if (new_w < w) {
       elim = elimCand; w = new_w; improved = true;
       m_pseudotree->build(g, elimCand, m_options->cbound);
@@ -292,8 +345,30 @@ bool Main::initDataStructs() {
   */
 //  if (m_options->dynamic) {
     if (m_options->fglpHeur || m_options->fglpMBEHeur) {
-      m_heuristic.reset(new FGLPMBEHybrid(m_problem.get(), m_pseudotree.get(),
+
+      // Try to see the ibound possible first
+      // Temporarily set mplp to 0
+      int store_mplp = m_options->mplp;
+      int store_mplps = m_options->mplps;
+      m_options->mplp = 0;
+      m_options->mplps = 0;
+      m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
+                  m_options.get(), m_options->ibound) );
+      m_heuristic->build(nullptr, false);
+      int ib = static_cast<MiniBucketElim*>(m_heuristic.get())->getIbound();
+
+      m_options->mplp = store_mplp;
+      m_options->mplps = store_mplps;
+
+      // Use dynamic FGLP heuristic if ibound is too low
+      if (ib < m_pseudotree->getWidth() / 2) {
+        cout << "ibound < w/2, using dynamic FGLP" << endl;
+        m_heuristic.reset(new FGLPMBEHybrid(m_problem.get(), m_pseudotree.get(),
                   m_options.get()));
+      }
+      else {
+        cout << "ibound >= w/2, using regular MBE-MM" << endl;
+      }
     }
     else {
       m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
@@ -797,6 +872,9 @@ bool Main::start() const {
   oss << "------------------------------------------------------------------" << endl
       << version << endl
       << "  by Lars Otten, UC Irvine <lotten@ics.uci.edu>" << endl
+      << "------------------------------------------------------------------" << endl
+      << "(FGLP Dynamic Heuristic Components)" << endl
+      << "  by William Lam, UC Irvine <willmlam@ics.uci.edu>" << endl
       << "------------------------------------------------------------------" << endl;
 
   cout << oss.str();

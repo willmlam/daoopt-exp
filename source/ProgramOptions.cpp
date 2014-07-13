@@ -128,6 +128,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("reduce", po::value<string>(), "path to output the reduced network to (removes evidence and unary variables)")
       ("collapse", "collapse functions with identical scopes onto each other")
       ("perturb",po::value<double>()->default_value(0), "set all zero values to this value")
+      ("cvo", "use Kalev Kask's CVO ordering")
 #endif
       ("pst-file", po::value<string>(), "path to output the pseudo tree to, for plotting")
       ("help,h", "produces this help message")
@@ -430,6 +431,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
 
     if (vm.count("perturb"))
       opt->perturb = vm["perturb"].as<double>();
+
+    if (vm.count("cvo"))
+      opt->order_cvo = true;
+    else
+      opt->order_cvo = false;
 
     if (vm.count("pst-file"))
       opt->out_pstFile = vm["pst-file"].as<string>();

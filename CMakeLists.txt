@@ -77,7 +77,7 @@ include_directories(
 
 # Libraries in the lib folder via recursive CMakeLists.txt
 add_subdirectory(lib)
-set(LIBS Gzstream Sls4mpe Mex)
+set(LIBS Gzstream Sls4mpe Mex Cvo)
 
 # Main daoopt source files
 set(FILES
