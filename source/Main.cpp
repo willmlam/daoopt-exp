@@ -344,35 +344,45 @@ bool Main::initDataStructs() {
   }
   */
 //  if (m_options->dynamic) {
-    if (m_options->fglpHeur || m_options->fglpMBEHeur) {
+    if (m_options->fglpHeur || m_options->fglpMBEHeur || m_options->fglpMBEHeurChoice) {
 
-      // Try to see the ibound possible first
-      // Temporarily set mplp to 0
-      int store_mplp = m_options->mplp;
-      int store_mplps = m_options->mplps;
-      m_options->mplp = 0;
-      m_options->mplps = 0;
-      m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-                  m_options.get(), m_options->ibound) );
-      m_heuristic->build(nullptr, false);
-      int ib = static_cast<MiniBucketElim*>(m_heuristic.get())->getIbound();
+      bool useFGLP = true;
 
-      m_options->mplp = store_mplp;
-      m_options->mplps = store_mplps;
+      // Decide if we shouldn't be using dynamic FGLP.
+      if (m_options->fglpMBEHeurChoice) {
+        // Try to see the ibound possible first
+        // Temporarily set mplp to 0
+        int store_mplp = m_options->mplp;
+        int store_mplps = m_options->mplps;
+        int store_ibound = m_options->ibound;
+        m_options->mplp = 0;
+        m_options->mplps = 0;
+        m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
+              m_options.get(), m_options->ibound) );
+        m_heuristic->limitSize(m_options->memlimit, nullptr);
+        int ib = static_cast<MiniBucketElim*>(m_heuristic.get())->getIbound();
 
-      // Use dynamic FGLP heuristic if ibound is too low
-      if (ib < m_pseudotree->getWidth() / 2) {
-        cout << "ibound < w/2, using dynamic FGLP" << endl;
-        m_heuristic.reset(new FGLPMBEHybrid(m_problem.get(), m_pseudotree.get(),
-                  m_options.get()));
+        // limitSize changes the ibound in m_options: restore it.
+        m_options->ibound = store_ibound;
+
+        m_options->mplp = store_mplp;
+        m_options->mplps = store_mplps;
+        if (ib < m_pseudotree->getWidth() / 2) {
+          cout << "ibound < w/2, using dynamic FGLP" << endl;
+        } else {
+          cout << "ibound >= w/2, using regular MBE-MM" << endl;
+          useFGLP = false;
+        }
       }
-      else {
-        cout << "ibound >= w/2, using regular MBE-MM" << endl;
+
+      if (useFGLP) {
+        m_heuristic.reset(new FGLPMBEHybrid(m_problem.get(), m_pseudotree.get(),
+                          m_options.get()));
       }
     }
     else {
       m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-                  m_options.get(), m_options->ibound) );
+                        m_options.get(), m_options->ibound) );
     }
 //  }
   /*

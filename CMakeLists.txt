@@ -120,15 +120,15 @@ set(FILES
 
 # Main executable and library dependencies
 add_executable(daoopt daoopt.cpp ${FILES})
-add_executable(fglpPreproc fglpPreproc.cpp ${FILES})
+#add_executable(fglpPreproc fglpPreproc.cpp ${FILES})
 #add_executable(fglpMbeCompare fglpMbeCompare.cpp ${FILES})
 #add_executable(mplpMbeCompare mplpMbeCompare.cpp ${FILES})
-add_executable(fglpTesting fglpTesting.cpp ${FILES})
+#add_executable(fglpTesting fglpTesting.cpp ${FILES})
 #add_executable(fglpTesting2 fglpTesting2.cpp ${FILES})
 target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-target_link_libraries(fglpPreproc ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+#target_link_libraries(fglpPreproc ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 #target_link_libraries(fglpMbeCompare ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 #target_link_libraries(mplpMbeCompare ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-target_link_libraries(fglpTesting ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+#target_link_libraries(fglpTesting ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 #target_link_libraries(fglpTesting2 ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
 

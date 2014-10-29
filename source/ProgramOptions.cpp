@@ -71,6 +71,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
       ("fglpHeur","use pure FGLP heuristic")
       ("fglpMBEHeur","use FGLP/MBE hybrid heuristic")
+      ("fglpMBEHeurChoice","use FGLP/MBE choice heuristic")
       ("useShiftedLabels","use shifted labels induced by FGLP")
       ("useFglpBfs","use BFS based update ordering for FGLP")
       ("useNullaryShift","use FGLP update that shifts maximums into a nullary function")
@@ -277,6 +278,11 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         opt->fglpMBEHeur = true;
     else
         opt->fglpMBEHeur = false;
+
+    if (vm.count("fglpMBEHeurChoice"))
+        opt->fglpMBEHeurChoice = true;
+    else
+        opt->fglpMBEHeurChoice = false;
 
     if (vm.count("useShiftedLabels"))
         opt->useShiftedLabels = true;

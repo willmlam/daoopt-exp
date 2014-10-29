@@ -905,7 +905,7 @@ int ARE::FunctionTableBlock::ComputeDataBEEM_SumMax_singleV(Function * & Missing
 				}
 			fprintf(ARE::fpLOG, "\n") ;
 			fflush(ARE::fpLOG) ;
-			_exit(1) ;
+			exit(1) ;
 			}
 
 		// go to next argument value combination

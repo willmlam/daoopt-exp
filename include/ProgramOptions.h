@@ -52,6 +52,7 @@ public:
   int jglpi;  // specifies the i-bound used for JGLP
   bool fglpHeur; // use pure FGLP heuristic
   bool fglpMBEHeur; // use FGLP/MBE hybrid heuristic
+  bool fglpMBEHeurChoice; // use FGLP/MBE choice heuristic
   bool useShiftedLabels; // use shifted labels induced by FGLP
   bool useFglpBfs; // use BFS update ordering for FGLP
   bool useNullaryShift; // use FGLP update that shifts maximums into a nullary function
