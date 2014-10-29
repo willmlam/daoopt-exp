@@ -12,6 +12,7 @@ option(DAOOPT_MASTER_DYNAMIC "Force dynamic master binary" OFF)
 # To enable static linking of the final daoopt binary
 option(DAOOPT_LINK_STATIC "Link binary statically" OFF)
 
+option(FGLP_PREPROC_ONLY "Compile FGLP preprocessor only" OFF)
 
 # General Compiler flags
 add_definitions(-Wall)
@@ -76,8 +77,14 @@ include_directories(
 )
 
 # Libraries in the lib folder via recursive CMakeLists.txt
-add_subdirectory(lib)
-set(LIBS Gzstream Sls4mpe Mex Cvo)
+if (FGLP_PREPROC_ONLY)
+  add_subdirectory(lib/zlib)
+  add_library(Gzstream lib/gzstream.cpp)
+  target_link_libraries(Gzstream Zlib)
+else()
+  add_subdirectory(lib)
+  set(LIBS Gzstream Sls4mpe Mex Cvo)
+endif()
 
 # Main daoopt source files
 set(FILES
@@ -118,17 +125,23 @@ set(FILES
   ./source/utils.cpp
 )
 
-# Main executable and library dependencies
-add_executable(daoopt daoopt.cpp ${FILES})
-#add_executable(fglpPreproc fglpPreproc.cpp ${FILES})
-#add_executable(fglpMbeCompare fglpMbeCompare.cpp ${FILES})
-#add_executable(mplpMbeCompare mplpMbeCompare.cpp ${FILES})
-#add_executable(fglpTesting fglpTesting.cpp ${FILES})
-#add_executable(fglpTesting2 fglpTesting2.cpp ${FILES})
-target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-#target_link_libraries(fglpPreproc ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-#target_link_libraries(fglpMbeCompare ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-#target_link_libraries(mplpMbeCompare ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-#target_link_libraries(fglpTesting ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
-#target_link_libraries(fglpTesting2 ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+set(FILES_FGLP-PREPROCESS
+  ./source/CacheTable.cpp
+  ./source/FGLP.cpp
+  ./source/Function.cpp
+  ./source/Graph.cpp
+  ./source/Problem.cpp
+  ./source/ProgramOptions.cpp
+  ./source/Pseudotree.cpp
+  ./source/Random.cpp
+  ./source/utils.cpp
+)
 
+# Main executable and library dependencies
+if (FGLP_PREPROC_ONLY)
+  add_executable(fglpPreproc fglpPreproc.cpp ${FILES_FGLP-PREPROCESS})
+  target_link_libraries(fglpPreproc Gzstream ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+else()
+  add_executable(daoopt daoopt.cpp ${FILES})
+  target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+endif()

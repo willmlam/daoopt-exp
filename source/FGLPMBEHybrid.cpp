@@ -337,4 +337,3 @@ size_t FGLPMBEHybrid::limitJGLPIBound(size_t memlimit) {
 
   return mem;
 }
-s
