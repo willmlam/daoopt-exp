@@ -130,6 +130,7 @@ public:
   std::string in_subproblemFile; // subproblem file path
   std::string in_boundFile; // file with initial lower bound (from SLS, e.g.)
   std::string out_solutionFile; // file path to write solution to
+  std::string out_boundFile; // file to output best lower bound to
   std::string out_reducedFile; // file to save reduced network to
   std::string out_pstFile; // file to output pseudo tree description to (for plotting)
 

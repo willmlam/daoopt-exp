@@ -45,6 +45,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("subproblem,s", po::value<string>(), "limit search to subproblem specified in file")
       ("suborder,r",po::value<int>()->default_value(0), "subproblem order (0:width-inc 1:width-dec 2:heur-inc 3:heur-dec)")
       ("sol-file,c", po::value<string>(), "path to output optimal solution to")
+      ("out-bound-file", po::value<string>(), "path to output current best solution to")
       ("ibound,i", po::value<int>()->default_value(10), "i-bound for mini bucket heuristics")
       ("subibound", po::value<int>()->default_value(-1), "i-bound for dynamic minibucket heuristics")
       ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
@@ -171,6 +172,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
 
     if (vm.count("sol-file"))
       opt->out_solutionFile = vm["sol-file"].as<string>();
+    
+    if (vm.count("out-bound-file"))
+      opt->out_boundFile = vm["out-bound-file"].as<string>();
 
     if (vm.count("minibucket"))
       opt->in_minibucketFile = vm["minibucket"].as<string>();

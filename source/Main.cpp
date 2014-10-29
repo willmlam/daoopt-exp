@@ -30,6 +30,8 @@ string UAI2012::filename = "";
 
 #define VERSIONINFO "1.1.2"
 
+string out_bound_file = "";
+
 time_t _time_start, _time_pre;
 
 bool Main::parseOptions(int argc, char** argv) {
@@ -52,6 +54,7 @@ bool Main::parseOptions(int argc, char** argv) {
 
   size_t idx = m_options->in_problemFile.find_last_of("/");
   UAI2012::filename = m_options->in_problemFile.substr(idx + 1) + ".MPE";
+  out_bound_file = m_options->out_boundFile;
 
   return true;
 }

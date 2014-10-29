@@ -30,6 +30,7 @@
 
 //extern time_t time_start;
 //
+extern string out_bound_file;
 
 void Problem::condition(const map<int,val_t> &cond) {
   assert(m_n!=UNKNOWN);
@@ -775,7 +776,16 @@ void Problem::updateSolution(double cost,
     BOOST_FOREACH( int v, outputAssg ) {
       ss << ' ' << v;
     }
+    /*
     UAI2012::outputSolutionValT(outputAssg);
+    */
+    if (!out_bound_file.empty()) {
+      vector<count_t> dummy_node_profile;
+      vector<count_t> dummy_leaf_profile;
+      outputAndSaveSolution(out_bound_file, nodestats,
+                            dummy_node_profile, dummy_leaf_profile, false);
+    }
+
   }
 #endif
 
