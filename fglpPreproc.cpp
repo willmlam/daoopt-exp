@@ -31,8 +31,8 @@ int main(int argc, char** argv) {
        << " functions." << endl;
 
   p->removeEvidence();
-  cout << "Removed evidence, now " << p->getN() << "variables and " << p->getC()
-       << " functions." << endl;
+  cout << "Removed evidence, now " << p->getN() << " variables and " 
+       << p->getC() << " functions." << endl;
 
   vector<int> elim;
   bool orderFromFile = false;
