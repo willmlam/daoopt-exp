@@ -6,6 +6,7 @@
 using namespace std;
 
 string UAI2012::filename = "";
+string out_bound_file = "";
 time_t _time_start, _time_pre;
 
 int main(int argc, char** argv) {
@@ -27,6 +28,10 @@ int main(int argc, char** argv) {
   if (!p->parseUAI(po->in_problemFile, po->in_evidenceFile, po->collapse))
     exit(0);
   cout << "Created problem with " << p->getN() << " variables and " << p->getC()
+       << " functions." << endl;
+
+  p->removeEvidence();
+  cout << "Removed evidence, now " << p->getN() << "variables and " << p->getC()
        << " functions." << endl;
 
   vector<int> elim;
