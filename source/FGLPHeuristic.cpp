@@ -73,7 +73,12 @@ size_t FGLPHeuristic::build(const std::vector<val_t> *assignment, bool computeTa
     else
         rootFGLP = new FGLP(m_problem, m_options->useNullaryShift);
 //    rootFGLP->setVerbose(true);
+    
     rootFGLP->Run(m_options->mplp, m_options->mplps);
+    // Need to turn on cost shift reversal if we are doing AO with caching
+    if (!m_options->orSearch) {
+      rootFGLP->set_use_cost_shift_reversal(true);
+    }
     m_globalUB = rootFGLP->ub();
     return 0;
 }

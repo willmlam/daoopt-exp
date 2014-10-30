@@ -47,6 +47,9 @@ public:
     inline double runtime() const { return runtime_; }
     inline double runiters() const { return runiters_; }
 
+    inline void set_use_cost_shift_reversal(bool r) { 
+      use_cost_shift_reversal_ = r;
+    }
     inline const vector<double> &bound_contribs() const { return bound_contribs_; }
 
 
@@ -116,6 +119,9 @@ protected:
     // Use version of update that shifts the max-marginals into the nullary function?
     bool use_nullary_shift_;
 
+    // Use cost-shift reversal (required for AOBB with caching)
+    bool use_cost_shift_reversal_;
+
     // Use verbose output (show bound progression)
     bool verbose_;
 
@@ -124,6 +130,7 @@ protected:
 
     // store the number of iterations it took
     int runiters_;
+
 
 
 

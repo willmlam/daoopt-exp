@@ -14,6 +14,7 @@ FGLP::FGLP(Problem *p, bool use_nullary_shift)
     conditioned_cost_(ELEM_ONE),
     ub_(ELEM_ONE),
     use_nullary_shift_(use_nullary_shift),
+    use_cost_shift_reversal_(false),
     verbose_(true) {
 
       for (Function *f : problem_->getFunctions()) {
@@ -28,7 +29,8 @@ FGLP::FGLP(Problem *p, bool use_nullary_shift)
       }
 
       // Allocate total shift
-      total_shift_.resize(factors_.back()->getId()+1, map<int,vector<double>>());
+      total_shift_.resize(factors_.back()->getId()+1,
+                          map<int,vector<double>>());
       for (Function *f : factors_) {
         for (int v : f->getScopeVec()) {
           total_shift_[f->getId()].insert(
@@ -65,6 +67,7 @@ FGLP::FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment,
   conditioned_cost_(parent_fglp->conditioned_cost_),
   ub_(ELEM_ONE),
   use_nullary_shift_(parent_fglp->use_nullary_shift_),
+  use_cost_shift_reversal_(parent_fglp->use_cost_shift_reversal_),
   verbose_(false) {
 
     Condition(parent_fglp->factors(),assignment,subVars);
@@ -134,7 +137,7 @@ void FGLP::Run(int max_iter, double max_time, double tolerance) {
         var_max_marginals[i] = MaxMarginal(fv, v);
 
         if (use_nullary_shift_) {
-          //                    cout << "MM" << *m_factorsByVariable[v][i] << endl;
+          //cout << "MM" << *m_factorsByVariable[v][i] << endl;
           for (size_t j = 0; j < table_size; ++j) {
             mm_max[i] = max(mm_max[i], var_max_marginals[i][j]);
           }
@@ -166,10 +169,12 @@ void FGLP::Run(int max_iter, double max_time, double tolerance) {
         Function *fv = factors_by_variable_[v][i];
         Reparameterize(fv, var_max_marginals[i], avg_mm, v);
 
-        // Record reparameterization
-        for (size_t j = 0; j < table_size; ++j) {
-          total_shift_[fv->getId()][v][j] OP_TIMESEQ 
-            avg_mm[j] OP_DIVIDE var_max_marginals[i][j];
+        if (!use_cost_shift_reversal_) {
+          // Record reparameterization
+          for (size_t j = 0; j < table_size; ++j) {
+            total_shift_[fv->getId()][v][j] OP_TIMESEQ 
+              avg_mm[j] OP_DIVIDE var_max_marginals[i][j];
+          }
         }
         delete var_max_marginals[i];
         var_max_marginals[i] = NULL;
@@ -191,7 +196,8 @@ void FGLP::Run(int max_iter, double max_time, double tolerance) {
   runiters_ = iter;
 
   if (verbose_) {
-    cout << "FGLP (" << iter << " iter, " << runtime_ << " sec): " << ub_ << endl;
+    cout << "FGLP (" << iter << " iter, " << runtime_ << " sec): " << ub_ 
+         << endl;
   }
 
 }
@@ -226,11 +232,6 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
 
   // Add in contributions from each variable
   for (int v : subVars) {
-    /*
-       cout << v << endl;
-       cout << bound_contribs_[v] << endl;
-       cout << endl;
-       */
     table_const[0] OP_TIMESEQ bound_contribs_[v];
   }
   //    cout << "constant in subproblem: " << table_const[0] << endl;
@@ -243,6 +244,8 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
        cout << subVars << endl;
        */
     // Check if function is to be conditioned
+    // Either it's unary over the conditioning variable,
+    // or 
     bool to_be_conditioned = false;
     if (f->getArity() == 1) {
       to_be_conditioned = assn.find(f->getScopeVec()[0]) != assn.end();
@@ -255,17 +258,21 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
 
     if (new_f->getArity() != f->getArity()) {
 
-      // Compute function reversal shift needed
-      double shift = ELEM_ONE;
-      for (int v : f->getScopeVec()) {
-        auto itA = assn.find(v);
-        if (itA == assn.end()) continue;
+      if (use_cost_shift_reversal_) {
+        // Compute function reversal shift needed
+        // We compute the total cost shifted into the function over 
+        // the variable/value that was just conditioned.
+        double shift = ELEM_ONE;
+        for (int v : f->getScopeVec()) {
+          auto itA = assn.find(v);
+          if (itA == assn.end()) continue;
 
-        shift OP_TIMESEQ total_shift_[f->getId()][v][itA->second];
-      }
+          shift OP_TIMESEQ total_shift_[f->getId()][v][itA->second];
+        }
 
-      for (size_t i = 0; i < new_f->getTableSize(); ++i) {
-        new_f->getTable()[i] OP_DIVIDEEQ shift;
+        for (size_t i = 0; i < new_f->getTableSize(); ++i) {
+          new_f->getTable()[i] OP_DIVIDEEQ shift;
+        }
       }
     }
 

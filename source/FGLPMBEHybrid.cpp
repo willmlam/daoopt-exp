@@ -106,6 +106,7 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
 
   // Do not use FGLP at all if MBE is accurate
   if (!isAccurate()) {
+    // If cost reversal is on, we may not need to adjust? (TODO)
     if (m_options->useShiftedLabels) {
       fglpHeur->getHeurAll(var, assignment, node, fglpOut);
     } else {
