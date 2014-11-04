@@ -105,7 +105,6 @@ set(FILES
   ./source/LearningEngine.cpp
   ./source/LimitedDiscrepancy.cpp
   ./source/Main.cpp
-  ./source/MBEHeuristicInstance.cpp
   ./source/MiniBucket.cpp
   ./source/MiniBucketElim.cpp
   ./source/ParallelManager.cpp

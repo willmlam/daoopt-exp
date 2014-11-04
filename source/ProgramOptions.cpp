@@ -47,23 +47,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("sol-file,c", po::value<string>(), "path to output optimal solution to")
       ("out-bound-file", po::value<string>(), "path to output current best solution to")
       ("ibound,i", po::value<int>()->default_value(10), "i-bound for mini bucket heuristics")
-      ("subibound", po::value<int>()->default_value(-1), "i-bound for dynamic minibucket heuristics")
       ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
-      ("gNodes,g", po::value<int>()->default_value(1), "computation granularity for dynamic mini-bucket heuristics")
-      ("dhDepth", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum depth to compute dynamic heuristics")
-      ("depthInterval", po::value<int>()->default_value(1), "recompute heuristics only at these depth intervals")
-      ("depthOnly", "recompute heuristics only at the depth specified by the maximum depth parameter")
-      ("maxDupe", po::value<int>()->default_value(0), "maximum number of duplicate varibles allowed for skipping dynamic heuristic computation")
-      ("dupeRed", po::value<int>()->default_value(0), "minimum amount of reduction of duplicated variables to heuristic needed for recomputation") 
-      ("maxDynHeur", po::value<int>()->default_value(numeric_limits<int>::max()), "maximum number of times to compute dynamic heuristics")
-      ("maxPathHeur", po::value<int>()->default_value(-1), "maximum number of heuristics allowed on a single path")
-      ("computeExactFrontier", "compute dynamic heuristics when subproblem with = i-bound")
-      ("reuseLevel", po::value<int>()->default_value(2), "reuse ancestor heuristic messages (0: none, 1: equal buckets, 2: exact buckets (default)")
-      ("useSimpleHeurSelection","use the tightest bound across all heuristics for each value")
-      ("useRootAndCurrent","use the tightest bound between the root and current heuristic")
-      ("subwidthDistance", po::value<int>()->default_value(numeric_limits<int>::max()), "compute a dynamic heuristic when the i-bound used is within this amount")
-      ("relGapDec", po::value<double>(), "Threshold based on UB-LB gap for heuristic recomputation")
-      ("randDyn", po::value<double>()->default_value(1.0), "probability based schedule of computing dynamic heuristcs")
       ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
       ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
       ("mplpt", po::value<double>()->default_value(1e-7), "convergence tolerance for MPLP")
@@ -74,7 +58,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       ("fglpMBEHeur","use FGLP/MBE hybrid heuristic")
       ("fglpMBEHeurChoice","use FGLP/MBE choice heuristic")
       ("useShiftedLabels","use shifted labels induced by FGLP")
-      ("useFglpBfs","use BFS based update ordering for FGLP")
       ("useNullaryShift","use FGLP update that shifts maximums into a nullary function")
       ("usePriority","use prioritized FGLP update schedule")
       ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
@@ -190,74 +173,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     if (vm.count("ibound"))
       opt->ibound = vm["ibound"].as<int>();
 
-    if (vm.count("subibound"))
-      opt->subibound = vm["subibound"].as<int>();
-    if (opt->subibound < 0)
-      opt->subibound = vm["ibound"].as<int>();
-
-    if (vm.count("subwidthDistance"))
-      opt->subwidthDistance = vm["subwidthDistance"].as<int>();
-
-
     if (vm.count("cbound")) {
       opt->cbound = vm["cbound"].as<int>();
       opt->cbound_worker = vm["cbound"].as<int>();
-    }
-    if (vm.count("gNodes")) {
-      opt->gNodes = vm["gNodes"].as<int>();
-    }
-    if (vm.count("depthInterval")) {
-      opt->depthInterval = vm["depthInterval"].as<int>();
-    }
-    if (vm.count("dhDepth")) {
-      opt->dhDepth = vm["dhDepth"].as<int>(); 
-      if (vm.count("depthOnly"))
-          opt->depthInterval = opt->dhDepth;
-    }
-    if (vm.count("maxDupe")) {
-      opt->maxDupe = vm["maxDupe"].as<int>();
-    }
-    if (vm.count("dupeRed")) {
-      opt->dupeRed = vm["dupeRed"].as<int>();
-    }
-    if (vm.count("maxDynHeur")) {
-      opt->maxDynHeur = vm["maxDynHeur"].as<int>();
-    }
-    if (vm.count("maxPathHeur")) {
-      opt->maxPathHeur = vm["maxPathHeur"].as<int>();
-    }
-    if (vm.count("computeExactFrontier")) {
-      opt->computeExactFrontier = true;
-    }
-    else {
-      opt->computeExactFrontier = false;
-    }
-    if (vm.count("randDyn")) {
-      opt->randDyn = vm["randDyn"].as<double>();
-    }
-    if (vm.count("reuseLevel")) {
-        opt->reuseLevel = vm["reuseLevel"].as<int>();
-        if (opt->reuseLevel > 2) opt->reuseLevel = 0;
-    }
-
-    if (vm.count("useSimpleHeurSelection")) {
-        opt->useSimpleHeurSelection = true;
-    }
-    else {
-        opt->useSimpleHeurSelection = false;
-    }
-    if (vm.count("useRootAndCurrent")) {
-        opt->useRootAndCurrent = true;
-    }
-    else {
-        opt->useRootAndCurrent = false;
-    }
-    if (vm.count("relGapDec")) {
-        opt->relGapDecrease = vm["relGapDec"].as<double>();
-        opt->useRelGapDecrease = true;
-    }
-    else {
-        opt->useRelGapDecrease = false;
     }
 
     if (vm.count("mplp"))
@@ -293,11 +211,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     else
         opt->useShiftedLabels = false;
     
-    if (vm.count("useFglpBfs"))
-        opt->useFglpBfs = true;
-    else
-        opt->useFglpBfs = false;
-
     if (vm.count("useNullaryShift"))
         opt->useNullaryShift = true;
     else
@@ -392,16 +305,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
       opt->match = true;
     else
       opt->match = false;
-
-    if (vm.count("dynamic"))
-      opt->dynamic = true;
-    else
-      opt->dynamic = false;
-
-    if (vm.count("dynmm"))
-      opt->dynmm = true;
-    else
-      opt->dynmm = false;
 
     if (vm.count("rotate"))
       opt->rotate = true;

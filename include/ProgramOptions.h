@@ -50,16 +50,6 @@ public:
   int jglp;  // enables JGLP tightening in Alex Ihler's MBE library (# iters)
   double jglps;  // enables JGLP tightening in Alex Ihler's MBE library (# sec)
   int jglpi;  // specifies the i-bound used for JGLP
-  bool fglpHeur; // use pure FGLP heuristic
-  bool fglpMBEHeur; // use FGLP/MBE hybrid heuristic
-  bool fglpMBEHeurChoice; // use FGLP/MBE choice heuristic
-  bool useShiftedLabels; // use shifted labels induced by FGLP
-  bool useFglpBfs; // use BFS update ordering for FGLP
-  bool useNullaryShift; // use FGLP update that shifts maximums into a nullary function
-  bool usePriority; // use prioritized FGLP update schedule
-  int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
-  double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
-  double ndfglpt; // convergence tolerance for FGLP
   int ibound; // bucket elim. i-bound
   int cbound; // cache context size bound
   int cbound_worker; // cache bound for worker processes
@@ -89,31 +79,23 @@ public:
   /* CVO */
   bool order_cvo; // Use Kalev Kask's variable ordering code
 
-  /* 
-   * DYNAMIC HEURISTIC OPTIONS
-   */
-  bool dynamic; // uses dynamic mini-bucket heuristics
-  bool dynmm; // uses dynamic moment-matching heuristic that maintains the tree structure
-  int gNodes; // Computation granularity for dynamic heuristics
-  int dhDepth; // Maximum depth to compute dynamic heuristics
-  int depthInterval; // compute dynamic heuristics only at depths that are multiples of depthInterval
-  bool depthOnly; // Used with dhDepth, sets depthInterval = dhDepth
-  int maxDupe; // maximum number of duplicate varibles allowed for skipping dynamic heuristic computation
-  int dupeRed; // minimum amount of improvement to heuristic needed for recomputation (measured by number of variable duplications)
-  int maxDynHeur; // maximum number of times to compute dynamic heuristics
-  int maxPathHeur; // maximum number of heuristics on a single path
-  bool computeExactFrontier; // compute dynamic heuristics when subproblem with = i-bound
-  double randDyn; // probability based schedule of computing dynamic heuristics
-  int reuseLevel; // reuse ancestor heuristic messages (0: no reuse, 1: equal buckets, 2: exact buckets)
-  bool useSimpleHeurSelection; // takes the tightest bound found across all heuristics for each avlue
-  bool useRootAndCurrent; // takes the tightest bound between the current heuristic and the heuristic at the root
-  double relGapDecrease; // Threshold for whether the UB/LB gap has decreased sufficiently to stop dynamic heuristic computation
-  bool useRelGapDecrease; // Used with above
-  int subibound; // bucket elim. i-bound for dynamic heuristics (subproblem)
-  int subwidthDistance; // compute dynamic heuristics if the remaining width is within this amount of the i-bound
+  /* DYNAMIC COST SHIFTING HEURISTIC OPTIONS */
+  bool fglpHeur; // use pure FGLP heuristic
+  bool fglpMBEHeur; // use FGLP/MBE hybrid heuristic
+  bool fglpMBEHeurChoice; // use FGLP/MBE choice heuristic
 
+  bool useShiftedLabels; // use shifted labels induced by FGLP
+  bool useNullaryShift; // use FGLP update that shifts maximums into a nullary function
+  bool usePriority; // use prioritized FGLP update schedule
+  int ndfglp; // enables FGLP computation at every node dynamic MBE is used (# iters per node)
+  double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
+  double ndfglpt; // convergence tolerance for FGLP
+
+  /* MISC OPTIONS */
   bool collapse; // collapse functions with identical scopes onto each other
   double perturb; // sets zeros to this value in the functions
+
+  // Added to allow program to terminate itself.
   int maxTime; // timeout threshold (seconds)
 
   double initialBound; // initial lower bound

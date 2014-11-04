@@ -27,7 +27,6 @@
 #include "_base.h"
 #include "utils.h"
 #include "SubprobStats.h"  // only for PARALLEL_STATIC
-#include "MBEHeuristicInstance.h"
 #include "ExtraNodeInfo.h"
 
 //class Problem;
@@ -170,16 +169,8 @@ public:
   virtual double* getHeurCache() const = 0;
   virtual void clearHeurCache() = 0;
   
-  virtual MBEHeuristicInstance *getHeurInstance() const = 0;
-  virtual void setHeurInstance(MBEHeuristicInstance *h) = 0;
-
   virtual const unique_ptr<ExtraNodeInfo> &getExtraNodeInfo() const { return m_eInfo;}
   virtual void setExtraNodeInfo(ExtraNodeInfo *inf) { m_eInfo.reset(inf); }
-
-  virtual bool isHeuristicLocked() const = 0;
-  virtual void setHeuristicLocked(bool locked) = 0;
-
-
 
 protected:
   SearchNode(SearchNode* parent);
@@ -237,14 +228,6 @@ public:
   double* getHeurCache() const { return NULL; }
   void clearHeurCache() {}
 
-  MBEHeuristicInstance *getHeurInstance() const { return NULL; }
-  void setHeurInstance(MBEHeuristicInstance *h) { }
-
-
-
-  bool isHeuristicLocked() const { return false; }
-  void setHeuristicLocked(bool locked) { }
-
 public:
   SearchNodeAND(SearchNode* p, val_t val, double label = ELEM_ONE);
   virtual ~SearchNodeAND() { /* empty */ }
@@ -271,12 +254,6 @@ protected:
 #ifdef PARALLEL_STATIC
   SubprobFeatures m_subprobFeatures; // subproblem feature set
 #endif
-
-  MBEHeuristicInstance *m_hNode;     // pointer to the heuristic used for this node
-  bool m_heuristicLocked;              // flag to prevent further heuristic computation
-                                     // on the entire subproblem rooted by this node
-                                     
-
 
 public:
   int getType() const { return NODE_OR; }
@@ -329,21 +306,6 @@ public:
   void setHeurCache(double* d) { m_heurCache = d; }
   double* getHeurCache() const { return m_heurCache; }
   void clearHeurCache();
-
-  void setHeurInstance(MBEHeuristicInstance *hNode) { 
-      assert(!m_heuristicLocked);
-      if (m_hNode == hNode) return;
-      if (m_hNode && this == m_hNode->getOwner()) {
-          delete m_hNode;
-      }
-      m_hNode = hNode; 
-  }
-  MBEHeuristicInstance *getHeurInstance() const { return m_hNode; }
-
-
-  void setHeuristicLocked(bool locked) { m_heuristicLocked = locked; }
-  bool isHeuristicLocked() const { return m_heuristicLocked; }
-
 
 public:
   SearchNodeOR(SearchNode* parent, int var, int depth);
@@ -433,9 +395,7 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 
 
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
-  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(nullptr), 
-    m_hNode(nullptr), 
-    m_heuristicLocked(false)
+  SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(nullptr)
     //, m_cacheContext(NULL)
 #if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)
@@ -444,10 +404,6 @@ inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
 
 
 inline SearchNodeOR::~SearchNodeOR() {
-  if (m_hNode && this == m_hNode->getOwner())
-      delete m_hNode;
-//  if (m_eInfo) delete m_eInfo;
-
   this->clearHeurCache();
 }
 

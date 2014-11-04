@@ -32,7 +32,6 @@
 #include "Pseudotree.h"
 #include "ProgramOptions.h"
 #include "MiniBucketElim.h"
-#include "MiniBucketElimMplp.h"
 #include "FGLPHeuristic.h"
 #include "FGLPMBEHybrid.h"
 #ifdef ENABLE_SLS

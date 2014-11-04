@@ -159,18 +159,12 @@ bool Search::doPruning(SearchNode* node) {
 
   if (canBePruned(node)) {
     DIAG( myprint("\t !pruning \n") );
-    /*
-    if (node->getVar() == 173) {
-        sleep(5);
-        exit(0);
-    }
-    */
     node->setLeaf();
     m_space->stats.numPruned += 1;
     node->setPruned();
     if (node->getType() == NODE_AND) {
       // count 1 leaf AND node
-      m_leafProfile.at(depth) += 1;
+      if (depth >= 0) m_leafProfile.at(depth) += 1;
 #if defined PARALLEL_DYNAMIC
       node->setSubLeaves(1);
 #endif
@@ -178,7 +172,7 @@ bool Search::doPruning(SearchNode* node) {
       if ( ISNAN(node->getValue()) ) // value could be set by LDS
         node->setValue(ELEM_ZERO);
       // assume all AND children would have been created and pruned
-      m_leafProfile.at(depth) += m_problem->getDomainSize(var);
+      if (depth >= 0) m_leafProfile.at(depth) += m_problem->getDomainSize(var);
 #if defined PARALLEL_DYNAMIC
       node->addSubLeaves(m_problem->getDomainSize(var));
 #endif
@@ -267,17 +261,7 @@ bool Search::canBePruned(SearchNode* n) const {
             nn->setNotOpt();  // mark possibly not optimally solved subproblems
       return true;  // pruning is possible!
     }
-
-    /*
-    if (n->getVar() == 173) {
-        sleep(5);
-        exit(0);
-    }
-    */
-
   }
-
-
   return false;  // default, no pruning possible
 
 } // Search::canBePruned
@@ -475,92 +459,13 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 #define GET_VALUE_BULK
 double Search::assignCostsOR(SearchNode* n) {
 
-  // Inherit the heuristic and lock status from its parent
-  SearchNodeOR *nn = static_cast<SearchNodeOR*>(n);
-  if (n->getParent()) {
-      SearchNodeOR* nParent = static_cast<SearchNodeOR*>(n->getParent()->getParent());
-      assert(nParent);
-      nn->setHeurInstance(nParent->getHeurInstance());
-      nn->setHeuristicLocked(nParent->isHeuristicLocked());
-  }
-
   int v = n->getVar();
   int vDomain = m_problem->getDomainSize(v);
   double* dv = new double[vDomain*2];
   for (int i=0; i<vDomain; ++i) dv[2*i+1] = ELEM_ONE;
   double h = ELEM_ZERO; // the new OR nodes h value
 
-  // get from heuristic class instead?
-//  const vector<Function*>& funs = m_pseudotree->getFunctions(v);
-
-  if (m_options->useRelGapDecrease && !nn->isHeuristicLocked()) {
-
-      // The first time the lower bound is not -inf means that there is partial solution
-      // that has been found
-      // Should check the existing heuristics already used and overwrite the instances
-      // Compare the decreases of each one and see which one is the most significant.
-      // Then, in each search node, replace its heuristic with the most significant one
-      /*
-      cout << v << ", " << n->getDepth() << endl;
-      if (nn->getHeurInstance()) 
-          cout << nn->getHeurInstance()->getDepth() << endl;
-      cout << "Lower bound: " << lowerBound(n) << endl;
-      */
-      if (!std::isinf(lowerBound(n)) && 
-              !m_foundFirstPartialSolution && 
-              nn->getHeurInstance()->getParent()) {
-          double maxDecrease = nn->getHeurInstance()->getMostRecentDecrease();
-          MBEHeuristicInstance *bestHeur = nn->getHeurInstance();
-          MBEHeuristicInstance *cur = nn->getHeurInstance()->getParent();
-          while (cur && cur->getParent()) {
-              if (cur->getMostRecentDecrease() < maxDecrease) {
-                  //cout << "Decrease: " << cur->getMostRecentDecrease() << endl;
-                  bestHeur = cur;
-                  maxDecrease = cur->getMostRecentDecrease();
-              }
-              cur = cur->getParent();
-          }
-          /*
-          cout << "Best heuristic at depth " << bestHeur->getDepth();
-          cin.get();
-          */
-          SearchNodeOR *curOR = nn;
-          // Set all nodes on the path to the root to use the best heuristic (and their children)
-          while(curOR && curOR->getParent() && curOR->getDepth() >= bestHeur->getDepth()) {
-              if (curOR->isHeuristicLocked()) break;
-              //cout << "Setting node at depth: " << curOR->getDepth() << ", " << curOR << endl;
-              curOR->setHeurInstance(bestHeur);
-              curOR->setHeuristicLocked(true);
-              NodeP *children = curOR->getChildren();
-              for (unsigned int i=0; i<curOR->getChildCountAct(); ++i) {
-                NodeP *andChildren = children[i]->getChildren();
-                for (unsigned int j=0; j<children[i]->getChildCountAct(); ++j) {
-                    //cout << "Child(" << i << "," << j << "): " << andChildren[j] << endl;
-                    SearchNodeOR *temp = static_cast<SearchNodeOR*>(andChildren[j]);
-                    if (!temp->isHeuristicLocked()) {
-                        temp->setHeurInstance(bestHeur);
-                        temp->setHeuristicLocked(true);
-                    }
-                }
-              }
-
-              
-              curOR = static_cast<SearchNodeOR*>(curOR->getParent()->getParent());
-          }
-          m_foundFirstPartialSolution = true;
-      }
-  }
-
-
 #ifdef GET_VALUE_BULK
-
-      /*
-  if (nn->getHeurInstance()) {
-      cout << "heuristic before possible recomputation used: ";
-      cout << "var,depth: " << nn->getHeurInstance()->getVar() << ", " << nn->getHeurInstance()->getDepth() << endl;
-  }
-      */
-
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
   m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
@@ -576,10 +481,6 @@ double Search::assignCostsOR(SearchNode* n) {
   for (int i=0; i<vDomain; ++i) {
     dv[2*i+1] = m_costTmp[i];
   }
-  /*
-  cout << "heuristic actually used: ";
-  cout << "var,depth: " << nn->getHeurInstance()->getVar() << ", " << nn->getHeurInstance()->getDepth() << endl;
-  */
   for (int i=0; i<vDomain; ++i) {
     dv[2*i] = dv[2*i+1] OP_TIMES dv[2*i];
     h = max(h, dv[2*i]);
@@ -612,50 +513,6 @@ double Search::assignCostsOR(SearchNode* n) {
 
   n->setHeur(h);
   n->setHeurCache(dv);
-
-  if (m_options->dynamic && m_options->useRelGapDecrease && !nn->isHeuristicLocked()) {
-      double lb, ub, gap, decrease, relDecrease;
-
-      lb = lowerBound(n);
-      ub = n->getHeur();
-      gap = ub - lb;
-      decrease = -nn->getHeurInstance()->getMostRecentDecrease();
-      /*
-      if (n->getDepth() <= 999) {
-          if (nn->getParent()) {
-              SearchNodeOR *temp = dynamic_cast<SearchNodeOR*>(nn->getParent()->getParent());
-              while (temp && temp->getParent()) {
-                  cout << "Parent, depth: " << temp << ", " << temp->getDepth() << endl;
-                  temp = dynamic_cast<SearchNodeOR*>(temp->getParent()->getParent());
-              }
-          }
-
-          cout << "depth " << n->getDepth() << endl;
-          cout << "heuristic depth " << nn->getHeurInstance()->getDepth() << endl;
-          cout << "Lower bound: " << lb << endl;
-          cout << "Upper bound: " << ub << endl;
-          cout << "Gap: " << gap << endl;
-          cout << "Decrease: " << decrease << endl;
-      }
-      */
-      relDecrease = gap / (gap+decrease);
-      //cout << "Relative Decrease: " << relDecrease << endl;
-      // parameterize this later
-      int hDepth = nn->getHeurInstance()->getDepth();
-      if (hDepth > 0 && (relDecrease < m_options->relGapDecrease || relDecrease >= 1)) {
-          /*
-          cout << "Depth: " << hDepth << endl;
-          cout << "Locked heuristic" << endl << endl;
-          */
-          nn->setHeuristicLocked(true);
-
-      }
-  }
-  // The gap using the parent heuristic would have been gap + decrease
-  // take relDecrease = gap / (gap+decrease) 
-  // if relDecrease < p, then lock the heuristic
-
-
 
   return h;
 
