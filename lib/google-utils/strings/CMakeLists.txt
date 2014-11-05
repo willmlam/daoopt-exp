@@ -1,0 +1,19 @@
+include_directories(
+  ../
+)
+
+add_library(google_strings
+    ascii_ctype.cc
+    charset.cc
+    escaping.cc
+    join.cc
+    memutil.cc
+    numbers.cc
+    split.cc
+    strcat.cc
+    stringpiece.cc
+    strip.cc
+    strutil.cc
+    substitute.cc
+    util.cc
+)

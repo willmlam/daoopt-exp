@@ -51,10 +51,12 @@ endif()
 if(DAOOPT_LINK_STATIC)
   set(CMAKE_EXE_LINKER_FLAGS "-static")
   set(Boost_USE_STATIC_LIBS ON)
+  set(gflags_USE_STATIC_LIBS ON)
 endif()
 
 
 # Optional forced version: static over dynamic master, worker over both
+find_package(gflags REQUIRED)
 if(DAOOPT_WORKER)
   add_definitions(-DNOTHREADS)
 else()
@@ -68,23 +70,28 @@ else()
   endif()
 endif()
 
-find_package( Boost REQUIRED COMPONENTS program_options thread )
-include_directories( ${Boost_INCLUDE_DIRS} )
+find_package(Threads)
+find_package( Boost REQUIRED COMPONENTS thread )
+include_directories(${gflags_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIRS})
 
 # Included folders for header files
 include_directories(
   ${DAOOPT_SOURCE_DIR}/include
   ${DAOOPT_SOURCE_DIR}/lib
+  ${DAOOPT_SOURCE_DIR}/lib/google-utils
 )
+
 
 # Libraries in the lib folder via recursive CMakeLists.txt
 if (FGLP_PREPROC_ONLY)
   add_subdirectory(lib/zlib)
   add_library(Gzstream lib/gzstream.cpp)
   target_link_libraries(Gzstream Zlib)
+  set(LIBS Gzstream google_strings google_base gflags)
 else()
   add_subdirectory(lib)
-  set(LIBS Gzstream Sls4mpe Mex Cvo)
+  set(LIBS Gzstream Sls4mpe Mex Cvo google_strings google_base gflags)
 endif()
 
 # Main daoopt source files
@@ -140,8 +147,16 @@ set(FILES_FGLP-PREPROCESS
 # Main executable and library dependencies
 if (FGLP_PREPROC_ONLY)
   add_executable(fglpPreproc fglpPreproc.cpp ${FILES_FGLP-PREPROCESS})
-  target_link_libraries(fglpPreproc Gzstream ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+  if (DAOOPT_LINK_STATIC)
+    SET_TARGET_PROPERTIES(fglpPreproc PROPERTIES LINK_SEARCH_START_STATIC 1)
+    SET_TARGET_PROPERTIES(fglpPreproc PROPERTIES LINK_SEARCH_END_STATIC 1)
+  endif()
+  target_link_libraries(fglpPreproc ${LIBS} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 else()
   add_executable(daoopt daoopt.cpp ${FILES})
-  target_link_libraries(daoopt ${LIBS} ${CMAKE_THREAD_LIBS_INIT} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} )
+  if (DAOOPT_LINK_STATIC)
+    SET_TARGET_PROPERTIES(daoopt PROPERTIES LINK_SEARCH_START_STATIC 1)
+    SET_TARGET_PROPERTIES(daoopt PROPERTIES LINK_SEARCH_END_STATIC 1)
+  endif()
+  target_link_libraries(daoopt ${LIBS} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 endif()

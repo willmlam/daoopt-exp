@@ -40,10 +40,12 @@
 /* class to be used for the neighbor sets, either hash_map or map
  * (in preliminary tests map was faster?)
  * UPDATE: Replaced by TR1 unordered map and set. */
-//#define MAPCLASS unordered_map
-#define MAPCLASS hash_map
-//#define SETCLASS unordered_set
-#define SETCLASS hash_set
+#include <unordered_map>
+#include <unordered_set>
+#define MAPCLASS std::unordered_map
+//#define MAPCLASS hash_map
+#define SETCLASS std::unordered_set
+//#define SETCLASS hash_set
 
 /* node elimination cost */
 typedef int nCost;

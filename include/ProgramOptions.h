@@ -24,10 +24,9 @@
 #ifndef PROGRAMOPTIONS_H_
 #define PROGRAMOPTIONS_H_
 
-#include "boost/program_options.hpp"
+#include <gflags/gflags.h>
 #include "_base.h"
 
-namespace po = boost::program_options;
 
 #include <string>
 #include <iostream>

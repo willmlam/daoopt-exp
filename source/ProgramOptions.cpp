@@ -22,8 +22,95 @@
  */
 
 #include "ProgramOptions.h"
+#include "google-utils/base/integral_types.h"
+#include "google-utils/strings/strcat.h"
 
-using namespace std;
+DEFINE_string(input_file, "", "path to problem file (required)");
+DEFINE_string(evid_file, "", "path to evidence file (optional)");
+DEFINE_string(ordering_file, "",
+              "read elimination ordering from this file (first to last), or"
+              "write elimination ordering to this file if it does not exist");
+DEFINE_bool(adaptive, false, "enable adaptive ordering scheme");
+DEFINE_int32(max_time, kint32max, "timeout threshold in seconds");
+DEFINE_string(minibucket_file, "", "path to read/store minibucket heuristic");
+DEFINE_string(subproblem_file, "",
+              "path to subproblem specification to limit search to");
+DEFINE_int32(suborder, 0, 
+             "subproblem order "
+             "(0:width-inc 1:width-dec 2:heur-inc 3:heur-dec)");
+DEFINE_string(sol_file, "", "path to output optimal solution to");
+DEFINE_string(out_bound_file, "", "path to output current best solution to");
+
+DEFINE_int32(order_iterations, 25, "iterations for finding ordering");
+DEFINE_int32(order_time, -1, "maximum time for finding ordering");
+DEFINE_int32(order_tolerance, 0,
+             "allowed deviation from minfill suggested optimal");
+DEFINE_int32(max_width, -1, "max. induced width to process, abort otherwise");
+DEFINE_bool(cvo, false, "use Kalev Kask's CVO ordering");
+
+DEFINE_int32(ibound, 10, "i-bound for minibucket heuristics");
+DEFINE_int32(cbound, 1000, "context size bound for caching");
+
+DEFINE_int32(fglp_iterations, -1, "do FGLP preprocessing (# iterations)");
+DEFINE_double(fglp_time, -1.0, "do FGLP preprocessing (# seconds)");
+DEFINE_double(fglp_tolerance, 1e-7, "convergence tolerance for FGLP");
+DEFINE_int32(jglp_iterations, -1, "do JGLP preprocessing (# iterations)");
+DEFINE_double(jglp_time, -1.0, "do JGLP preprocessing (# seconds)");
+DEFINE_int32(jglp_ibound, -1, "i-bound for JGLP");
+
+DEFINE_bool(rotate, false, "use breadth-rotating AOBB");
+DEFINE_int32(rotate_limit, 1000,
+             "nodes per subproblem stack rotation (0: disabled)");
+
+DEFINE_string(bound_file, "", "file with initial lower bound on solution cost");
+DEFINE_double(initial_bound, ELEM_NAN, "initial lower bound on solution cost");
+
+
+#ifdef ENABLE_SLS
+DEFINE_int32(sls_iterations, 0, "Number of initial SLS iterations");
+DEFINE_int32(sls_time, 5, "Time per SLS iteration");
+#endif
+DEFINE_int32(lds_limit, -1,
+             "run initial LDS search with given limit (-1: disabled)");
+
+DEFINE_int32(mem_limit, -1, "approximate memory limit for minibuckets (in MB)");
+DEFINE_int32(seed, -1, "seed for random number generator, time() otherwise");
+
+DEFINE_bool(or_search, false, "use OR search (build pseudotree as a chain)");
+DEFINE_bool(no_caching, false, "disable context-based caching during search");
+DEFINE_bool(no_search, false, "perform preprocessing, output stats, and exit");
+DEFINE_bool(match, false, "use moment-matching during MBE");
+
+DEFINE_string(reduce_file, "",
+              "path to output reduced network to (removes evidence and unary "
+              "variables)");
+DEFINE_bool(collapse, false,
+            "collapse functions with identical scopes onto each other");
+DEFINE_double(zero_perturb, 0, "set all zero values to this value");
+
+
+
+DEFINE_bool(heuristic_fglp, false, "use pure FGLP dyanmic heuristic");
+DEFINE_bool(heuristic_fglp_mbe_hybrid, false,
+            "use FGLP dynamic/MBE hybrid heuristic");
+DEFINE_bool(heuristic_fglp_mbe_choice, false,
+            "use pure FGLP dyanmic heuristic if the i-bound is less "
+            "than half the width; otherwise, use MBE");
+
+DEFINE_bool(dfglp_shifted_labels, false, "use shifted labels induced by FGLP");
+DEFINE_bool(dfglp_nullary_shift, false,
+            "use FGLP update that shifts maximums into a nullary function");
+DEFINE_bool(fglp_schedule_priority, false,
+            "use FGLP update schedule with priorities");
+
+DEFINE_int32(dfglp_iterations, -1, "# iterations of FGLP at every node");
+DEFINE_double(dfglp_time, -1.0, "time for FGLP at every node");
+DEFINE_double(dfglp_tolerance, 1e-7, "converagnece tolerance for dyanmic FGLP");
+
+DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
+
+
+
 
 ProgramOptions* parseCommandLine(int ac, char** av) {
 
@@ -33,327 +120,88 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
   opt->executableName = av[0];
 
   try{
+    gflags::SetUsageMessage(
+        StrCat(opt->executableName, " -input_file <problem.uai>"));
+    gflags::ParseCommandLineFlags(&ac, &av, true);
 
-    po::options_description desc("Valid options");
-    desc.add_options()
-      ("input-file,f", po::value<string>(), "path to problem file (required)")
-      ("evid-file,e", po::value<string>(), "path to optional evidence file")
-      ("ordering,o", po::value<string>(), "read elimination ordering from this file (first to last)")
-      ("adaptive", "enable adaptive ordering scheme")
-      ("maxTime", po::value<int>()->default_value(numeric_limits<int>::max()), "timeout threshold (seconds)")
-      ("minibucket", po::value<string>(), "path to read/store mini bucket heuristic")
-      ("subproblem,s", po::value<string>(), "limit search to subproblem specified in file")
-      ("suborder,r",po::value<int>()->default_value(0), "subproblem order (0:width-inc 1:width-dec 2:heur-inc 3:heur-dec)")
-      ("sol-file,c", po::value<string>(), "path to output optimal solution to")
-      ("out-bound-file", po::value<string>(), "path to output current best solution to")
-      ("ibound,i", po::value<int>()->default_value(10), "i-bound for mini bucket heuristics")
-      ("cbound,j", po::value<int>()->default_value(1000), "context size bound for caching")
-      ("mplp", po::value<int>()->default_value(-1), "use MPLP mini buckets (#iter)")
-      ("mplps", po::value<double>()->default_value(-1), "use MPLP mini buckets (sec)")
-      ("mplpt", po::value<double>()->default_value(1e-7), "convergence tolerance for MPLP")
-      ("jglp", po::value<int>()->default_value(-1), "use Join-Graph reparameterization (#iter)")
-      ("jglps", po::value<double>()->default_value(-1), "use Join-Graph reparameterization (sec)")
-      ("jglpi", po::value<int>()->default_value(-1), "Specify the i-bound for JGLP")
-      ("fglpHeur","use pure FGLP heuristic")
-      ("fglpMBEHeur","use FGLP/MBE hybrid heuristic")
-      ("fglpMBEHeurChoice","use FGLP/MBE choice heuristic")
-      ("useShiftedLabels","use shifted labels induced by FGLP")
-      ("useNullaryShift","use FGLP update that shifts maximums into a nullary function")
-      ("usePriority","use prioritized FGLP update schedule")
-      ("ndfglp", po::value<int>()->default_value(-1), "iterations for computing FGLP at every node")
-      ("ndfglps", po::value<double>()->default_value(-1), "time for computing FGLP at every node")
-      ("ndfglpt", po::value<double>()->default_value(1e-7), "convergence tolerance for FGLP at every node")
-      ("cutoff-depth,d", po::value<int>()->default_value(0), "number of variables to test heuristic")
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
-      ("cbound-worker,k", po::value<int>()->default_value(1000), "context size bound for caching in worker nodes")
-#else
-      ("rotate,y", "use breadth-rotating AOBB")
-      ("rotatelimit,z", po::value<int>()->default_value(1000), "nodes per subproblem stack rotation (0: disabled)")
-#endif
-      ("orderIter,t", po::value<int>()->default_value(25), "iterations for finding ordering")
-      ("orderTime", po::value<int>()->default_value(-1), "maximum time for finding ordering")
-      ("orderTolerance", po::value<int>()->default_value(0), "allowed deviation from minfill suggested optimal")
-      ("max-width", po::value<int>(), "max. induced width to process, abort otherwise")
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
-      ("cutoff-depth,d", po::value<int>()->default_value(-1), "cutoff depth for central search")
-      ("cutoff-width,w", po::value<int>()->default_value(-1), "cutoff width for central search")
-      ("cutoff-size,l", po::value<int>()->default_value(-1), "subproblem size cutoff for central search (* 10^5)")
-      ("local-size,u", po::value<int>()->default_value(-1), "minimum subproblem size (* 10^5)")
-      ("init-nodes,x", po::value<int>()->default_value(-1), "number of nodes (*10^5) for local initialization")
-      ("local", "solve all parallel subproblems locally")
-      ("noauto", "don't determine cutoff automatically")
-      ("procs,p", po::value<int>()->default_value(-1), "max. number of concurrent subproblem processes")
-      ("max-sub", po::value<int>()->default_value(-1), "only generate the first few subproblems (for testing)")
-      ("tag", po::value<string>(), "tag of the parallel run (to differentiate filenames etc.)")
-#endif
-#ifdef PARALLEL_STATIC
-      ("pre", "perform preprocessing and generate subproblems only")
-      ("post", "read previously solved subproblems and compile solution")
-      ("sampledepth", po::value<int>()->default_value(10), "Randomness branching depth for initial sampling")
-      ("samplesizes", po::value<string>(), "Sequence of sample sizes for complexity prediction (in 10^5 nodes)")
-      ("samplerepeat", po::value<int>()->default_value(1), "Number of sample sequence repeats")
-      ("lookahead", po::value<int>()->default_value(5), "AOBB subproblem lookahead factor (multiplied by no. of problem variables)")
-#endif
-      ("bound-file,b", po::value<string>(), "file with initial lower bound on solution cost")
-      ("initial-bound", po::value<double>(), "initial lower bound on solution cost" )
-#ifdef ENABLE_SLS
-      ("slsX", po::value<int>()->default_value(0), "Number of initial SLS iterations")
-      ("slsT", po::value<int>()->default_value(5), "Time per SLS iteration")
-#endif
-      ("lds,a",po::value<int>()->default_value(-1), "run initial LDS search with given limit (-1: disabled)")
-      ("memlimit,m", po::value<int>()->default_value(-1), "approx. memory limit for mini buckets (in MByte)")
-      ("seed", po::value<int>(), "seed for random number generator, time() otherwise")
-      ("or", "use OR search (build pseudo tree as chain)")
-      ("nocaching", "disable context-based caching during search")
-      ("nosearch,n", "perform preprocessing, output stats, and exit")
-      ("match", "use moment-matching during MBE")
-      ("dynamic", "use dynamic mini-bucket heuristics")
-      ("dynmm", "uses dynamic moment-matching heuristic which maintains the tree structure")
-#if not (defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC)
-      ("reduce", po::value<string>(), "path to output the reduced network to (removes evidence and unary variables)")
-      ("collapse", "collapse functions with identical scopes onto each other")
-      ("perturb",po::value<double>()->default_value(0), "set all zero values to this value")
-      ("cvo", "use Kalev Kask's CVO ordering")
-#endif
-      ("pst-file", po::value<string>(), "path to output the pseudo tree to, for plotting")
-      ("help,h", "produces this help message")
-      ;
-
-    po::variables_map vm;
-    po::store(po::parse_command_line(ac, av, desc), vm);
-    po::notify(vm);
-
-    if (vm.count("help")) {
-      cout << endl << desc << endl;
-      exit(0);
-    }
-
-    if (!vm.count("input-file")) {
-      cout << "No or invalid arguments given, "
-	   << "call with '" << av[0] << " --help' for full list."  << endl;
+    if (FLAGS_input_file.empty()) {
+      cout << "No input file given." << endl;
       return NULL;
     }
 
-    opt->in_problemFile = vm["input-file"].as<string>();
+    opt->in_problemFile = FLAGS_input_file;
+    opt->in_evidenceFile = FLAGS_evid_file;
+    opt->in_orderingFile = FLAGS_ordering_file;
+    opt->autoIter = FLAGS_adaptive;
+    opt->maxTime = FLAGS_max_time;
+    opt->in_subproblemFile = FLAGS_subproblem_file;
+    opt->out_solutionFile = FLAGS_sol_file;
+    opt->out_boundFile = FLAGS_out_bound_file;
+    opt->in_minibucketFile = FLAGS_minibucket_file;
+    opt->subprobOrder = FLAGS_suborder;
+    if (opt->subprobOrder < 0 || opt->subprobOrder > 3) {
+      cout << "Invalid subproblem order" << endl;
+      exit(0);
+    }
 
-    if (vm.count("evid-file"))
-      opt->in_evidenceFile = vm["evid-file"].as<string>();
+    opt->ibound = FLAGS_ibound;
+    opt->cbound = FLAGS_cbound;
+    opt->cbound_worker = FLAGS_cbound;
+    opt->mplp = FLAGS_fglp_iterations;
+    opt->mplps = FLAGS_fglp_time;
+    opt->mplpt = FLAGS_fglp_tolerance;
+    opt->jglp = FLAGS_jglp_iterations;
+    opt->jglps = FLAGS_jglp_time;
+    opt->jglpi = FLAGS_jglp_ibound;
 
-    if (vm.count("ordering"))
-      opt->in_orderingFile = vm["ordering"].as<string>();
+    opt->fglpHeur = FLAGS_heuristic_fglp;
+    opt->fglpMBEHeur = FLAGS_heuristic_fglp_mbe_hybrid;
+    opt->fglpMBEHeurChoice = FLAGS_heuristic_fglp_mbe_choice;
 
-    if (vm.count("adaptive"))
-      opt->autoIter = true;
-    else
-      opt->autoIter = false;
+    opt->useShiftedLabels = FLAGS_dfglp_shifted_labels;
+    opt->useNullaryShift = FLAGS_dfglp_nullary_shift;
+    opt->usePriority = FLAGS_fglp_schedule_priority;
 
-    if (vm.count("maxTime"))
-      opt->maxTime = vm["maxTime"].as<int>();
+    opt->ndfglp = FLAGS_dfglp_iterations;
+    opt->ndfglps = FLAGS_dfglp_time;
+    opt->ndfglpt = FLAGS_dfglp_tolerance;
 
-    if (vm.count("subproblem"))
-      opt->in_subproblemFile = vm["subproblem"].as<string>();
+    opt->order_iterations = FLAGS_order_iterations;
+    opt->order_timelimit = FLAGS_order_time;
+    opt->order_tolerance = FLAGS_order_tolerance;
+    opt->maxWidthAbort = FLAGS_max_width;
+    opt->order_cvo = FLAGS_cvo;
 
-    if (vm.count("sol-file"))
-      opt->out_solutionFile = vm["sol-file"].as<string>();
+    opt->in_boundFile = FLAGS_bound_file;
+    opt->initialBound = FLAGS_initial_bound;
+
+    opt->lds = FLAGS_lds_limit;
+
+    opt->slsIter = FLAGS_sls_iterations;
+    opt->slsTime = FLAGS_sls_time;
+
+    opt->memlimit = FLAGS_mem_limit;
+
+    opt->orSearch = FLAGS_or_search;
+    opt->nosearch = FLAGS_no_search;
+    opt->nocaching = FLAGS_no_caching;
+    opt->match = FLAGS_match;
+
+    opt->rotate = FLAGS_rotate;
+    opt->rotateLimit = FLAGS_rotate_limit;
+
+    opt->seed = FLAGS_seed;
+
+    opt->out_reducedFile = FLAGS_reduce_file;
+
+    opt->collapse = FLAGS_collapse;
     
-    if (vm.count("out-bound-file"))
-      opt->out_boundFile = vm["out-bound-file"].as<string>();
+    opt->perturb = FLAGS_zero_perturb;
 
-    if (vm.count("minibucket"))
-      opt->in_minibucketFile = vm["minibucket"].as<string>();
+    opt->out_pstFile = FLAGS_pst_file;
 
-    if (vm.count("suborder")) {
-      opt->subprobOrder = vm["suborder"].as<int>();
-      if (opt->subprobOrder < 0 || opt->subprobOrder > 3) {
-        cout << endl << desc << endl;
-        exit(0);
-      }
-    }
 
-    if (vm.count("ibound"))
-      opt->ibound = vm["ibound"].as<int>();
-
-    if (vm.count("cbound")) {
-      opt->cbound = vm["cbound"].as<int>();
-      opt->cbound_worker = vm["cbound"].as<int>();
-    }
-
-    if (vm.count("mplp"))
-        opt->mplp = vm["mplp"].as<int>();
-    if (vm.count("mplps"))
-        opt->mplps = vm["mplps"].as<double>();
-    if (vm.count("mplpt"))
-        opt->mplpt = vm["mplpt"].as<double>();
-    if (vm.count("jglp"))
-        opt->jglp = vm["jglp"].as<int>();
-    if (vm.count("jglps"))
-        opt->jglps = vm["jglps"].as<double>();
-    if (vm.count("jglpi"))
-        opt->jglpi = vm["jglpi"].as<int>();
-
-    if (vm.count("fglpHeur"))
-        opt->fglpHeur = true;
-    else
-        opt->fglpHeur = false;
-
-    if (vm.count("fglpMBEHeur"))
-        opt->fglpMBEHeur = true;
-    else
-        opt->fglpMBEHeur = false;
-
-    if (vm.count("fglpMBEHeurChoice"))
-        opt->fglpMBEHeurChoice = true;
-    else
-        opt->fglpMBEHeurChoice = false;
-
-    if (vm.count("useShiftedLabels"))
-        opt->useShiftedLabels = true;
-    else
-        opt->useShiftedLabels = false;
-    
-    if (vm.count("useNullaryShift"))
-        opt->useNullaryShift = true;
-    else
-        opt->useNullaryShift = false;
-
-    if (vm.count("usePriority"))
-        opt->usePriority = true;
-    else
-        opt->usePriority = false;
-
-    if (vm.count("ndfglp"))
-        opt->ndfglp = vm["ndfglp"].as<int>();
-    if (vm.count("ndfglps")) {
-        opt->ndfglps = vm["ndfglps"].as<double>();
-    }
-    if (vm.count("ndfglpt")) {
-        opt->ndfglpt = vm["ndfglpt"].as<double>();
-    }
-
-    if (vm.count("cbound-worker"))
-      opt->cbound_worker = vm["cbound-worker"].as<int>();
-
-    if (vm.count("orderIter"))
-      opt->order_iterations = vm["orderIter"].as<int>();
-    if (vm.count("orderTime"))
-      opt->order_timelimit = vm["orderTime"].as<int>();
-    if (vm.count("orderTolerance"))
-      opt->order_tolerance = vm["orderTolerance"].as<int>();
-
-    if (vm.count("max-width"))
-      opt->maxWidthAbort = vm["max-width"].as<int>();
-
-    if (vm.count("cutoff-depth"))
-      opt->cutoff_depth = vm["cutoff-depth"].as<int>();
-
-    if (vm.count("cutoff-width"))
-      opt->cutoff_width = vm["cutoff-width"].as<int>();
-
-    if (vm.count("cutoff-size"))
-      opt->cutoff_size = vm["cutoff-size"].as<int>();
-
-    if (vm.count("local-size"))
-      opt->local_size = vm["local-size"].as<int>();
-
-    if (vm.count("init-nodes"))
-      opt->nodes_init = vm["init-nodes"].as<int>();
-
-    if (vm.count("noauto"))
-      opt->autoCutoff = false;
-    else
-      opt->autoCutoff = true;
-
-    if (vm.count("procs"))
-      opt->threads = vm["procs"].as<int>();
-
-    if (vm.count("max-sub"))
-      opt->maxSubprob = vm["max-sub"].as<int>();
-
-    if (vm.count("bound-file"))
-      opt->in_boundFile = vm["bound-file"].as<string>();
-
-    if (vm.count("initial-bound"))
-      opt->initialBound = vm["initial-bound"].as<double>();
-
-    if (vm.count("lds"))
-      opt->lds = vm["lds"].as<int>();
-
-    if (vm.count("slsX"))
-      opt->slsIter = vm["slsX"].as<int>();
-    if (vm.count("slsT"))
-      opt->slsTime = vm["slsT"].as<int>();
-
-    if (vm.count("memlimit"))
-      opt->memlimit = vm["memlimit"].as<int>();
-
-    if (vm.count("or"))
-      opt->orSearch = true;
-    else
-      opt->orSearch = false;
-
-    if (vm.count("nosearch"))
-      opt->nosearch = true;
-    else
-      opt->nosearch = false;
-
-    if (vm.count("nocaching"))
-      opt->nocaching = true;
-    else
-      opt->nocaching = false;
-
-    if (vm.count("match"))
-      opt->match = true;
-    else
-      opt->match = false;
-
-    if (vm.count("rotate"))
-      opt->rotate = true;
-    if (vm.count("rotatelimit"))
-      opt->rotateLimit = vm["rotatelimit"].as<int>();
-
-    if (vm.count("seed"))
-      opt->seed = vm["seed"].as<int>();
-
-    if (vm.count("tag"))
-      opt->runTag = vm["tag"].as<string>();
-
-    if (vm.count("local"))
-      opt->par_solveLocal = true;
-    if (vm.count("pre"))
-      opt->par_preOnly = true;
-    else if (vm.count("post"))
-      opt->par_postOnly = true;
-
-    if (vm.count("sampledepth"))
-      opt->sampleDepth = vm["sampledepth"].as<int>();
-    if (vm.count("samplesizes"))
-      opt->sampleSizes = vm["samplesizes"].as<string>();
-    if (vm.count("samplerepeat"))
-      opt->sampleRepeat = vm["samplerepeat"].as<int>();
-
-    if (vm.count("lookahead"))
-      opt->aobbLookahead = vm["lookahead"].as<int>();
-
-    if (vm.count("reduce"))
-      opt->out_reducedFile = vm["reduce"].as<string>();
-
-    if (vm.count("collapse"))
-      opt->collapse = true;
-    else
-      opt->collapse = false;
-
-    if (vm.count("perturb"))
-      opt->perturb = vm["perturb"].as<double>();
-
-    if (vm.count("cvo"))
-      opt->order_cvo = true;
-    else
-      opt->order_cvo = false;
-
-    if (vm.count("pst-file"))
-      opt->out_pstFile = vm["pst-file"].as<string>();
-
-    if (vm.count("subproblem") && !vm.count("ordering")) {
+    if (!FLAGS_subproblem_file.empty() && FLAGS_ordering_file.empty()) {
       cerr << "Error: Specifying a subproblem requires reading a fixed ordering from file." << endl;
       exit(1);
     }

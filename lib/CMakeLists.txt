@@ -13,3 +13,6 @@ add_subdirectory(mex)
 
 # Kalev's ordering code
 add_subdirectory(cvo)
+
+# google3-like utilities
+add_subdirectory(google-utils)

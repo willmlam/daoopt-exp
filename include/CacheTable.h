@@ -29,12 +29,17 @@
 
 #include <vector>
 #include <string>
+#include "boost/unordered_map.hpp"
+
 
 //typedef hash_map <context_t, double> context_hash_map;
 #ifndef NO_ASSIGNMENT
-typedef hash_map <const context_t, const pair<const double, const vector<val_t> > > context_hash_map;
+typedef boost::unordered_map<const context_t,
+                             const pair<const double, const vector<val_t>
+                             >> context_hash_map;
 #else
-typedef hash_map <const context_t, const double > context_hash_map;
+typedef boost::unordered_map<const context_t,
+                             const double> context_hash_map;
 #endif
 
 class CacheTable {

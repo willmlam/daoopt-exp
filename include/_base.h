@@ -183,7 +183,8 @@ using boost::scoped_array;
 typedef std::ostringstream oss;
 
 /* which hashtable to use? define only *one*  */
-#define HASH_BOOST
+//#define HASH_CPP11
+//#define HASH_BOOST
 //#define HASH_TR1
 //#define HASH_SGI
 //#define HASH_GOOGLE_DENSE
@@ -191,6 +192,17 @@ typedef std::ostringstream oss;
 
 /* type for storing contexts in binary */
 typedef std::vector<val_t> context_t;
+
+#ifdef HASH_CPP11
+#include <unordered_set>
+#include <unordered_map>
+
+template<typename K>
+using hash_set = std::unordered_set<K>;
+template<typename K, typename V>
+using hash_map = std::unordered_map<K, V>;
+#endif
+
 
 #ifdef HASH_SGI
 /* SGI hash set and map */
@@ -207,32 +219,40 @@ using __gnu_cxx::hash_map;
 #include <tr1/unordered_map>
 
 /* some renaming (crude hack) */
-#define hash_set std::tr1::unordered_set
-#define hash_map std::tr1::unordered_map
+template<typename K>
+using hash_set = std::tr1::unordered_set<K>;
+template<typename K, typename V>
+using hash_map = std::tr1::unordered_map<K, V>;
 #endif
 
 #ifdef HASH_BOOST
 #include "boost/unordered_map.hpp"
 #include "boost/unordered_set.hpp"
 
-#define hash_set boost::unordered_set
-#define hash_map boost::unordered_map
+template<typename K>
+using hash_set = boost::unordered_set<K>;
+template<typename K, typename V>
+using hash_map = boost::unordered_map<K, V>;
 #endif
 
 #ifdef HASH_GOOGLE_DENSE
 #include "google/dense_hash_map"
 #include "google/dense_hash_set"
 
-#define hash_map google::dense_hash_map
-#define hash_set google::dense_hash_set
+template<typename K>
+using hash_set = google::dense_hash_set<K>;
+template<typename K, typename V>
+using hash_map = google::dense_hash_map<K, V>;
 #endif
 
 #ifdef HASH_GOOGLE_SPARSE
 #include "google/sparse_hash_map"
 #include "google/sparse_hash_set"
 
-#define hash_map google::sparse_hash_map
-#define hash_set google::sparse_hash_set
+template<typename K>
+using hash_set = google::sparse_hash_set<K>;
+template<typename K, typename V>
+using hash_map = google::sparse_hash_map<K, V>;
 #endif
 
 #if defined HASH_SGI || defined HASH_GOOGLE_DENSE || defined HASH_GOOGLE_SPARSE
