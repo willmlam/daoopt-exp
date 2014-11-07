@@ -193,6 +193,10 @@ typedef std::ostringstream oss;
 /* type for storing contexts in binary */
 typedef std::vector<val_t> context_t;
 
+// google strings
+#include "strings/split.h"
+#include "strings/strcat.h"
+
 #ifdef HASH_CPP11
 #include <unordered_set>
 #include <unordered_map>

@@ -120,18 +120,28 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 #endif
 
   this->reset();
+  if (computeTables && (m_options->mplp > 0 || m_options->mplps > 0)) {
+    cout << "Running FGLP" << endl;
+    DoFGLP();
+    m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+  }
 
   if (computeTables && (m_options->jglp > 0 || m_options->jglps > 0)) {
     if (m_options->jglpi > 0 && m_options->memlimit != NONE) {
-      cout << "Adjusted JGLP i-bound to maximum i-bound / 2" << endl;
       LimitJGLPIBound(m_options->memlimit, NULL);
       m_options->jglpi /= 2;
+      cout << "Adjusted JGLP i-bound to maximum i-bound / 2" << endl;
     } else {
       m_options->jglpi = m_ibound / 2;
+      cout << "Setting JGLP i-bound to the current i-bound / 2" << endl;
     }
     cout << "Running JGLP with i-bound " << m_options->jglpi << endl;
     DoJGLP();
     m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+
+    // May need to readjust i-bound based on new parameterization
+    cout << "Readjusting minibucket i-bound" << endl;
+    limitSize(m_options->memlimit, NULL);
   }
 
   vector<int> elimOrder; // will hold dfs order

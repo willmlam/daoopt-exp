@@ -717,7 +717,7 @@ bool Main::runSearchWorker() {
 
 bool Main::outputStats() const {
   if (m_options->nosearch) {
-     cout << "Found '--nosearch', full search skipped, exiting." << endl;
+     cout << "Found '-no_search', full search skipped, exiting." << endl;
      return true;
   }
 
@@ -755,52 +755,16 @@ bool Main::outputStats() const {
   time_t time_end;
   time(&time_end);
   double time_passed = difftime(time_end, _time_start);
-  cout << "Time elapsed:  " << time_passed << " seconds" << endl;
+  cout << StrCat("Time elapsed:  ", time_passed, " seconds") << endl;
   time_passed = difftime(_time_pre, _time_start);
-  cout << "Preprocessing: " << time_passed << " seconds" << endl;
+  cout << StrCat("Preprocessing: ", time_passed, " seconds") << endl;
+  time_passed = difftime(time_end, _time_pre);
+  cout << StrCat("Search:        ", time_passed, " seconds") << endl;
   cout << "-------------------------------" << endl;
 
 
   cout << endl;
   m_heuristic->printExtraStats();
-  for (auto c : m_search->getLeafProfile()) {
-      cout << " " << int(c) << endl;
-  }
-  cout << endl;
-  /*
-  cout << "Heuristic stats" << endl;
-  cout << "---------------" << endl;
-  cout << "# Heuristics:    " << m_heuristic->getNumHeuristics() << endl;
-  cout << "Max active:      " << m_heuristic->getMaxNumActive() << endl;
-  cout << "Total time:      " << int(m_heuristic->getHeurCompTime()) << " seconds" << endl;
-  cout << "Root time:       " << m_heuristic->getHeurRootCompTime() << " seconds" << endl;
-  if (m_options->dynamic && m_heuristic->getNumHeuristics() > 1) {
-      double dynTime = m_heuristic->getHeurCompTime() - m_heuristic->getHeurRootCompTime();
-      double avgTime = dynTime / (m_heuristic->getNumHeuristics() - 1);
-      cout << "Dynamic time:    " << dynTime << " seconds" << endl;
-      cout << "Avg. time (dyn): " << avgTime << " seconds" << endl;
-  }
-  cout << "Max memory:      " << m_heuristic->getMaxMemory() << " MB" << endl;
-  cout << "---------------" << endl;
-
-  const auto &better = m_heuristic->getHeurBetter();
-  const auto &varCount = m_heuristic->getVarTimesVisited();
-  cout << "var,depth,width,#better,total,ratio" << endl;
-  for (unsigned int i = 0; i < better.size(); ++i) {
-      Pseudotree *temp = new Pseudotree(*m_pseudotree);
-      temp->restrictSubproblem(i);
-      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << temp->getWidthCond() << "," << better[i] << "," << varCount[i] << "," << double(better[i])/varCount[i] << endl;
-      delete temp;
-  }
-  */
-
-  // More node count information
-  /*
-  const vector<size_t> &numORVar = m_space->stats.numORVar;
-  for (unsigned i = 0; i < numORVar.size(); ++i) {
-      cout << i << "," << m_pseudotree->getNode(i)->getDepth() << ","  << numORVar[i] << endl;
-  }
-  */
 
 #ifdef PARALLEL_STATIC
   if (!m_options->par_preOnly || m_solved) { // parallel static: only output if solved
