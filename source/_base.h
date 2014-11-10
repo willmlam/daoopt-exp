@@ -439,7 +439,7 @@ inline bool fpLEq(double A, double B, int64_t maxDist=2) {
 #endif
 
 
-#ifdef false
+#if false
 /* encode doubles to 64 bit integers (and back) */
 typedef int64_t int64bit;
 inline std::string encodeDoubleAsInt(double d) {

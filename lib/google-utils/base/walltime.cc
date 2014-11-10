@@ -152,7 +152,14 @@ bool WallTime_Parse_Timezone(const char* time_spec,
 
 WallTime WallTime_Now() {
   timespec ts;
+#if _POSIX_TIMERS > 0
   clock_gettime(CLOCK_REALTIME, &ts);
+#else
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  ts.tv_sec = tv.tv_sec;
+  ts.tv_nsec = tv.tv_usec * 1000;
+#endif
   return ts.tv_sec + ts.tv_nsec / static_cast<double>(1e9);
 }
 
