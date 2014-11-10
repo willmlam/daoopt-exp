@@ -77,7 +77,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 # Included folders for header files
 include_directories(
-  ${DAOOPT_SOURCE_DIR}/include
+  ${DAOOPT_SOURCE_DIR}/source
   ${DAOOPT_SOURCE_DIR}/lib
   ${DAOOPT_SOURCE_DIR}/lib/google-utils
 )

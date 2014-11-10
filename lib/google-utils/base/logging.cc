@@ -90,7 +90,7 @@ LogMessage& LogMessage::operator<<(const char* value) {
 
 DECLARE_STREAM_OPERATOR(char              , "%c"  )
 DECLARE_STREAM_OPERATOR(int               , "%d"  )
-DECLARE_STREAM_OPERATOR(uint              , "%u"  )
+DECLARE_STREAM_OPERATOR(unsigned int      , "%u"  )
 DECLARE_STREAM_OPERATOR(long              , "%ld" )
 DECLARE_STREAM_OPERATOR(long long         , "%lld")
 DECLARE_STREAM_OPERATOR(unsigned long     , "%lu" )

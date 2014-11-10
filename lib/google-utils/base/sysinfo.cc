@@ -18,5 +18,9 @@
 #include <sys/syscall.h>
 
 pid_t GetTID() {
+#ifdef __APPLE__
+  return syscall(SYS_gettid);
+#else
   return syscall(__NR_gettid);
+#endif
 }

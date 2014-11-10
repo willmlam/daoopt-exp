@@ -1,7 +1,3 @@
-include_directories(
-  ../
-)
-
 add_library(google_base
     callback.cc
     hash.cc

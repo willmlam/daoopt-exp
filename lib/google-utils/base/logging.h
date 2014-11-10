@@ -65,7 +65,7 @@ class LogMessage {
   LogMessage& operator<<(const char* value);
   LogMessage& operator<<(char value);
   LogMessage& operator<<(int value);
-  LogMessage& operator<<(uint value);
+  LogMessage& operator<<(unsigned int value);
   LogMessage& operator<<(long value);
   LogMessage& operator<<(unsigned long value);
   LogMessage& operator<<(long long value);

@@ -193,6 +193,10 @@ typedef std::ostringstream oss;
 /* type for storing contexts in binary */
 typedef std::vector<val_t> context_t;
 
+// google strings
+#include "strings/split.h"
+#include "strings/strcat.h"
+
 #ifdef HASH_CPP11
 #include <unordered_set>
 #include <unordered_map>
@@ -435,7 +439,7 @@ inline bool fpLEq(double A, double B, int64_t maxDist=2) {
 #endif
 
 
-#ifdef false
+#if false
 /* encode doubles to 64 bit integers (and back) */
 typedef int64_t int64bit;
 inline std::string encodeDoubleAsInt(double d) {

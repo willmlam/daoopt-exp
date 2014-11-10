@@ -115,7 +115,7 @@ inline bool increaseTuple(size_t& idx, val_t* tuple, const vector<val_t>& limit)
   else return false;
 }
 
-#ifdef false
+#if false
 /* Convert an int/size_t into a std::string */
 inline char* myitoa(size_t x) {
   size_t z = x;
@@ -137,7 +137,7 @@ inline char* myitoa(int x) {
 }
 #endif
 
-#ifdef false
+#if false
 /* Convert an int/size_t into a std::string */
 inline std::string myitoa(size_t x) {
   size_t z = x;

@@ -56,7 +56,14 @@ typedef int64 MicrosecondsInt64;
 // Returns the time since the Epoch measured in microseconds.
 inline MicrosecondsInt64 GetCurrentTimeMicros() {
   timespec ts;
+#if _POSIX_TIMERS > 0
   clock_gettime(CLOCK_REALTIME, &ts);
+#else
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  ts.tv_sec = tv.tv_sec;
+  ts.tv_nsec = tv.tv_usec * 1000;
+#endif
   return ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 }
 

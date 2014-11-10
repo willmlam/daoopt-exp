@@ -37,56 +37,16 @@ flags, toggle static linking, and select one of the solver variants
 (see references below); the default choice is the release-optimized,
 dynamically linked, sequential solver.
 
-### Included makefiles
-
-Alternatively, makefiles for the different solver variants are
-provided directly in the following folders:
-
-* `Worker` -- Purely sequential AOBB solver.
-* `Static` -- Static master mode (also needs worker binaries).
-* `Dynamic` -- Dynamic master mode (also needs worker binaries).
-
-In addition, the following two Makefiles are provided
-
-* `Debug` -- Compiles any of the above (through preprocessor defines)
-  with debug flags.
-* `Windows` -- Windows executable of the sequential solver using MinGW
-  compiler (not tested in a while and probably broken).
-
-By default, the *ccache* compiler cache is used by the makefiles. To
-disable it, simply run the supplied script `ccache-deactivate.sh` from
-within the respective build folder.
-
-Some features (such as computing the optimal tuple vs. only its cost)
-can be turned on/off by setting the respective preprocessor defines in
-`include/DEFINES.h`.
 
 Usage
 -----
 
 To see the list of command line parameters, run the solver with the
-`--help` argument. Problem input should be in [UAI
+`-help` argument. Problem input should be in [UAI
 format](http://graphmod.ics.uci.edu/uai08/FileFormat/), a simple
 text-based format to specify graphical model problems. Gzipped input
 is supported.
 
-### Sequential execution
-
-Simply compile the `Worker` variant and run it on your problem, no
-further setup needed.
-
-### Distributed execution
-
-DAOOPT assumes the Condor grid environment, the machine that the
-master executable runs on needs to be able to submit jobs. The file
-`daoopt-template.condor` from the working directory will be the basis
-for the parallel subproblem submissions, it can be used to customize
-Condor options. The sequential solver will be used for the parallel
-subproblems, so you will also need to compile that first (probably
-statically linked) for the appropriate architecture: rename the
-sequential solver to `daoopt.INTEL` for 32 bit Linux hosts and/or
-`daoopt.X86_64` for 64 bit Linux hosts; placed in the working
-directory these will be used automatically.
 
 Background / References
 -----------------------
