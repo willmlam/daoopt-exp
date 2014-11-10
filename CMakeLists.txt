@@ -86,6 +86,7 @@ include_directories(
 # Libraries in the lib folder via recursive CMakeLists.txt
 if (FGLP_PREPROC_ONLY)
   add_subdirectory(lib/zlib)
+  add_subdirectory(lib/google-utils)
   add_library(Gzstream lib/gzstream.cpp)
   target_link_libraries(Gzstream Zlib)
   set(LIBS Gzstream google_strings google_base gflags)

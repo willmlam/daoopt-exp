@@ -40,22 +40,22 @@ MPLP20M="--mplps 30 --mplp 500"
 MPLP60M="--mplps 60 --mplp 2000"
 
 # Dynamic FGLP setting
-DYNFGLP="--fglpHeur --ndfglp 1 --useNullaryShift"
+DYNFGLP="--fglpHeur --ndfglp 1 --useNullaryShift --collapse"
 
 # fixed random seed
 SEED=4242
 
 # 20 second timelimit
 if [ ${INF_TIME} -eq 20 ] ; then
-  ./daoopt -f $1 -e $2 --seed ${SEED} --slsX 2 --slsT 2 -t500 --orderTime 3 -m125 -i8 -a1 ${ROTATE} ${MATCH} ${CVO} ${MPLP20S} ${DYNFGLP}
+  ./daoopt-dyncs -f $1 -e $2 --seed ${SEED} --slsX 2 --slsT 2 -t500 --orderTime 3 -m125 -i15 -a1 ${ROTATE} ${MATCH} ${CVO} ${MPLP20S} ${DYNFGLP}
 
 # 20 minute timelimit
 elif [ ${INF_TIME} -eq 1200 ] ; then
-  ./daoopt -f $1 -e $2 --seed ${SEED} --slsX 10 --slsT 6 -t10000 --orderTime 60 -m${MEMLIMIT} -i25 -a2 ${ROTATE} ${MATCH} ${CVO} ${MPLP20M} ${DYNFGLP}
+  ./daoopt-dyncs -f $1 -e $2 --seed ${SEED} --slsX 10 --slsT 6 -t10000 --orderTime 60 -m${MEMLIMIT} -i25 -a2 ${ROTATE} ${MATCH} ${CVO} ${MPLP20M} ${DYNFGLP}
 
 # 1 hour timelimit
 elif [ ${INF_TIME} -eq 3600 ] ; then
-  ./daoopt -f $1 -e $2 --seed ${SEED} --slsX 20 --slsT 10 -t30000 --orderTime 180 -m${MEMLIMIT} -i35 -a2 ${ROTATE} ${MATCH} ${CVO} ${MPLP60M} ${DYNFGLP}
+  ./daoopt-dyncs -f $1 -e $2 --seed ${SEED} --slsX 20 --slsT 10 -t30000 --orderTime 180 -m${MEMLIMIT} -i35 -a2 ${ROTATE} ${MATCH} ${CVO} ${MPLP60M} ${DYNFGLP}
 
 # unknown timelimit
 else
