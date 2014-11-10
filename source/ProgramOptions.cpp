@@ -46,7 +46,13 @@ DEFINE_int32(order_time, -1, "maximum time for finding ordering");
 DEFINE_int32(order_tolerance, 0,
              "allowed deviation from minfill suggested optimal");
 DEFINE_int32(max_width, -1, "max. induced width to process, abort otherwise");
+
 DEFINE_bool(cvo, false, "use Kalev Kask's CVO ordering");
+DEFINE_int32(cvo_n_random_pick, -1, "CVO: pool size");
+DEFINE_double(cvo_e_random_pick, 0.0,
+             "CVO: parameter for randomly choosing from the pool "
+             "0 - uniform distribution, <0 - prefer lower cost, "
+             ">0 - prefer higher cost");
 
 DEFINE_int32(ibound, 10, "i-bound for minibucket heuristics");
 DEFINE_int32(cbound, 1000, "context size bound for caching");

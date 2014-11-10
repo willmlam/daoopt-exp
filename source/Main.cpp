@@ -30,6 +30,9 @@ string UAI2012::filename = "";
 
 #define VERSIONINFO "1.1.2"
 
+DECLARE_int32(cvo_n_random_pick);
+DECLARE_double(cvo_e_random_pick);
+
 string out_bound_file = "";
 
 time_t _time_start, _time_pre;
@@ -164,7 +167,8 @@ bool Main::findOrLoadOrdering() {
     cvoTempAdjVarSpace.reset(new ARE::AdjVarMemoryDynamicManager(ARE_TempAdjVarSpaceSize));
 
     cvoMasterGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
-        INT_MAX, false, true, 10, -1, 0.0, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
+        INT_MAX, false, true, 10, FLAGS_cvo_n_random_pick,
+        FLAGS_cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
     cvoMasterGraph->ReAllocateEdges();
 
     cvoGraph.reset(new ARE::Graph);
@@ -197,7 +201,8 @@ bool Main::findOrLoadOrdering() {
     if (m_options->order_cvo) {
       *cvoGraph = *cvoMasterGraph;
       new_w = cvoGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
-          w, true, false, 10, -1, 0.0, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
+          w, true, false, 10, FLAGS_cvo_n_random_pick,
+          FLAGS_cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
       if (new_w != 0)
         new_w = INT_MAX;
       else {
