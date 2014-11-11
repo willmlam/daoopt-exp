@@ -384,7 +384,8 @@ void MiniBucketElim::RewriteFactors(const vector<mex::Factor>& factors) {
   m_problem->replaceFunctions(new_functions);
 
   cout << StrCat("Rewrote factors, problem size (MB) now: ",
-                 m_problem->getSize() * (1024 * 1024.0)) << endl;
+                 m_problem->getSize() * sizeof(double) /
+                     (1024 * 1024.0)) << endl;
 }
 
 /* finds a dfs order of the pseudotree (or the locally restricted subtree)
