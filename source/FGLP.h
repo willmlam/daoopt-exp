@@ -19,8 +19,9 @@ public:
     FGLP(Problem *p, bool use_nullary_shift = false);
 
     // Constructor for reparameterizing dynamically during search
-    // Additionally takes in the set of variables 
-    FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment, const set<int> &subVars);
+    // Additionally takes in the set of variables
+    FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment,
+         const set<int> &subVars, int root_var);
 
     virtual void Run(int max_iter, double max_time, double tolerance=DEFAULT_TOLERANCE);
 
@@ -50,10 +51,13 @@ public:
     inline void set_use_cost_shift_reversal(bool r) { 
       use_cost_shift_reversal_ = r;
     }
-    inline const vector<double> &bound_contribs() const { return bound_contribs_; }
+    inline const vector<double> &bound_contribs() const {
+      return bound_contribs_;
+    }
 
-
-    inline const vector<map<int,vector<double>>> &total_shift() const { return total_shift_; }
+    inline const vector<map<int,vector<double>>> &total_shift() const {
+      return total_shift_;
+    }
 
     size_t GetSize() const;
 
@@ -66,7 +70,8 @@ protected:
     // condition the functions in fns according to the assignment and fill them 
     // into m_factors. Also removes factors not in the subproblem
     virtual void Condition(const vector<Function*> &fns, 
-            const map<int,val_t> &assignment, const set<int> &subVars);
+            const map<int,val_t> &assignment, const set<int> &subVars,
+            int condition_var);
 
     // Updates UB and returns the amount it changed
     // Not used when using nullary shift version, which updates the UB on the fly

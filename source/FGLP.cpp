@@ -55,7 +55,7 @@ FGLP::FGLP(Problem *p, bool use_nullary_shift)
     }
 
 FGLP::FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment, 
-    const set<int> &subVars)
+    const set<int> &subVars, int condition_var)
 : 
   problem_(parent_fglp->problem_),
   owns_factors_(true),
@@ -70,7 +70,7 @@ FGLP::FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment,
   use_cost_shift_reversal_(parent_fglp->use_cost_shift_reversal_),
   verbose_(false) {
 
-    Condition(parent_fglp->factors(),assignment,subVars);
+    Condition(parent_fglp->factors(), assignment, subVars, condition_var);
 
     for (Function *f : factors_) {
       /*
@@ -224,9 +224,14 @@ size_t FGLP::GetSize() const {
 }
 
 void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn, 
-    const set<int> &subVars) {
+    const set<int> &subVars, int condition_var) {
   double *table_const = new double[1];
 
+  // Move the bound contributed by the variable about to be conditioned
+  // into the conditioned cost (g), but only if it will not be reversed.
+  if (condition_var >= 0 && !use_cost_shift_reversal_) {
+    conditioned_cost_ OP_TIMESEQ bound_contribs_[condition_var];
+  }
   // Calculate global constant
   table_const[0] = conditioned_cost_;
 
@@ -234,8 +239,8 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
   for (int v : subVars) {
     table_const[0] OP_TIMESEQ bound_contribs_[v];
   }
-  //    cout << "constant in subproblem: " << table_const[0] << endl;
 
+  // The constant is now representing g+h
   for (Function *f : fns) {
     if (f->getArity() == 0) continue;
 
@@ -248,7 +253,10 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
     // or 
     bool to_be_conditioned = false;
     if (f->getArity() == 1) {
-      to_be_conditioned = assn.find(f->getScopeVec()[0]) != assn.end();
+      to_be_conditioned = ContainsKey(assn, f->getScopeVec()[0]);
+      if (to_be_conditioned) {
+        assert(condition_var == f->getScopeVec()[0]);
+      }
     }
     if (intersectionEmpty(f->getScopeSet(),subVars) && !to_be_conditioned) {
       continue;
@@ -286,6 +294,7 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
     }
   }
 
+  // The resulting constant is g+h+additional g from conditioning.
   global_const_factor_ = new FunctionBayes(factors_.back()->getId()+1, 
       problem_, set<int>(), table_const, 1);
   factors_.push_back(global_const_factor_);
@@ -311,6 +320,8 @@ double FGLP::UpdateUB() {
 }
 
 void FGLP::GetVarUB(int var, vector<double> &out) {
+  // Fill out the output with the current g+h. Then figure out what we need 
+  // to subtract.
   for (int i = 0; i < problem_->getDomainSize(var); ++i)
     out[i] OP_TIMESEQ global_const_factor_->getTable()[0];
   /*

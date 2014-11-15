@@ -200,9 +200,9 @@ SearchNode* Search::nextLeaf() {
       { return node; }
     node = this->nextNode();
     time_t now; time(&now);
-    double T = difftime(now, _time_start);
-    if (T > m_options->maxTime) {
-        cout << "Timed out at " << T << " seconds." << endl;
+    double time_elapsed = difftime(now, _time_start);
+    if (time_elapsed > m_options->maxTime) {
+        cout << "Timed out at " << time_elapsed << " seconds." << endl;
         cout << "Stats at timeout: " << endl;
         cout << "================= " << endl;
         cout << "OR nodes:      " << m_space->stats.numExpOR << endl;

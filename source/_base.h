@@ -179,6 +179,9 @@ static boost::mutex mtx_io;
 using boost::scoped_ptr;
 using boost::scoped_array;
 
+#include "util/gtl/stl_util.h"
+#include "base/integral_types.h"
+
 /* shorthand for convenience */
 typedef std::ostringstream oss;
 

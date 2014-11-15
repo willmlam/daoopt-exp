@@ -62,7 +62,7 @@ protected:
   scoped_ptr<ProgramOptions> m_options;
   scoped_ptr<Problem> m_problem;
   scoped_ptr<Pseudotree> m_pseudotree;
-  scoped_ptr<Heuristic> m_heuristic;
+  std::unique_ptr<Heuristic> m_heuristic;
 #ifdef ENABLE_SLS
   scoped_ptr<SLSWrapper> m_slsWrapper;
 #endif

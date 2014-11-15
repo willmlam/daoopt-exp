@@ -2,13 +2,13 @@
 using namespace std;
 
 FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
-    : Heuristic(p, pt, po), fglp(nullptr) {
+    : Heuristic(p, pt, po) {
   // do any original preprocessing first
   if (m_options != NULL && (m_options->mplp > 0 || m_options->mplps > 0)) {
     if (m_options->usePriority)
-      fglp = new PriorityFGLP(m_problem, po->useNullaryShift);
+      fglp.reset(new PriorityFGLP(m_problem, po->useNullaryShift));
     else
-      fglp = new FGLP(m_problem, po->useNullaryShift);
+      fglp.reset(new FGLP(m_problem, po->useNullaryShift));
     fglp->Run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps,
               m_options->mplpt);
     fglp->set_owns_factors(false);
@@ -22,7 +22,7 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
   }
 
   // Construct the fglp heuristic here on the smaller functions
-  fglpHeur = new FGLPHeuristic(p, pt, po);
+  fglpHeur.reset(new FGLPHeuristic(p, pt, po));
 
   if (m_options->fglpMBEHeur) {
     if (m_options != NULL && (m_options->jglp > 0 || m_options->jglps > 0)) {
@@ -69,26 +69,22 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
       cout << "Problem size (MB) after JGLP preprocessing: "
            << (m_problem->getSize() * sizeof(double) / (1024 * 1024.0)) << endl;
     }
-    mbeHeur = new MiniBucketElim(p, pt, po, po->ibound);
-  } else {
-    mbeHeur = nullptr;
-  }
+    mbeHeur.reset(new MiniBucketElim(p, pt, po, po->ibound));
+  } 
 
-  timesFGLPUsed.resize(p->getN(), 0);
-  timesMBEUsed.resize(p->getN(), 0);
-  timesFGLPPruned.resize(p->getN(), 0);
-  timesMBEPruned.resize(p->getN(), 0);
-  timesBothPruned.resize(p->getN(), 0);
+  for (int32 i = -1; i <= m_pseudotree->getHeight(); ++i) {
+    timesFGLPUsed[i] = 0;
+    timesMBEUsed[i] = 0;
+    timesFGLPPruned[i] = 0;
+    timesMBEPruned[i] = 0;
+    timesBothPruned[i] = 0;
+  }
 }
 
 size_t FGLPMBEHybrid::build(const std::vector<val_t> *assignment,
                             bool computeTables) {
   fglpHeur->build(assignment, computeTables);
-  if (m_options->usePriority) {
-    PriorityFGLP *pfglp = dynamic_cast<PriorityFGLP *>(fglpHeur->getRootFGLP());
-    pfglp->set_var_priority(dynamic_cast<PriorityFGLP *>(fglp)->var_priority());
-  }
-  if (m_options->fglpMBEHeur)
+  if (m_options->fglpMBEHeur && mbeHeur)
     return mbeHeur->build(assignment, computeTables);
   else
     return 0;
@@ -106,21 +102,17 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
 
   // Do not use FGLP at all if MBE is accurate
   if (!isAccurate()) {
+    fglpHeur->getHeurAll(var, assignment, node, fglpOut);
+
     // If cost reversal is on, we may not need to adjust? (TODO)
-    if (m_options->useShiftedLabels) {
-      fglpHeur->getHeurAll(var, assignment, node, fglpOut);
-    } else {
-      fglpHeur->getHeurAllAdjusted(var, assignment, node, fglpOut);
+    if (!m_options->useShiftedLabels) {
+      fglpHeur->AdjustHeurAll(var, assignment, node, fglpOut);
     }
   }
 
-  if (m_options->fglpMBEHeur)
+  if (m_options->fglpMBEHeur && mbeHeur) {
     mbeHeur->getHeurAll(var, assignment, node, mbeOut);
-
-  /*
-     cout << "FGLP:"<< fglpOut << endl;
-     cout << "MBE :"<< mbeOut << endl;
-     */
+  }
 
   // Count the number of possible prunings for each heuristics wrt to the
   // values (only if the other heuristic doesn't prune)
@@ -128,6 +120,7 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
   if (m_options->fglpMBEHeur) {
     vector<double> labels(out.size(), ELEM_ONE);
     getLabelAll(var, assignment, node, labels);
+
     for (unsigned int i = 0; i < fglpOut.size(); ++i) {
       double fglpH = fglpOut[i] OP_TIMES labels[i];
       double mbeH = mbeOut[i] OP_TIMES labels[i];
@@ -135,6 +128,7 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
       bool mbePruned = calculatePruning(var, node, mbeH);
       if (fglpPruned && !mbePruned) {
         timesFGLPPruned[m_pseudotree->getNode(var)->getDepth()]++;
+        cin.get();
       } else if (!fglpPruned && mbePruned) {
         timesMBEPruned[m_pseudotree->getNode(var)->getDepth()]++;
       } else if (fglpPruned && mbePruned) {
@@ -143,9 +137,6 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
     }
     for (unsigned int i = 0; i < out.size(); ++i) {
       if (fglpOut[i] < mbeOut[i]) {
-        //            cout << "(var=" << var << ", val=" << i << ")" << endl;
-        //            cout << "Found " << fglpOut[i] << " < " << mbeOut[i] <<
-        // endl;
         out[i] = fglpOut[i];
         timesFGLPUsed[m_pseudotree->getNode(var)->getDepth()]++;
       } else {

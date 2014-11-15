@@ -86,6 +86,10 @@ public:
     // that are already assigned
     void getHeurAllAdjusted(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
+    // This differs in that we pass in the out vector that has already been 
+    // computed by getHeurAll.
+    void AdjustHeurAll(int var, const std::vector<val_t>& assignment, SearchNode* node, std::vector<double>& out);
+
 
     double getLabel(int var, const std::vector<val_t> &assignment, SearchNode *node);
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);

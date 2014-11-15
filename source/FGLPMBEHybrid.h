@@ -15,21 +15,23 @@
 // A wrapper to take the tightest heuristics between FGLP and MBE
 
 class FGLPMBEHybrid : public Heuristic {
-    FGLPHeuristic *fglpHeur;
-    MiniBucketElim *mbeHeur;
+  std::unique_ptr<FGLPHeuristic> fglpHeur;
+  std::unique_ptr<MiniBucketElim> mbeHeur;
 
-    FGLP *fglp;
+  std::unique_ptr<FGLP> fglp;
 
-    vector<unsigned long> timesFGLPUsed;
-    vector<unsigned long> timesMBEUsed;
+  unordered_map<int32, uint32> timesFGLPUsed;
+  unordered_map<int32, uint32> timesMBEUsed;
 
-    vector<unsigned long> timesFGLPPruned;
-    vector<unsigned long> timesMBEPruned;
-    vector<unsigned long> timesBothPruned;
+  unordered_map<int32, uint32> timesFGLPPruned;
+  unordered_map<int32, uint32> timesMBEPruned;
+  unordered_map<int32, uint32> timesBothPruned;
 
 
 public:
     FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po); 
+
+    inline virtual ~FGLPMBEHybrid() { }
 
     inline size_t limitSize(size_t limit, const std::vector<val_t> *assignment) {
         if (m_options->fglpMBEHeur)
@@ -76,13 +78,13 @@ public:
 
     inline void printExtraStats() const {
         cout << "depth,FGLPBetter,MBEBetter,OnlyFGLPPruned,OnlyMBEPruned,BothPruned" << endl;
-        for (size_t i=0; i<timesFGLPUsed.size(); ++i) {
+        for (int32 i = -1; i <= m_pseudotree->getHeight(); ++i) {
             cout << i << "," 
-                << timesFGLPUsed[i] << "," 
-                << timesMBEUsed[i] << ","
-                << timesFGLPPruned[i] << ","
-                << timesMBEPruned[i] << ","
-                << timesBothPruned[i] << endl;
+                << timesFGLPUsed.at(i) << "," 
+                << timesMBEUsed.at(i) << ","
+                << timesFGLPPruned.at(i) << ","
+                << timesMBEPruned.at(i) << ","
+                << timesBothPruned.at(i) << endl;
         }
 
         unsigned long long totalIterationsRun = fglpHeur->getTotalIterationsRun();
@@ -104,14 +106,6 @@ public:
         }
     }
 
-    inline virtual ~FGLPMBEHybrid() { 
-        if (fglp)
-            delete fglp;
-        if (fglpHeur)
-            delete fglpHeur;
-        if (mbeHeur)
-            delete mbeHeur;
-    }
 };
 
 #endif
