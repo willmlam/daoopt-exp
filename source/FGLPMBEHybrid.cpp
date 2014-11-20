@@ -103,16 +103,17 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
   // Do not use FGLP at all if MBE is accurate
   if (!isAccurate()) {
     fglpHeur->getHeurAll(var, assignment, node, fglpOut);
-
-    // If cost reversal is on, we may not need to adjust? (TODO)
-    if (!m_options->useShiftedLabels) {
-      fglpHeur->AdjustHeurAll(var, assignment, node, fglpOut);
-    }
   }
 
   if (m_options->fglpMBEHeur && mbeHeur) {
     mbeHeur->getHeurAll(var, assignment, node, mbeOut);
   }
+
+  /*
+  cout << "FGLP:" << fglpOut << endl;
+  cout << "MBE: " << mbeOut << endl;
+  cout << endl;
+  */
 
   // Count the number of possible prunings for each heuristics wrt to the
   // values (only if the other heuristic doesn't prune)
@@ -128,7 +129,7 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
       bool mbePruned = calculatePruning(var, node, mbeH);
       if (fglpPruned && !mbePruned) {
         timesFGLPPruned[m_pseudotree->getNode(var)->getDepth()]++;
-        cin.get();
+//        cin.get();
       } else if (!fglpPruned && mbePruned) {
         timesMBEPruned[m_pseudotree->getNode(var)->getDepth()]++;
       } else if (fglpPruned && mbePruned) {
@@ -139,6 +140,13 @@ void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
       if (fglpOut[i] < mbeOut[i]) {
         out[i] = fglpOut[i];
         timesFGLPUsed[m_pseudotree->getNode(var)->getDepth()]++;
+        /*
+        cout << StrCat("var: ", var) << endl;
+        cout << StrCat("val: ", i) << endl;
+        cout << StrCat(fglpOut[i], "<", mbeOut[i]) << endl; 
+        cout << assignment << endl;
+        cin.get();
+        */
       } else {
         out[i] = mbeOut[i];
         timesMBEUsed[m_pseudotree->getNode(var)->getDepth()]++;

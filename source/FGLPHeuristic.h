@@ -79,13 +79,10 @@ public:
 
     double getHeur(int var, const std::vector<val_t> &assignment, SearchNode *node);
 
-    void getHeurAll(int var, const std::vector<val_t> &assignment, SearchNode *node, 
-            std::vector<double> &out);
+    void getHeurAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
-    // Readjusts the heuristic value so it is consistent with the original functions
-    // that are already assigned
-    void getHeurAllAdjusted(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
-
+    // Readjusts the heuristic value so it is consistent with the original 
+    // functions that are already assigned.
     // This differs in that we pass in the out vector that has already been 
     // computed by getHeurAll.
     void AdjustHeurAll(int var, const std::vector<val_t>& assignment, SearchNode* node, std::vector<double>& out);

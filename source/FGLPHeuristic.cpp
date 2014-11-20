@@ -69,9 +69,9 @@ FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po)
 
 size_t FGLPHeuristic::build(const std::vector<val_t> *assignment, bool computeTables) {
     if (m_options->usePriority) 
-        rootFGLP = new PriorityFGLP(m_problem, m_options->useNullaryShift);
+      rootFGLP = new PriorityFGLP(m_problem, m_options->useNullaryShift);
     else
-        rootFGLP = new FGLP(m_problem, m_options->useNullaryShift);
+      rootFGLP = new FGLP(m_problem, m_options->useNullaryShift);
 //    rootFGLP->setVerbose(true);
     
     rootFGLP->Run(m_options->mplp, m_options->mplps);
@@ -134,10 +134,16 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     }
 
     m_tempAssn.clear();
-    const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
+//    const vector<int> &relVars = m_pseudotree->getNode(var)->getFullContextVec();
+    /*
     for (int v : relVars) {
         m_tempAssn[v] = assignment[v];
     }
+    */
+    int condition_var = node->getParent() 
+      ? m_pseudotree->getNode(var)->getParent()->getVar()
+      : -1;
+    m_tempAssn[condition_var] = assignment[condition_var];
 
     FGLPNodeInfo *info = new FGLPNodeInfo();
     node->setExtraNodeInfo(info);
@@ -158,12 +164,9 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
 
     FGLP *varFGLP;
     if (m_options->usePriority) {
-      varFGLP = new PriorityFGLP(dynamic_cast<PriorityFGLP*>(parentFGLP), m_tempAssn);
+      varFGLP = new PriorityFGLP(dynamic_cast<PriorityFGLP*>(parentFGLP), m_tempAssn, m_subproblemVars[var], condition_var);
     }
     else {
-      int condition_var = node->getParent() 
-          ? m_pseudotree->getNode(var)->getParent()->getVar()
-          : -1;
       varFGLP = new FGLP(parentFGLP, m_tempAssn, m_subproblemVars[var],
                          condition_var);
     }
@@ -189,11 +192,10 @@ void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchN
     info->setFGLPStore(varFGLP);
     info->setOrigCostToNode(parentCost);
 
-}
+    if (!m_options->useShiftedLabels) {
+      AdjustHeurAll(var, assignment, node, out);
+    }
 
-void FGLPHeuristic::getHeurAllAdjusted(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
-    getHeurAll(var, assignment, node, out);
-    AdjustHeurAll(var, assignment, node, out);
 }
 
 void FGLPHeuristic::AdjustHeurAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
@@ -252,15 +254,27 @@ double FGLPHeuristic::getLabel(int var, const vector<val_t> &assignment, SearchN
 }
 
 void FGLPHeuristic::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
+  if (m_options->useShiftedLabels) {
     const vector<Function*> &functions = static_cast<FGLPNodeInfo*>(node->getExtraNodeInfo().get())->getFGLPStore()->factors();
     double labelValue;
     for (int i=0; i<m_problem->getDomainSize(var); ++i) {
-        labelValue = ELEM_ONE;
-        for (auto f : functions)
-            if (f->getArity() == 1 && f->getScopeVec()[0] == var)
-                labelValue OP_TIMESEQ f->getTable()[i];
-        out[i] = labelValue;
+      labelValue = ELEM_ONE;
+      for (auto f : functions) {
+        if (f->getArity() == 1 && f->getScopeVec()[0] == var) {
+          labelValue OP_TIMESEQ f->getTable()[i];
+        }
+      }
+      out[i] = labelValue;
     }
+  } else {
+    vector<double> cost_tmp(m_problem->getDomainSize(var), ELEM_ONE);
+    for (Function* f : m_pseudotree->getFunctions(var)) {
+      f->getValues(assignment, var, cost_tmp);
+      for (int i = 0; i < m_problem->getDomainSize(var); ++i) {
+        out[i] OP_TIMESEQ cost_tmp[i];
+      }
+    }
+  }
 }
 
 void FGLPHeuristic::findDfsOrder(vector<int> &order, int var) const {

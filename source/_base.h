@@ -179,8 +179,6 @@ static boost::mutex mtx_io;
 using boost::scoped_ptr;
 using boost::scoped_array;
 
-#include "util/gtl/stl_util.h"
-#include "base/integral_types.h"
 
 /* shorthand for convenience */
 typedef std::ostringstream oss;
@@ -196,9 +194,12 @@ typedef std::ostringstream oss;
 /* type for storing contexts in binary */
 typedef std::vector<val_t> context_t;
 
-// google strings
+// google utilties
+#include "base/integral_types.h"
+#include "base/logging.h"
 #include "strings/split.h"
 #include "strings/strcat.h"
+#include "util/gtl/stl_util.h"
 
 #ifdef HASH_CPP11
 #include <unordered_set>

@@ -73,13 +73,6 @@ FGLP::FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment,
     Condition(parent_fglp->factors(), assignment, subVars, condition_var);
 
     for (Function *f : factors_) {
-      /*
-         cout << *f << endl;
-         for (size_t k = 0; k < f->getTableSize(); ++k) {
-         cout << " " << f->getTable()[k] << endl;
-         }
-         cout << endl;
-         */
       for (int vs : f->getScopeVec()) {
         factors_by_variable_[vs].push_back(f);
       }
@@ -87,6 +80,9 @@ FGLP::FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment,
 
     // allocate max marginal storage
     for (size_t i = 0; i < factors_by_variable_.size(); ++i) {
+      if (factors_by_variable_[i].size() == 0) {
+        continue;
+      }
       max_marginals_[i].resize(factors_by_variable_[i].size(), NULL);
     }
   }
@@ -137,7 +133,6 @@ void FGLP::Run(int max_iter, double max_time, double tolerance) {
         var_max_marginals[i] = MaxMarginal(fv, v);
 
         if (use_nullary_shift_) {
-          //cout << "MM" << *m_factorsByVariable[v][i] << endl;
           for (size_t j = 0; j < table_size; ++j) {
             mm_max[i] = max(mm_max[i], var_max_marginals[i][j]);
           }
@@ -152,15 +147,19 @@ void FGLP::Run(int max_iter, double max_time, double tolerance) {
       // Compute average max marginal
       double *avg_mm = new double[table_size];
 
-      for (size_t i = 0; i < table_size; ++i) avg_mm[i] = ELEM_ONE;
+      for (size_t i = 0; i < table_size; ++i) {
+        avg_mm[i] = ELEM_ONE;
+      }
 
       for (double *mm : var_max_marginals) {
-        for (size_t i = 0; i < table_size; ++i)
+        for (size_t i = 0; i < table_size; ++i) {
           avg_mm[i] OP_TIMESEQ mm[i];
+        }
       }
       for (size_t i = 0; i < table_size; ++i) {
-        if (use_nullary_shift_)
+        if (use_nullary_shift_) {
           avg_mm[i] OP_DIVIDEEQ total_nullary_shift;
+        }
         avg_mm[i] = OP_ROOT(avg_mm[i],var_max_marginals.size());
       }
 
@@ -169,7 +168,7 @@ void FGLP::Run(int max_iter, double max_time, double tolerance) {
         Function *fv = factors_by_variable_[v][i];
         Reparameterize(fv, var_max_marginals[i], avg_mm, v);
 
-        if (!use_cost_shift_reversal_) {
+        if (use_cost_shift_reversal_) {
           // Record reparameterization
           for (size_t j = 0; j < table_size; ++j) {
             total_shift_[fv->getId()][v][j] OP_TIMESEQ 
@@ -223,8 +222,8 @@ size_t FGLP::GetSize() const {
   return s;
 }
 
-void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn, 
-    const set<int> &subVars, int condition_var) {
+void FGLP::Condition(const vector<Function*>& fns, const map<int,val_t>& assn, 
+    const set<int>& sub_vars, int condition_var) {
   double *table_const = new double[1];
 
   // Move the bound contributed by the variable about to be conditioned
@@ -236,60 +235,52 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
   table_const[0] = conditioned_cost_;
 
   // Add in contributions from each variable
-  for (int v : subVars) {
+  for (int v : sub_vars) {
     table_const[0] OP_TIMESEQ bound_contribs_[v];
   }
 
   // The constant is now representing g+h
   for (Function *f : fns) {
-    if (f->getArity() == 0) continue;
-
-    /*
-       cout << f->getScopeSet() << endl;
-       cout << subVars << endl;
-       */
-    // Check if function is to be conditioned
-    // Either it's unary over the conditioning variable,
-    // or 
-    bool to_be_conditioned = false;
-    if (f->getArity() == 1) {
-      to_be_conditioned = ContainsKey(assn, f->getScopeVec()[0]);
-      if (to_be_conditioned) {
-        assert(condition_var == f->getScopeVec()[0]);
-      }
-    }
-    if (intersectionEmpty(f->getScopeSet(),subVars) && !to_be_conditioned) {
+    if (f->getArity() == 0) {
       continue;
     }
 
-    Function *new_f = f->substitute(assn);
-
-    if (new_f->getArity() != f->getArity()) {
+    Function* new_f = nullptr;
+    // Figure out whether we need to drop this function
+    // We do so if it's not part of the subproblem and that 
+    // it's not a unary function on the conditioning variable
+    if (intersectionEmpty(f->getScopeSet(), sub_vars) && 
+        !(ContainsKey(f->getScopeSet(), condition_var) &&
+          f->getArity() == 1)) {
+      continue;
+    } else if (ContainsKey(f->getScopeSet(), condition_var)) {
+    // At this point we know that the function needs to be processed
+    // (conditioned or copied)
+      new_f = f->substitute(assn);
+      CHECK(f->getArity() - new_f->getArity() == 1);
 
       if (use_cost_shift_reversal_) {
         // Compute function reversal shift needed
         // We compute the total cost shifted into the function over 
         // the variable/value that was just conditioned.
         double shift = ELEM_ONE;
-        for (int v : f->getScopeVec()) {
-          auto itA = assn.find(v);
-          if (itA == assn.end()) continue;
-
-          shift OP_TIMESEQ total_shift_[f->getId()][v][itA->second];
-        }
+        val_t value = assn.find(condition_var)->second;
+        shift OP_TIMESEQ total_shift_[f->getId()][condition_var][value];
 
         for (size_t i = 0; i < new_f->getTableSize(); ++i) {
           new_f->getTable()[i] OP_DIVIDEEQ shift;
         }
       }
-    }
+    } else {
+      // Clone it if it is not affected by the conditioning
+      new_f = f->clone();
+    } 
 
     if (new_f->isConstant()) {
       table_const[0] OP_TIMESEQ new_f->getTable()[0];
       conditioned_cost_ OP_TIMESEQ new_f->getTable()[0];
       delete new_f;
-    }
-    else {
+    } else {
       factors_.push_back(new_f);
     }
   }
@@ -298,7 +289,6 @@ void FGLP::Condition(const vector<Function*> &fns, const map<int,val_t> &assn,
   global_const_factor_ = new FunctionBayes(factors_.back()->getId()+1, 
       problem_, set<int>(), table_const, 1);
   factors_.push_back(global_const_factor_);
-
 }
 
 double FGLP::UpdateUB() {
@@ -329,7 +319,9 @@ void FGLP::GetVarUB(int var, vector<double> &out) {
      cout << "out: " << out << endl;
      */
   for (Function *f : factors_) {
-    if (f->getArity() == 0) continue ;
+    if (f->getArity() == 0) {
+      continue;
+    }
     // If the factor does not have the variable, take the maximum
     if (!f->hasInScope(var)) {
       double z = ELEM_ZERO;
@@ -340,7 +332,7 @@ void FGLP::GetVarUB(int var, vector<double> &out) {
       continue;
     }
 
-    // Read off table directly if the factor has the variable
+    // Read off table directly if the factor is unary over the variable
     if (f->getArity() == 1 && f->hasInScope(var)) {
       for (int i = 0; i < problem_->getDomainSize(var); ++i) {
         out[i] OP_TIMESEQ f->getTable()[i];
