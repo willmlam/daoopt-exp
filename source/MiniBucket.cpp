@@ -25,6 +25,7 @@
 
 #undef DEBUG
 
+namespace daoopt {
 
 /* checks whether a function 'fits' in this MB */
 bool MiniBucket::allowsFunction(Function* f) {
@@ -218,7 +219,10 @@ Function* MiniBucket::eliminate(bool buildTable) {
     delete[] tuple;
   }
 
-  return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
+  Function* new_fn =
+      new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
+  output_fn_ = new_fn;
+  return new_fn;
 }
 
 /* joins the functions in the MB
@@ -476,7 +480,6 @@ Function* MiniBucket::eliminate(bool buildTable, const set<int> &elimVars) {
     // clean up
     delete[] tuple;
   }
-
   return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
 }
 
@@ -669,7 +672,6 @@ Function* MiniBucket::conditionEliminate(bool buildTable,
     // clean up
     delete[] tuple;
   }
-
   return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
 }
 
@@ -1024,7 +1026,6 @@ Function* MiniBucket::conditionEliminate(bool buildTable, const map<int,val_t> &
     // clean up
     delete[] tuple;
   }
-
   return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
 }
 
@@ -1166,7 +1167,10 @@ Function* MiniBucket::eliminateMM(bool buildTable,
     delete[] tuple;
   }
 
-  return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
+  Function* new_fn =
+      new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
+  output_fn_ = new_fn;
+  return new_fn;
 }
 
 /* joins the functions in the MB while conditoning a subset of variables, 
@@ -1400,8 +1404,7 @@ Function* MiniBucket::conditionEliminateMM(bool buildTable,
     // clean up
     delete[] tuple;
   }
-
   return new FunctionBayes(-m_bucketVar,m_problem,scope,newTable,tablesize);
 }
 
-
+}  // namespace daoopt

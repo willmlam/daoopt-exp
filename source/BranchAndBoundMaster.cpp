@@ -25,7 +25,10 @@
 
 #include "BranchAndBoundMaster.h"
 
+
 #ifdef PARALLEL_DYNAMIC
+
+namespace daoopt {
 
 bool BranchAndBoundMaster::findInitialParams(count_t& limitN) const {
 
@@ -140,4 +143,5 @@ void BranchAndBoundMaster::solveLocal(SearchNode* node) const {
 
 }
 
+}  // namespace daoopt
 #endif /* PARALLEL_DYNAMIC */

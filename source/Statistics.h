@@ -31,6 +31,8 @@
 #include "SearchNode.h"
 #include "Pseudotree.h"
 
+namespace daoopt {
+
 struct SubproblemStats {
 
   /* The following are all specific to the conditioned subproblem in question */
@@ -68,6 +70,8 @@ inline void SubproblemStats::update(SearchNode* n, PseudotreeNode* pt, count_t c
 
   subNodeCount = count;
 }
+
+}  // namespace daoopt
 
 #endif
 

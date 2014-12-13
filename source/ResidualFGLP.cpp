@@ -1,6 +1,8 @@
 #include "ResidualFGLP.h"
 #include <chrono>
 
+namespace daoopt {
+
 using namespace std;
 using namespace std::chrono;
 
@@ -429,5 +431,5 @@ void ResidualFGLP::Reparameterize(Function *f, double *mm, double *avg_mm,
     delete [] tuple;
 }
 
-
+}  // namespace daoopt
  

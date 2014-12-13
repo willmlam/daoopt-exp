@@ -4,6 +4,8 @@
 #include "FGLP.h"
 #include "mex/indexedHeap.h"
 
+namespace daoopt {
+
 class PriorityFGLP : public FGLP {
  public:
   PriorityFGLP(Problem *p, bool use_nullary_shift = false);
@@ -30,5 +32,7 @@ class PriorityFGLP : public FGLP {
 };
 
 inline PriorityFGLP::~PriorityFGLP() {}
+
+}  // namespace daoopt
 
 #endif

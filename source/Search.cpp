@@ -27,6 +27,8 @@
 #include "ProgramOptions.h"
 #include <iomanip>
 
+namespace daoopt {
+
 extern time_t _time_start; // from Main.cpp
 
 Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, ProgramOptions *po) :
@@ -456,7 +458,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 
 
 /* define the following to enable fetching of function values in bulk */
-#define GET_VALUE_BULK
+//#define GET_VALUE_BULK
 double Search::assignCostsOR(SearchNode* n) {
 
   int v = n->getVar();
@@ -866,4 +868,4 @@ bool Search::restrictSubproblem(string file) {
   return true; // success
 }
 
-
+}  // namespace daoopt

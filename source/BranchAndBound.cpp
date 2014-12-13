@@ -29,6 +29,8 @@
 #undef DEBUG
 #endif
 
+namespace daoopt {
+
 typedef PseudotreeNode PtNode;
 
 
@@ -125,4 +127,6 @@ BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space
     m_stack.push(first);
   }
 }
+
+}  // namespace daoopt
 

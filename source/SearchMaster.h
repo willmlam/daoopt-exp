@@ -32,6 +32,7 @@
 #include "SubproblemCondor.h"
 #include "Statistics.h"
 
+namespace daoopt {
 
 /* all search implementations for the master process should inherit this */
 class SearchMaster : virtual public Search {
@@ -91,6 +92,8 @@ inline SearchMaster::SearchMaster(Problem* prob, Pseudotree* pt, SearchSpaceMast
 {
   m_spaceMaster->avgStats = new AvgStatistics();
 }
+
+}  // namespace daoopt
 
 
 #endif /* PARALLEL_DYNAMIC */

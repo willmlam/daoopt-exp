@@ -23,6 +23,8 @@
 
 #include "LearningEngine.h"
 
+namespace daoopt {
+
 #ifdef PARALLEL_STATIC
 
 void LearningEngine::statsToFile(const string& fn) const {
@@ -45,3 +47,5 @@ void LearningEngine::statsToFile(const string& fn) const {
 }
 
 #endif  /* PARALLEL_STATIC */
+
+}  // namespace daoopt

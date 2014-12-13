@@ -45,16 +45,22 @@
 namespace boost {
   class thread;
 }
+namespace daoopt {
 struct CondorSubmission;
+}  // namespace daoopt
 #endif
 
 /* declare ProgramOptions */
 #ifdef PARALLEL_DYNAMIC
 #include "ProgramOptions.h"
 #else
+
+namespace daoopt {
 struct ProgramOptions;
+}  // namespace daoopt
 #endif
 
+namespace daoopt {
 /* forward declarations */
 class Pseudotree;
 
@@ -191,5 +197,6 @@ inline SearchSpaceMaster::~SearchSpaceMaster() {
 
 #endif /* PARALLEL_DYNAMIC */
 
+}  // namespace daoopt
 
 #endif /* SEARCHSPACE_H_ */

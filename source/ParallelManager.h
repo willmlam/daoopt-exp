@@ -36,6 +36,8 @@
 #include "LearningEngine.h"
 #include "utils.h"
 
+namespace daoopt {
+
 class ParallelManager : virtual public Search {
 
 protected:
@@ -161,6 +163,8 @@ inline void ParallelManager::reset(SearchNode* n) {
   m_local.clear();
   m_external.push_back(n);
 }
+
+}  // namespace daoopt
 
 #endif /* PARALLEL_STATIC */
 

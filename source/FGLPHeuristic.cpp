@@ -1,5 +1,8 @@
 #include "FGLPHeuristic.h"
 #include "Graph.h"
+
+namespace daoopt {
+
 using namespace std;
 
 FGLPHeuristic::FGLPHeuristic(Problem *p, Pseudotree *pt, ProgramOptions *po) 
@@ -83,12 +86,12 @@ size_t FGLPHeuristic::build(const std::vector<val_t> *assignment, bool computeTa
     return 0;
 }
 
-double FGLPHeuristic::getHeur(int var, const vector<val_t> &assignment, SearchNode *node) {
+double FGLPHeuristic::getHeur(int var, vector<val_t> &assignment, SearchNode *node) {
     // TO DO
     return ELEM_ZERO;
 }
 
-void FGLPHeuristic::getHeurAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
+void FGLPHeuristic::getHeurAll(int var, vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
 
 //    cout << "var: " << var << endl;
     FGLP *parentFGLP;
@@ -346,3 +349,5 @@ void FGLPHeuristic::computeSubproblemVars() {
         }
     }
 }
+
+}  // namespace daoopt

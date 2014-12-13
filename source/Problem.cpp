@@ -28,6 +28,9 @@
 
 #include "UAI2012.h"
 
+
+namespace daoopt {
+
 //extern time_t time_start;
 //
 extern string out_bound_file;
@@ -911,3 +914,5 @@ size_t Problem::getSize() const {
     }
     return S;
 }
+
+}  // namespace daoopt

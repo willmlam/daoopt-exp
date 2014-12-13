@@ -35,6 +35,9 @@
 /* a container for information exchange between SubproblemCondor and
  * CondorSubmissionEngine (which in itself wraps around the
  * Subproblem container)  */
+
+namespace daoopt {
+
 struct CondorSubmission {
 public:
   size_t threadID;
@@ -107,6 +110,7 @@ inline void CondorSubmissionEngine::mysleep(size_t s) {
 inline CondorSubmissionEngine::CondorSubmissionEngine(SearchSpaceMaster* p)
   : m_curBatch(0), m_nextProcess(0), m_spaceMaster(p) {}
 
+}  // namespace daoopt
 
 #endif /* PARALLEL_DYNAMIC */
 

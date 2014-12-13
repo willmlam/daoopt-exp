@@ -73,7 +73,9 @@
 #define DECREASE(X) --( X )
 
 /* static IO mutex for console output */
+namespace daoopt {
 static boost::mutex mtx_io;
+}  // namespace daoopt
 
 #else
 
@@ -181,7 +183,9 @@ using boost::scoped_array;
 
 
 /* shorthand for convenience */
+namespace daoopt {
 typedef std::ostringstream oss;
+}  // namespace daoopt
 
 /* which hashtable to use? define only *one*  */
 //#define HASH_CPP11
@@ -192,7 +196,9 @@ typedef std::ostringstream oss;
 //#define HASH_GOOGLE_SPARSE
 
 /* type for storing contexts in binary */
+namespace daoopt {
 typedef std::vector<val_t> context_t;
+}  // namespace daoopt
 
 // google utilties
 #include "base/integral_types.h"
@@ -205,10 +211,12 @@ typedef std::vector<val_t> context_t;
 #include <unordered_set>
 #include <unordered_map>
 
+namespace daoopt {
 template<typename K>
 using hash_set = std::unordered_set<K>;
 template<typename K, typename V>
 using hash_map = std::unordered_map<K, V>;
+}  // namespace daoopt
 #endif
 
 
@@ -217,8 +225,10 @@ using hash_map = std::unordered_map<K, V>;
 #include <backward/hash_set> // deprecated!
 #include <backward/hash_map> // deprecated!
 
+namespace daoopt {
 using __gnu_cxx::hash_set;
 using __gnu_cxx::hash_map;
+}  // namespace daoopt
 #endif
 
 #ifdef HASH_TR1
@@ -227,40 +237,48 @@ using __gnu_cxx::hash_map;
 #include <tr1/unordered_map>
 
 /* some renaming (crude hack) */
+namespace daoopt {
 template<typename K>
 using hash_set = std::tr1::unordered_set<K>;
 template<typename K, typename V>
 using hash_map = std::tr1::unordered_map<K, V>;
+}  // namespace daoopt
 #endif
 
 #ifdef HASH_BOOST
 #include "boost/unordered_map.hpp"
 #include "boost/unordered_set.hpp"
 
+namespace daoopt {
 template<typename K>
 using hash_set = boost::unordered_set<K>;
 template<typename K, typename V>
 using hash_map = boost::unordered_map<K, V>;
+}  // namespace daoopt
 #endif
 
 #ifdef HASH_GOOGLE_DENSE
 #include "google/dense_hash_map"
 #include "google/dense_hash_set"
 
+namespace daoopt {
 template<typename K>
 using hash_set = google::dense_hash_set<K>;
 template<typename K, typename V>
 using hash_map = google::dense_hash_map<K, V>;
+}  // namespace daoopt
 #endif
 
 #ifdef HASH_GOOGLE_SPARSE
 #include "google/sparse_hash_map"
 #include "google/sparse_hash_set"
 
+namespace daoopt {
 template<typename K>
 using hash_set = google::sparse_hash_set<K>;
 template<typename K, typename V>
 using hash_map = google::sparse_hash_map<K, V>;
+}  // namespace daoopt
 #endif
 
 #if defined HASH_SGI || defined HASH_GOOGLE_DENSE || defined HASH_GOOGLE_SPARSE
@@ -271,7 +289,7 @@ template<> struct hash<std::string> {
     return hash<const char*> ()(x.c_str());
   }
 };
-}
+}  // namespace __gnu_cxx
 /* END FIX */
 #endif
 
@@ -293,13 +311,17 @@ typedef uint64_t count_t;
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
  #ifdef USE_GMP
  #include <gmpxx.h>
- typedef mpz_class bigint;
- typedef mpf_class bigfloat;
- typedef mpq_class bigfrac;
+namespace daoopt {
+typedef mpz_class bigint;
+typedef mpf_class bigfloat;
+typedef mpq_class bigfrac;
+}  // namespace daoopt
  #else
- typedef unsigned long int bigint;
- typedef double bigfloat;
- typedef double bigfrac;
+namespace daoopt {
+typedef unsigned long int bigint;
+typedef double bigfloat;
+typedef double bigfrac;
+}  // namespace daoopt
  #endif
 #endif
 
@@ -308,7 +330,9 @@ typedef uint64_t count_t;
 /* Boost lexical cast (for version string) */
 #include <boost/lexical_cast.hpp>
 
+namespace daoopt {
 using namespace std;
+}  // namespace daoopt
 
 /*////////////////////////////////*/
 /*////// MACRO DEFINITIONS ///////*/
@@ -341,15 +365,18 @@ using namespace std;
 #define NODE_AND 1
 #define NODE_OR 2
 
+namespace daoopt {
 const int SUBPROB_WIDTH_INC = 0;
 const int SUBPROB_WIDTH_DEC = 1;
 const int SUBPROB_HEUR_INC = 2;
 const int SUBPROB_HEUR_DEC = 3;
 const string subprob_order[4]
   = {"width-inc","width-dec","heur-inc","heur-dec"};
+}  // namespace daoopt
 
 /*//////////////////////////////////////////////////////////////*/
 
+namespace daoopt {
 /* static random number generator */
 class rand {
 private:
@@ -366,6 +393,7 @@ public:
   }
 
 };
+}  // namespace daoopt
 
 /*//////////////////////////////*/
 
@@ -378,6 +406,8 @@ public:
 /* NOTE: Taking out the void* casts produces the gcc warning
  * "dereferencing type-punned pointer will break strict-aliasing rules"
  */
+
+namespace daoopt {
 
 /* floating point equality comparison (modulo floating point precision) */
 inline bool fpEq(double A, double B, int64_t maxDist=2) {
@@ -428,6 +458,8 @@ inline bool fpLEq(double A, double B, int64_t maxDist=2) {
   return true;
 }
 
+}  // namespace daoopt
+
 #endif
 /*//////////////////////////////////////////////////////////////*/
 
@@ -444,6 +476,7 @@ inline bool fpLEq(double A, double B, int64_t maxDist=2) {
 
 
 #if false
+namespace daoopt {
 /* encode doubles to 64 bit integers (and back) */
 typedef int64_t int64bit;
 inline std::string encodeDoubleAsInt(double d) {
@@ -459,7 +492,12 @@ inline double decodeDoubleFromString(std::string s) {
   ss >> x;
   return *(double*)(void*)&x;
 }
+
+}  // namespace daoopt
+
 #endif /* false */
+
+namespace daoopt {
 
 inline std::string encodeDoubleAsInt(double d) {
   std::ostringstream ss;
@@ -474,10 +512,12 @@ inline double decodeDoubleFromString(std::string s) {
   return x;
 }
 
+}  // namespace daoopt
+
 
 /*///////////////////////////////////////////////////////////*/
 
-
+namespace daoopt {
 inline double mylog10(unsigned long a) {
   return log10(a);
 }
@@ -487,6 +527,8 @@ inline double mylog10(unsigned long a) {
  double mylog10(bigint a);
  #endif
 #endif
+
+}  // namespace daoopt
 
 
 /*///////////////////////////////////////////////////////////*/
@@ -506,7 +548,8 @@ namespace __gnu_cxx {
     }
   };
 
-}
+}  // namespace __gnu_cxx
+
 #endif /* false */
 
 #endif /* _BASE_H_ */

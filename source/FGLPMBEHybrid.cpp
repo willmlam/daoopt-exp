@@ -1,4 +1,7 @@
 #include "FGLPMBEHybrid.h"
+
+namespace daoopt {
+
 using namespace std;
 
 FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
@@ -90,12 +93,12 @@ size_t FGLPMBEHybrid::build(const std::vector<val_t> *assignment,
     return 0;
 }
 
-double FGLPMBEHybrid::getHeur(int var, const vector<val_t> &assignment,
+double FGLPMBEHybrid::getHeur(int var, vector<val_t> &assignment,
                               SearchNode *node) {
   return ELEM_ZERO;
 }
 
-void FGLPMBEHybrid::getHeurAll(int var, const vector<val_t> &assignment,
+void FGLPMBEHybrid::getHeurAll(int var, vector<val_t> &assignment,
                                SearchNode *node, vector<double> &out) {
   vector<double> fglpOut(out.size(), ELEM_ONE);
   vector<double> mbeOut(out.size(), ELEM_ONE);
@@ -337,3 +340,5 @@ size_t FGLPMBEHybrid::limitJGLPIBound(size_t memlimit) {
 
   return mem;
 }
+
+}  // namespace daoopt

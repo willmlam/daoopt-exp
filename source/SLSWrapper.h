@@ -36,6 +36,8 @@
 #include "sls4mpe/global.h"
 #include "sls4mpe/ProblemReader.h"
 
+namespace daoopt {
+
 class SLSWrapper {
 protected:
   double m_likelihood;
@@ -58,12 +60,14 @@ public:
 inline SLSWrapper::SLSWrapper() :
     m_likelihood(0.0), m_assignment(NULL) {
   /* nothing here */
-};
+}
 
 inline SLSWrapper::~SLSWrapper() {
   if (m_assignment)
     delete[] m_assignment;
 }
+
+}  // namespace daoopt
 
 #endif /* ENABLE_SLS */
 

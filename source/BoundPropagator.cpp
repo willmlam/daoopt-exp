@@ -25,6 +25,7 @@
 
 #include "BoundPropagator.h"
 
+namespace daoopt {
 
 SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, SearchNode* upperLimit) {
 
@@ -314,4 +315,7 @@ void BoundPropagator::propagateTuple(SearchNode* start, SearchNode* end) {
   DIAG(ostringstream ss; ss << "< Tuple for "<< *end << " after recording: " << (end->getOptAssig()) << endl; myprint(ss.str());)
 }
 
+
 #endif // NO_ASSIGNMENT
+
+}  // namespace daoopt

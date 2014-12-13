@@ -27,6 +27,8 @@
 #undef DEBUG
 
 #ifdef DEBUG
+
+namespace daoopt {
 /* ostream operator for debugging */
 ostream& operator <<(ostream& os, const vector<Function*>& l) {
   vector<Function*>::const_iterator it = l.begin();
@@ -38,10 +40,14 @@ ostream& operator <<(ostream& os, const vector<Function*>& l) {
   os << ']';
   return os;
 }
+
+}  // namespace daoopt
 #endif
 
+namespace daoopt {
+
 /* computes the augmented part of the heuristic estimate */
-double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment,
+double MiniBucketElim::getHeur(int var, vector<val_t>& assignment,
                                SearchNode* n) {
 
   assert( var >= 0 && var < m_problem->getN());
@@ -63,7 +69,7 @@ double MiniBucketElim::getHeur(int var, const vector<val_t>& assignment,
 }
 
 
-void MiniBucketElim::getHeurAll(int var, const vector<val_t>& assignment,
+void MiniBucketElim::getHeurAll(int var, vector<val_t>& assignment,
                                 SearchNode* n, vector<double>& out) {
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
@@ -654,3 +660,5 @@ bool MiniBucketElim::readFromFile(string fn) {
   cout << "Read mini bucket with i-bound " << ibound << " from file " << fn << endl;
   return true;
 }
+
+}  // namespace daoopt

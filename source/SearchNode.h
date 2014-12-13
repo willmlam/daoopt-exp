@@ -29,6 +29,8 @@
 #include "SubprobStats.h"  // only for PARALLEL_STATIC
 #include "ExtraNodeInfo.h"
 
+namespace daoopt {
+
 //class Problem;
 class PseudotreeNode;
 
@@ -422,5 +424,6 @@ inline bool SearchNode::heurLess(const SearchNode* a, const SearchNode* b) {
   return a->getHeur() < b->getHeur();
 }
 
+}  // namespace daoopt
 
 #endif /* SEARCHNODE_H_ */

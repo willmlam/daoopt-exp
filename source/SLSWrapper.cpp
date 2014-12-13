@@ -24,6 +24,8 @@
 #include "SLSWrapper.h"
 #ifdef ENABLE_SLS
 
+namespace daoopt {
+
 bool SLSWrapper::init(Problem* prob, int iter, int time) {
 
   assert(prob);
@@ -115,6 +117,8 @@ double SLSWrapper::getSolution(vector<val_t>* tuple) const {
   return m_likelihood;  // no ESP needed since solution cost will be recalculated
 #endif
 }
+
+}  // namespace daoopt
 
 #endif  /* ENABLE_SLS */
 

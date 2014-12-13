@@ -31,6 +31,8 @@
 #include "_base.h"
 #include "gzstream.h"
 
+namespace daoopt {
+
 class SearchStats;
 
 /* holds a problem instance with variable domains and function tables */
@@ -235,7 +237,7 @@ inline Problem::~Problem() {
       if (*it) delete (*it);
 }
 
-
+}  // namespace daoopt
 
 #endif /* PROBLEM_H_ */
 

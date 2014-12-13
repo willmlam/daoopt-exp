@@ -4,10 +4,13 @@
 #include "ProgramOptions.h"
 #include "UAI2012.h"
 using namespace std;
+using namespace daoopt;
 
+namespace daoopt {
 string UAI2012::filename = "";
 string out_bound_file = "";
 time_t _time_start, _time_pre;
+}  // namespace daoopt
 
 int main(int argc, char** argv) {
   unique_ptr<ProgramOptions> po;

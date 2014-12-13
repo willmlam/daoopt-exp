@@ -37,6 +37,8 @@
 #include "SubproblemCondor.h"
 #endif
 
+namespace daoopt {
+
 class Heuristic;
 
 /* All search algorithms should inherit from this */
@@ -223,6 +225,6 @@ inline const vector<val_t>& Search::getCurOptTuple() const {
 }
 #endif
 
-
+}  // namespace daoopt
 
 #endif /* SEARCH_H_ */

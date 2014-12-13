@@ -31,8 +31,8 @@
 #include <string>
 #include "boost/unordered_map.hpp"
 
+namespace daoopt {
 
-//typedef hash_map <context_t, double> context_hash_map;
 #ifndef NO_ASSIGNMENT
 typedef boost::unordered_map<const context_t,
                              const pair<const double, const vector<val_t>
@@ -120,10 +120,11 @@ public:
 /* inserts a value into the respective cache table, throws an int if
  * insert non successful (memory limit or index out of bounds) */
 #ifndef NO_ASSIGNMENT
-inline bool CacheTable::write(int n, size_t inst, const context_t& ctxt, double v, const vector<val_t>& sol) {
+inline bool CacheTable::write(int n, size_t inst, const context_t& ctxt, double v, const vector<val_t>& sol)
 #else
-inline bool CacheTable::write(int n, size_t inst, const context_t& ctxt, double v) {
-#endif
+inline bool CacheTable::write(int n, size_t inst, const context_t& ctxt, double v)
+#endif 
+{
   assert(n < m_size);
 #ifdef PARALLEL_DYNAMIC
   // check instance counter
@@ -157,10 +158,11 @@ inline bool CacheTable::write(int n, size_t inst, const context_t& ctxt, double 
 
 /* tries to read a value from a table, throws an int (UNKNOWN) if not found */
 #ifndef NO_ASSIGNMENT
-inline const pair<const double, const vector<val_t> >& CacheTable::read(int n, size_t inst, const context_t& ctxt) const {
+inline const pair<const double, const vector<val_t> >& CacheTable::read(int n, size_t inst, const context_t& ctxt) const 
 #else
-inline const double CacheTable::read(int n, size_t inst, const context_t& ctxt) const {
-#endif
+inline const double CacheTable::read(int n, size_t inst, const context_t& ctxt) const 
+#endif 
+{
 
   assert(n < m_size);
   // does cache table exist?
@@ -203,10 +205,11 @@ inline size_t CacheTable::getInstCounter(int n) const {
 
 inline CacheTable::CacheTable(int size) :
 #ifdef PARALLEL_DYNAMIC
-    m_full(false), m_size(size), m_instCounter(size,0), m_tables(size) {
+    m_full(false), m_size(size), m_instCounter(size,0), m_tables(size)
 #else
-    m_full(false), m_size(size), m_tables(size) {
-#endif
+    m_full(false), m_size(size), m_tables(size)
+#endif 
+{
   for (int i=0; i<size; ++i)
     m_tables[i] = NULL;
 }
@@ -247,4 +250,5 @@ inline int CacheTable::memused() const {
 }
 #endif
 
+}  // namespace daoopt
 #endif /* CACHETABLE_H_ */

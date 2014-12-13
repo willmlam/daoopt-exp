@@ -63,6 +63,8 @@
 #define CONDOR_ATTR_PROBLEM "daoopt_problem"
 #define CONDOR_ATTR_THREADID "daoopt_threadid"
 
+namespace daoopt {
+
 void SubproblemCondor::operator() () {
 
   CondorSubmission job(m_subproblem, m_threadId);
@@ -565,6 +567,8 @@ string CondorSubmissionEngine::encodeJob(CondorSubmission* P) {
   return job.str();
 
 }
+
+}  // namespace daoopt
 
 
 #endif /* PARALLEL_DYNAMIC */

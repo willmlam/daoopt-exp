@@ -31,7 +31,8 @@
 #include "utils.h"
 #include "mex/VarSet.h"
 #include "mex/Factor.h"
-//#include "Problem.h"
+
+namespace daoopt {
 
 class Problem;
 
@@ -198,5 +199,6 @@ inline ostream& operator << (ostream& os, const Function& f) {
   return os;
 }
 
+}  // namespace daoopt
 
 #endif /* FUNCTION_H_ */

@@ -12,6 +12,8 @@
 #include "PriorityFGLP.h"
 #include "ExtraNodeInfo.h"
 
+namespace daoopt {
+
 // Utility class to contain all the FGLP processed problems
 // corresponding to each variable assignment
 // Also stores the cost to the node based on the original functions
@@ -77,9 +79,9 @@ public:
 
     double getGlobalUB() const { return m_globalUB; }
 
-    double getHeur(int var, const std::vector<val_t> &assignment, SearchNode *node);
+    double getHeur(int var, std::vector<val_t> &assignment, SearchNode *node);
 
-    void getHeurAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
+    void getHeurAll(int var, std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
     // Readjusts the heuristic value so it is consistent with the original 
     // functions that are already assigned.
@@ -112,5 +114,7 @@ protected:
 
 
 };
+
+}  // namespace daoopt
 
 #endif

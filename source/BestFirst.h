@@ -26,6 +26,7 @@
 
 #include "Search.h"
 
+namespace daoopt {
 
 class NodeComp {
 public:
@@ -76,6 +77,8 @@ inline void BestFirst::reset(SearchNode* p) {
       m_queue.pop();
   m_queue.push(p);
 }
+
+}  // namespace daoopt
 
 
 #endif /* BESTFIRST_H_ */

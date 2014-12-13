@@ -1,6 +1,7 @@
 #include "FGLP.h"
 #include <chrono>
 
+namespace daoopt {
 using namespace std;
 using namespace std::chrono;
 
@@ -456,3 +457,5 @@ void FGLP::PrintAllFactors() const {
     cout << endl;
   }
 }
+
+}  // namespace daoopt

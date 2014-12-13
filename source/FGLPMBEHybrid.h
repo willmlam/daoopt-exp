@@ -1,18 +1,20 @@
 #ifndef FGLPMBEHYBRID_H_
 #define FGLPMBEHYBRID_H_
 
-#include "Heuristic.h"
+#include "ExtraNodeInfo.h"
+#include "FGLP.h"
 #include "FGLPHeuristic.h"
+#include "Heuristic.h"
 #include "MiniBucketElim.h"
 #include "Problem.h"
 #include "ProgramOptions.h"
 #include "Pseudotree.h"
 #include "utils.h"
 #include "mex/mbe.h"
-#include "FGLP.h"
-#include "ExtraNodeInfo.h"
 
 // A wrapper to take the tightest heuristics between FGLP and MBE
+
+namespace daoopt {
 
 class FGLPMBEHybrid : public Heuristic {
   std::unique_ptr<FGLPHeuristic> fglpHeur;
@@ -53,9 +55,9 @@ public:
 
     inline double getGlobalUB() const { return min(fglpHeur->getGlobalUB(), (mbeHeur ? mbeHeur->getGlobalUB() : ELEM_ONE)); }
 
-    double getHeur(int var, const std::vector<val_t> &assignment, SearchNode *node);
+    double getHeur(int var, std::vector<val_t> &assignment, SearchNode *node);
 
-    void getHeurAll(int var, const std::vector<val_t> &assignment, SearchNode *node, 
+    void getHeurAll(int var, std::vector<val_t> &assignment, SearchNode *node, 
             std::vector<double> &out);
 
 
@@ -108,5 +110,7 @@ public:
     }
 
 };
+
+}  // namespace daoopt
 
 #endif

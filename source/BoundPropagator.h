@@ -31,6 +31,8 @@
 #include "Statistics.h"
 #endif
 
+namespace daoopt {
+
 class BoundPropagator {
 
 protected:
@@ -98,6 +100,8 @@ public:
   { /* empty */ }
   virtual ~BoundPropagator() {}
 };
+
+}  // namespace daoopt
 
 
 #endif /* BOUNDSPROPAGATOR_H_ */

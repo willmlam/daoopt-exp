@@ -5,8 +5,10 @@
 #include "Function.h"
 
 
-// FGLP class, holds a reference to the source problem to be reparmaeterized and 
-// generates/stores a reparameterized version of the problem
+// FGLP class, holds a reference to the source problem to be reparmaeterized 
+// and generates/stores a reparameterized version of the problem
+
+namespace daoopt {
 
 class FGLP {
 public:
@@ -135,11 +137,8 @@ protected:
 
     // store the number of iterations it took
     int runiters_;
-
-
-
-
-
 };
+
+}  // namespace daoopt
 
 #endif

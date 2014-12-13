@@ -30,6 +30,8 @@
 #include <string>
 #include <vector>
 
+namespace daoopt {
+
 /* forward class declarations */
 class ProgramOptions;
 class Problem;
@@ -91,11 +93,11 @@ public:
    * from which the relevant assignments (i.e. the context of the current
    * variable) will be extracted.
    */
-  virtual double getHeur(int var, const std::vector<val_t>& assignment, SearchNode* node) = 0;
+  virtual double getHeur(int var, std::vector<val_t>& assignment, SearchNode* node) = 0;
 
   /* same as above, but writes heuristic values for all instantiations
    * of var into out. */
-  virtual void getHeurAll(int var, const std::vector<val_t>& assignment, SearchNode* node,
+  virtual void getHeurAll(int var, std::vector<val_t>& assignment, SearchNode* node,
       std::vector<double>& out) = 0;
 
   /* gets the label value of for a node 
@@ -140,5 +142,6 @@ public:
   virtual ~UnHeuristic() {}
 };
 
+}  // namespace daoopt
 
 #endif /* HEURISTIC_H_ */

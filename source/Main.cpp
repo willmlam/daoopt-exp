@@ -24,7 +24,6 @@
 #include "Main.h"
 
 #include "UAI2012.h"
-string UAI2012::filename = "";
 
 #include "cvo/ARP/ARPall.hxx"
 
@@ -33,6 +32,9 @@ string UAI2012::filename = "";
 DECLARE_int32(cvo_n_random_pick);
 DECLARE_double(cvo_e_random_pick);
 
+namespace daoopt {
+
+string UAI2012::filename = "";
 string out_bound_file = "";
 
 time_t _time_start, _time_pre;
@@ -385,8 +387,9 @@ bool Main::initDataStructs() {
       }
     }
     else {
-      m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-                        m_options.get(), m_options->ibound) );
+      m_heuristic.reset(
+          new MiniBucketElimLH(m_problem.get(), m_pseudotree.get(),
+                               m_options.get(), m_options->ibound));
     }
 //  }
   /*
@@ -888,5 +891,5 @@ bool Main::outputInfo() const {
  return true;
 }
 
-
+}  // namespace daoopt
 // EoF

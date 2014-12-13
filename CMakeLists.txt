@@ -115,6 +115,7 @@ set(FILES
   ./source/Main.cpp
   ./source/MiniBucket.cpp
   ./source/MiniBucketElim.cpp
+  ./source/MiniBucketElimLH.cpp
   ./source/ParallelManager.cpp
   ./source/Problem.cpp
   ./source/ProgramOptions.cpp

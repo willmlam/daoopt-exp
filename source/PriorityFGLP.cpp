@@ -1,5 +1,8 @@
 #include "PriorityFGLP.h"
 #include <chrono>
+
+namespace daoopt {
+
 using namespace std;
 using namespace std::chrono;
 
@@ -263,3 +266,5 @@ double PriorityFGLP::MessageDist(double *m1, double *m2, double ns, int var) {
   }
   return dist;
 }
+
+}  // namespace daoopt

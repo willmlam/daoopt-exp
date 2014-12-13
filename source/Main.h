@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Oct 18, 2011
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -24,7 +24,7 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include "_base.h"
+//#include "_base.h"
 
 #include "Problem.h"
 #include "Function.h"
@@ -32,6 +32,7 @@
 #include "Pseudotree.h"
 #include "ProgramOptions.h"
 #include "MiniBucketElim.h"
+#include "MiniBucketElimLH.h"
 #include "FGLPHeuristic.h"
 #include "FGLPMBEHybrid.h"
 #ifdef ENABLE_SLS
@@ -39,25 +40,27 @@
 #endif
 
 #ifdef PARALLEL_DYNAMIC
-  #include "BranchAndBoundMaster.h"
-  #include "BoundPropagatorMaster.h"
-  #include "SubproblemHandler.h"
-  #include "SigHandler.h"
+#include "BranchAndBoundMaster.h"
+#include "BoundPropagatorMaster.h"
+#include "SubproblemHandler.h"
+#include "SigHandler.h"
 #else
-  #ifdef PARALLEL_STATIC
-    #include "ParallelManager.h"
-    #include "BranchAndBoundSampler.h"
-  #endif
-  #include "BranchAndBound.h"
-  #include "BranchAndBoundRotate.h"
-  #include "BoundPropagator.h"
+#ifdef PARALLEL_STATIC
+#include "ParallelManager.h"
+#include "BranchAndBoundSampler.h"
+#endif
+#include "BranchAndBound.h"
+#include "BranchAndBoundRotate.h"
+#include "BoundPropagator.h"
 #endif
 
 #include "BestFirst.h"
 #include "LimitedDiscrepancy.h"
 
+namespace daoopt {
+
 class Main {
-protected:
+ protected:
   bool m_solved;
   scoped_ptr<ProgramOptions> m_options;
   scoped_ptr<Problem> m_problem;
@@ -79,12 +82,12 @@ protected:
   scoped_ptr<SearchSpace> m_space;
 #endif
 
-protected:
+ protected:
   bool runSearchDynamic();
   bool runSearchStatic();
   bool runSearchWorker();
 
-public:
+ public:
   bool start() const;
   bool parseOptions(int argc, char** argv);
   bool outputInfo() const;
@@ -101,20 +104,15 @@ public:
   bool isSolved() const { return m_solved; }
 
   Main();
-
 };
 
 /* Inline implementations */
 
-inline Main::Main() : m_solved(false) {
-  /* nothing here */
-}
+inline Main::Main() : m_solved(false) { /* nothing here */ }
 
 inline bool Main::runSearch() {
-  if (m_options->nosearch)
-    return true;
-  if (m_solved)
-    return true;
+  if (m_options->nosearch) return true;
+  if (m_solved) return true;
   cout << "--- Starting search ---" << endl;
 #if defined PARALLEL_DYNAMIC
   return runSearchDynamic();
@@ -125,5 +123,6 @@ inline bool Main::runSearch() {
 #endif
 }
 
+}  // namespace daoopt
 
 #endif /* MAIN_H_ */

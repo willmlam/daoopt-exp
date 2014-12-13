@@ -25,6 +25,8 @@
 
 #undef DEBUG
 
+namespace daoopt {
+
 int Pseudotree::restrictSubproblem(int i) {
 
   assert(m_root && i<(int)m_nodes.size() && m_nodes[i]);
@@ -976,3 +978,4 @@ void Pseudotree::outputToFile(string of_name) const {
   of.close();
 }
 
+}  // namespace daoopt

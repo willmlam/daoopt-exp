@@ -11,7 +11,7 @@
 // Class to contain all of the f->i and i->f messages for a variable
 // as well as the nullary shift (if applicable)
 // also stores the *previous* i->f message
-
+namespace daoopt {
 
 enum Distance { L1, L2, LInf };
 class ResidualFGLP;
@@ -269,5 +269,7 @@ class ResidualFGLP {
 
                         
 };
+
+}  // namespace daoopt
 
 #endif

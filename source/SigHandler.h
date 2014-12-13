@@ -31,6 +31,8 @@
 
 #ifdef PARALLEL_DYNAMIC
 
+namespace daoopt {
+
 /* watches for signals like SIGINT and SIGTERM, catches them
  * and takes care of processing */
 class SigHandler {
@@ -58,6 +60,8 @@ public:
     m_bab(bab), m_prop(prop), m_condSub(condSub) {}
 
 };
+
+}  // namespace daoopt
 
 #endif /* PARALLEL_DYNAMIC */
 

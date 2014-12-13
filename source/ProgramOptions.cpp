@@ -94,8 +94,6 @@ DEFINE_bool(collapse, false,
             "collapse functions with identical scopes onto each other");
 DEFINE_double(zero_perturb, 0, "set all zero values to this value");
 
-
-
 DEFINE_bool(heuristic_fglp, false, "use pure FGLP dyanmic heuristic");
 DEFINE_bool(heuristic_fglp_mbe_hybrid, false,
             "use FGLP dynamic/MBE hybrid heuristic");
@@ -109,14 +107,24 @@ DEFINE_bool(dfglp_nullary_shift, false,
 DEFINE_bool(fglp_schedule_priority, false,
             "use FGLP update schedule with priorities");
 
+
 DEFINE_int32(dfglp_iterations, -1, "# iterations of FGLP at every node");
 DEFINE_double(dfglp_time, -1.0, "time for FGLP at every node");
 DEFINE_double(dfglp_tolerance, 1e-7, "converagnece tolerance for dyanmic FGLP");
 
+// Lookahead options
+DEFINE_int32(lookahead_depth, 0, "depth of lookahead when computing the h"
+             "(heuristic) function; 0=no lookahead");
+DEFINE_double(lookahead_local_error_single_table_limit, 7.0, 
+              "lookahead: limit as number of entries for a single local error" 
+              "table (in log10)");
+DEFINE_double(lookahead_local_error_all_tables_total_limit, 8.0, 
+              "lookahead: limit as number of entries for all local error" 
+              "tables (in log10)");
+
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 
-
-
+namespace daoopt {
 
 ProgramOptions* parseCommandLine(int ac, char** av) {
 
@@ -172,6 +180,12 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     opt->ndfglps = FLAGS_dfglp_time;
     opt->ndfglpt = FLAGS_dfglp_tolerance;
 
+    opt->lookahead_depth = FLAGS_lookahead_depth;
+    opt->lookahead_local_error_single_table_limit =
+        FLAGS_lookahead_local_error_single_table_limit;
+    opt->lookahead_local_error_all_tables_total_limit =
+        FLAGS_lookahead_local_error_all_tables_total_limit;
+
     opt->order_iterations = FLAGS_order_iterations;
     opt->order_timelimit = FLAGS_order_time;
     opt->order_tolerance = FLAGS_order_tolerance;
@@ -183,8 +197,10 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
 
     opt->lds = FLAGS_lds_limit;
 
+#ifdef ENABLE_SLS
     opt->slsIter = FLAGS_sls_iterations;
     opt->slsTime = FLAGS_sls_time;
+#endif
 
     opt->memlimit = FLAGS_mem_limit;
 
@@ -238,4 +254,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
   return opt;
 
 }
+
+}  // namespace daoopt
 

@@ -123,7 +123,7 @@ public:
 	}
 };
 
-}  // sls4mpe
+}  // namespace sls4mpe
 
 #endif
 #endif

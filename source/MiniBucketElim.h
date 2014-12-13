@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 8, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -37,24 +37,26 @@
 #include "FGLP.h"
 #include "PriorityFGLP.h"
 
+namespace daoopt {
 
 /* The overall minibucket elimination */
-//class MiniBucketFunctions;
+// class MiniBucketFunctions;
 class Scope;
 class MiniBucketElim : public Heuristic {
 
   friend class MiniBucket;
 
-protected:
-  int m_ibound;                  // The ibound for this MB instance
-  double m_globalUB;             // The global upper bound
+ protected:
+  int m_ibound;       // The ibound for this MB instance
+  double m_globalUB;  // The global upper bound
 
-  vector<double> tempOut;        // Used for temporary storage of heuristic values
+  vector<double> tempOut;  // Used for temporary storage of heuristic values
 
-
-  // The augmented buckets that will store the minibucket functions (but not the original ones)
+  // The augmented buckets that will store the minibucket functions (but not the
+  // original ones)
   vector<vector<Function*> > m_augmented;
-  // Precompute and store, for each variable v, the relevant intermediate functions that are
+  // Precompute and store, for each variable v, the relevant intermediate
+  // functions that are
   // generated in a pseudotree descendant and passed to an ancestor of v
   // (points to the same function objects as m_augmented)
   vector<vector<Function*> > m_intermediate;
@@ -62,45 +64,49 @@ protected:
   int m_memlimit;
 
   // Stores the root instance of FGLP if used
-  FGLP *m_fglpRoot;
+  FGLP* m_fglpRoot;
 
   // Stores all number of times a variable is visited
   vector<unsigned int> m_countVarVisited;
 
-protected:
+ protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
   void findDfsOrder(vector<int>&) const;
 
   // Compares the size of the scope of two functions
-//  bool scopeIsLarger(Function*, Function*) const;
+  //  bool scopeIsLarger(Function*, Function*) const;
 
   // reset the data structures
-  void reset();
+  virtual void reset();
 
-public:
-
+ public:
   // checks if the given i-bound would exceed the memlimit and lowers
   // it accordingly.
-  size_t limitSize(size_t memlimit, const vector<val_t> * assignment);
+  size_t limitSize(size_t memlimit, const vector<val_t>* assignment);
 
   // checks if the given i-bound would exceed the memlimit and lowers
   // it accordingly. (for JGLP)
-  size_t LimitJGLPIBound(size_t memlimit, const vector<val_t> * assignment);
+  size_t LimitJGLPIBound(size_t memlimit, const vector<val_t>* assignment);
 
   // builds the heuristic, limited to the relevant subproblem, if applicable.
   // if computeTables=false, only returns size estimate (no tables computed)
-  size_t build(const vector<val_t>* assignment = NULL, bool computeTables = true);
+  virtual size_t build(const vector<val_t>* assignment = NULL,
+                       bool computeTables = true);
 
   // returns the global upper bound
   double getGlobalUB() const { return m_globalUB; }
 
   // computes the heuristic for variable var given a (partial) assignment
-  double getHeur(int var, const vector<val_t>& assignment, SearchNode *n);
-  // computes heuristic values for all instantiations of var, given context assignment
-  void getHeurAll(int var, const vector<val_t>& assignment, SearchNode *n, vector<double>& out);
+  virtual double getHeur(int var, vector<val_t>& assignment,
+                         SearchNode* n);
+  // computes heuristic values for all instantiations of var, given context
+  // assignment
+  virtual void getHeurAll(int var, vector<val_t>& assignment,
+                          SearchNode* n, vector<double>& out);
 
-  double getLabel(int var, const vector<val_t>& assignment, SearchNode *n);
-  void getLabelAll(int var, const vector<val_t>& assignment, SearchNode *n, vector<double> &out);
+  double getLabel(int var, const vector<val_t>& assignment, SearchNode* n);
+  void getLabelAll(int var, const vector<val_t>& assignment, SearchNode* n,
+                   vector<double>& out);
 
   // reset the i-bound
   void setIbound(int ibound) { m_ibound = ibound; }
@@ -115,48 +121,42 @@ public:
 
   bool isAccurate();
 
-  const vector<unsigned int> &getVarTimesVisited() const {
-      return m_countVarVisited;
+  const vector<unsigned int>& getVarTimesVisited() const {
+    return m_countVarVisited;
   }
 
   // Preprocess problem using FGLP/JGLP
   bool DoFGLP();
   bool DoJGLP();
 
-public:
+ public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
-  void printExtraStats() const {
-  }
+  void printExtraStats() const {}
   virtual ~MiniBucketElim();
 
-protected:
+ protected:
   mex::vector<mex::Factor> CopyFactors(void);
   void RewriteFactors(const vector<mex::Factor>& factors);
-
 };
 
-
 class Scope {
-    int m_id;
-    set<int> m_scope;
-public:
-    Scope(int id, const set<int> &scope) : m_id(id) {
-        m_scope.insert(scope.begin(),scope.end());
-    };
-    int getId() const { return m_id; }
-    set<int> &getScope() { return m_scope; }
-    int getArity() const { return m_scope.size(); }
-    void erase(int i) {
-        m_scope.erase(i);
-    }
-    ~Scope() {
-        m_scope.clear();
-    }
+  int m_id;
+  set<int> m_scope;
 
-    friend ostream& operator<<(ostream &os, const Scope &s) {
-        os << "f" << s.m_id << ":" << s.m_scope;
-        return os;
-    }
+ public:
+  Scope(int id, const set<int>& scope) : m_id(id) {
+    m_scope.insert(scope.begin(), scope.end());
+  };
+  int getId() const { return m_id; }
+  set<int>& getScope() { return m_scope; }
+  int getArity() const { return m_scope.size(); }
+  void erase(int i) { m_scope.erase(i); }
+  ~Scope() { m_scope.clear(); }
+
+  friend ostream& operator<<(ostream& os, const Scope& s) {
+    os << "f" << s.m_id << ":" << s.m_scope;
+    return os;
+  }
 };
 
 /* Inline definitions */
@@ -167,13 +167,10 @@ inline bool MiniBucketElim::isAccurate() {
 }
 
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
-				                              ProgramOptions* po, int ib)
-  : Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE) {
-}
+                                      ProgramOptions* po, int ib)
+    : Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE) {}
 
-
-inline MiniBucketElim::~MiniBucketElim() {
-}
+inline MiniBucketElim::~MiniBucketElim() {}
 
 inline bool scopeIsLarger(Function* p, Function* q) {
   assert(p && q);
@@ -182,4 +179,7 @@ inline bool scopeIsLarger(Function* p, Function* q) {
   else
     return (p->getArity() > q->getArity());
 }
+
+}  // namespace daoopt
+
 #endif /* MINIBUCKETELIM_H_ */

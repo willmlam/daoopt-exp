@@ -25,7 +25,10 @@
 #include "MiniBucket.h"
 #include "Function.h"
 #include "Problem.h"
+
+
 using namespace std;
+using namespace daoopt;
 
 /* define to enable diagnostic output of memory stats */
 //#define MEMDEBUG
@@ -128,3 +131,4 @@ int main(int argc, char** argv) {
   return 0;
 
 }
+

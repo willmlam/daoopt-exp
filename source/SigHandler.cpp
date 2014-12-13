@@ -26,6 +26,8 @@
 
 #ifdef PARALLEL_DYNAMIC
 
+namespace daoopt {
+
 volatile sig_atomic_t SigHandler::flag = 1;
 
 void SigHandler::handle(int sig) {
@@ -68,5 +70,7 @@ void SigHandler::operator ()() {
   }
 
 }
+
+}  // namespace daoopt
 
 #endif /* PARALLEL_DYNAMIC */

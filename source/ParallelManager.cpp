@@ -52,6 +52,8 @@
 #define CONDOR_ATTR_PROBLEM "daoopt_problem"
 #define CONDOR_ATTR_THREADID "daoopt_threadid"
 
+namespace daoopt {
+
 /* default job submission template */
 const string default_job_template = "\
     universe = vanilla \n\
@@ -1248,6 +1250,8 @@ ParallelManager::ParallelManager(Problem* prob, Pseudotree* pt, SearchSpace* spa
   m_learner.reset(new LinearRegressionLearner(m_options));
 
 }
+
+}  // namespace daoopt
 
 #endif /* PARALLEL_STATIC */
 

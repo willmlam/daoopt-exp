@@ -27,6 +27,8 @@
 
 #ifdef PARALLEL_STATIC
 
+namespace daoopt {
+
 ostream& operator << (ostream& os, const SubproblemStats& s) {
   os << NONE << '\t';  // subprob id
   os << s.rootVar << '\t';
@@ -45,11 +47,15 @@ ostream& operator << (ostream& os, const SubproblemStats& s) {
   return os;
 }
 
+}  // namespace daoopt
+
 #endif
 
 #ifdef PARALLEL_DYNAMIC
 
 #define FALLOFF 0.9
+
+namespace daoopt {
 
 void AvgStatistics::init(int depth, int height, count_t N, count_t L, count_t D, double lower, double upper) {
 
@@ -227,6 +233,7 @@ double AvgStatistics::normalize(double d) const {
 
 }
 
+}  // namespace daoopt
 
 #endif /* PARALLEL_DYNAMIC */
 

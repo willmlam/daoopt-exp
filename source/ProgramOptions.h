@@ -31,6 +31,8 @@
 #include <string>
 #include <iostream>
 
+namespace daoopt {
+
 struct ProgramOptions {
 public:
   bool nosearch; // abort before starting the actual search
@@ -90,6 +92,14 @@ public:
   double ndfglps; // enables FGLP computation at every node dynamic MBE is used (# seconds per node)
   double ndfglpt; // convergence tolerance for FGLP
 
+  /* LOOKAHEAD HEURISTIC OPTIONS */
+  int lookahead_depth; // depth of lookahead when computing the h (heuristic)
+                       // function; 0=no lookahead
+  double lookahead_local_error_single_table_limit; // as number of entries; 
+                                                   // log10.
+  double lookahead_local_error_all_tables_total_limit; // as number of entries;
+                                                       // log10.
+
   /* MISC OPTIONS */
   bool collapse; // collapse functions with identical scopes onto each other
   double perturb; // sets zeros to this value in the functions
@@ -115,24 +125,31 @@ public:
   std::string out_reducedFile; // file to save reduced network to
   std::string out_pstFile; // file to output pseudo tree description to (for plotting)
 
+  std::string log_file; // logging: currently only used by lookahead
+  FILE* _fpLogFile; // logging
+
 public:
   ProgramOptions();
 };
 
 ProgramOptions* parseCommandLine(int argc, char** argv);
 
-inline ProgramOptions::ProgramOptions() :
-		      nosearch(false), nocaching(false), autoCutoff(false), autoIter(false), orSearch(false),
-		      par_solveLocal(false), par_preOnly(false), par_postOnly(false), rotate(false),
-		      ibound(0), cbound(0), cbound_worker(0),
-		      threads(0), order_iterations(0), order_timelimit(0), order_tolerance(0),
-		      cutoff_depth(NONE), cutoff_width(NONE),
-		      nodes_init(NONE), memlimit(NONE),
-		      cutoff_size(NONE), local_size(NONE), maxSubprob(NONE),
-		      lds(NONE), seed(NONE), rotateLimit(0), subprobOrder(NONE),
-		      sampleDepth(NONE), sampleScheme(NONE), sampleRepeat(NONE),
-		      maxWidthAbort(NONE), slsIter(0), slsTime(5),
-		      aobbLookahead(0),
-		      initialBound(ELEM_NAN) {}
+inline ProgramOptions::ProgramOptions() 
+  : nosearch(false), nocaching(false), autoCutoff(false), autoIter(false),
+    orSearch(false), par_solveLocal(false), par_preOnly(false),
+    par_postOnly(false), rotate(false), ibound(0), cbound(0), cbound_worker(0),
+    threads(0), order_iterations(0), order_timelimit(0), order_tolerance(0),
+    cutoff_depth(NONE), cutoff_width(NONE),
+    nodes_init(NONE), memlimit(NONE),
+    cutoff_size(NONE), local_size(NONE), maxSubprob(NONE),
+    lds(NONE), seed(NONE), rotateLimit(0), subprobOrder(NONE),
+    sampleDepth(NONE), sampleScheme(NONE), sampleRepeat(NONE),
+    maxWidthAbort(NONE), slsIter(0), slsTime(5),
+    aobbLookahead(0),
+    initialBound(ELEM_NAN),
+    _fpLogFile(nullptr) {
+}
+
+}  // namespace daoopt
 
 #endif /* PROGRAMOPTIONS_H_ */

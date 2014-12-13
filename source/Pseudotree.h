@@ -35,6 +35,8 @@
 #include "SubprobStats.h"
 #endif
 
+namespace daoopt {
+
 /* forward declaration */
 class PseudotreeNode;
 
@@ -407,5 +409,7 @@ inline PseudotreeNode::~PseudotreeNode()  {
     if (m_subprobStats) delete m_subprobStats;
 #endif
 }
+
+}  // namespace daoopt
 
 #endif /* PSEUDOTREE_H_ */
