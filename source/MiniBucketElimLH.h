@@ -34,8 +34,10 @@ public :
 	int _iBound ;
 	int _Width ; // num of vars when only original functions placed in the bucket are considered
 	int _PseudoWidth ; // num of vars when all functions (original and MB generated) placed in the bucket are considered (this is the scope of bucket fn).
+  int _EnforcedPseudoWidth; // "pseudowidth" based on the local error functions that were actually computed.
 //	int _HPseudoWidth ; // width when only heuristic function h is done
 	size_t _MemorySize ;
+  double _LEMemorySizeMB;
 	int _MaxNumMBs ;
 	int _NumBucketsWithMoreThan1MB ;
 public :
@@ -44,8 +46,10 @@ public :
 		_iBound = 0 ;
 		_Width = 0 ;
 		_PseudoWidth = 0 ;
+    _EnforcedPseudoWidth = 0;
 //		_HPseudoWidth = 0 ;
 		_MemorySize = 0 ;
+		_LEMemorySizeMB = 0 ;
 		_MaxNumMBs = 0 ;
 		_NumBucketsWithMoreThan1MB = 0 ;
 	}
@@ -54,8 +58,10 @@ public :
 		_iBound(-1), 
 		_Width(-1), 
 		_PseudoWidth(-1), 
+    _EnforcedPseudoWidth(-1),
 //		_HPseudoWidth(-1), 
-		_MemorySize(-1), 
+		_MemorySize(0), 
+		_LEMemorySizeMB(0),
 		_MaxNumMBs(0), 
 		_NumBucketsWithMoreThan1MB(0)
 	{
