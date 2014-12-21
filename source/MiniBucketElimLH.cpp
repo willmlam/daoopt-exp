@@ -580,7 +580,6 @@ double MiniBucketElimLH::getHeuristicError(int var, vector<val_t> &assignment,
   return eTotal ;
   */
 }
-#define DEBUG_BUCKET_ERROR
 
 double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 {
@@ -592,21 +591,22 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 	if (NULL != _BucketErrorFunctions[var]) {
 		double dh = _BucketErrorFunctions[var]->getValue(assignment);
 		return dh;
-		}
+  }
 #endif // DEBUG_BUCKET_ERROR
 
 	// enumerate over all bucket var values
 	double var_original_value = assignment[var];
 	double tableentryB = ELEM_ZERO;
 	vector<Function *> &funs_B = _BucketFunctions[var];
-	for (val_t i = m_problem->getDomainSize(var) - 1; i >= 0; i--) {
+  for (int i = 0; i < m_problem->getDomainSize(var); ++i) {
 		assignment[var] = i;
 		// combine all bucket FNs
 		double zB = ELEM_ONE;
-		for (int k = funs_B.size() - 1; k >= 0; k--)
-			zB OP_TIMESEQ funs_B[k]->getValue(assignment);
+    for (Function* fn : funs_B) {
+			zB OP_TIMESEQ fn->getValue(assignment);
+    }
 		tableentryB = max(tableentryB, zB);
-		}
+  }
 	assignment[var] = var_original_value;
 
 	// combine MB output FNs
@@ -615,14 +615,15 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 		Function *fMB = mini_bucket.output_fn();
 		if (NULL == fMB) continue;
 		tableentryMB OP_TIMESEQ fMB->getValue(assignment);
-		}
+  }
 
 #ifdef DEBUG_BUCKET_ERROR
   if (NULL != _BucketErrorFunctions[var]) {
     double dh = _BucketErrorFunctions[var]->getValue(assignment);
     double dh_ = (tableentryMB <= tableentryB) ? 0.0 : (tableentryMB - tableentryB) ;
-    if (fabs(dh - dh_) > 1.0e-10) {
-      exit(998) ; // error : online/offline versions are different
+    if (fabs(dh - dh_) > 1.0e-50) {
+      cout << StrCat("var: ", var, " : ", fabs(dh - dh_)) << endl;
+//      exit(998) ; // error : online/offline versions are different
     }
   }
 #endif // DEBUG_BUCKET_ERROR
@@ -858,8 +859,9 @@ int MiniBucketElimLH::computeLocalErrorTable(
     for (tuple[n] = 0; tuple[n] < bucket_var_domain_size; tuple[n]++) {
       assignment[var] = tuple[n];
       zB = ELEM_ONE;
-      for (k = 0; k < funs_B.size(); k++)
-        zB OP_TIMESEQ funs_B[k]->getValue(assignment);
+      for (Function* fn : funs_B) {
+        zB OP_TIMESEQ fn->getValue(assignment);
+      }
       tableentryB_ = max(tableentryB_, zB);
     }
     double e_ = tableentryMB_ - tableentryB_;
