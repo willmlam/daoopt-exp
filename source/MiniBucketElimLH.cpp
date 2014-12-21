@@ -29,6 +29,8 @@
 /* disables DEBUG output */
 #undef DEBUG
 
+//#define DEBUG_BUCKET_ERROR
+
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
 #define OUR_OWN_pInfinity (std::numeric_limits<double>::infinity())
 
@@ -428,8 +430,6 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
   }
 
   cout << StrCat("Pseudowidth: ", _Stats._PseudoWidth - 1) << endl;;
-  cout << StrCat("Pseudowidth (enforced): ", _Stats._EnforcedPseudoWidth)
-       << endl;
   double minibucket_mem_mb = _Stats._MemorySize *
       sizeof(double) / (1024.0 * 1024);
   cout << StrCat("Minibucket Memory (MB): ", minibucket_mem_mb) << endl;
@@ -439,69 +439,65 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
   return _Stats._MemorySize;
 }
 
-double MiniBucketElimLH::getHeur(int var, std::vector<val_t> &assignment,
-                                 SearchNode *search_node) {
+double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, SearchNode *search_node) 
+{
 #if defined DEBUG || _DEBUG
-  int nSet = 0;
-  for (int ii = 0; ii < assignment.size(); ii++) {
-    if (assignment[ii] >= 0) nSet++;
-  }
+	int nSet = 0;
+	for (int ii = 0; ii < assignment.size(); ii++) {
+		if (assignment[ii] >= 0) nSet++;
+		}
 #endif
 
-  // normally (wo lookahead) we would go over augmented[var] and
-  // intermediate[var] lists and combine all values.
-  // i.e. we would process bucket[var].
-  // however, for us here, we would have to look at one level below that in the
-  // bucket tree.
+	// normally (wo lookahead) we would go over augmented[var] and
+	// intermediate[var] lists and combine all values.
+	// i.e. we would process bucket[var].
+	// however, for us here, we would have to look at one level below that in the
+	// bucket tree.
 
-  double h = MiniBucketElim::getHeur(var, assignment, search_node);
-  if (m_options->lookahead_depth <= 0) return h;
+	double h = MiniBucketElim::getHeur(var, assignment, search_node);
+	if (m_options->lookahead_depth <= 0) return h;
 
-  const int local_lookaheadDepth = m_options->lookahead_depth - 1;
-  double DH = 0.0, dh;
-  if (0 == local_lookaheadDepth) {  // if looking ahead just 1 step, logic is a
-                                    // little easier
-    if (1 != _distToClosestDescendantWithLE[var])
-      return h;  // there is no child with non-0 BucketError
-    const PseudotreeNode *n = m_pseudotree->getNode(var);
-    const vector<PseudotreeNode *> &children = n->getChildren();
-    //		const int nChildren = children.size() ;
-    for (vector<PseudotreeNode *>::const_iterator it = children.begin();
-         it != children.end(); ++it) {
-      int child = (*it)->getVar();
-      if (0 == _BucketErrorQuality[child])
-        continue;                             // most likely, child has nMBs=1.
-      dh = getLocalError(child, assignment);  // note : dh should be >= 0.0
-      DH += dh;
-    }
-    // DEBUGGG
-    if (DH < 0.0) printf("\nERROR 111");
-  } else {
-    // DEBUGGGG
-    exit(999);
-    if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth)
-      return h;  // there is no child with non-0 BucketError within the range of
-                 // lookahead depth
-    const PseudotreeNode *n = m_pseudotree->getNode(var);
-    const vector<PseudotreeNode *> &children = n->getChildren();
-    //		const int nChildren = children.size() ;
-    for (vector<PseudotreeNode *>::const_iterator it = children.begin();
-         it != children.end(); ++it) {
-      int child = (*it)->getVar();
-      dh = getHeuristicError(
-          child, assignment,
-          local_lookaheadDepth);  // note : dh should be >= 0.0
-      DH += dh;
-    }
-  }
-  return h - DH;
+	const int local_lookaheadDepth = m_options->lookahead_depth - 1;
+	double DH = 0.0, dh;
+	if (0 == local_lookaheadDepth) {  // if looking ahead just 1 step, logic is a little easier
+		if (1 != _distToClosestDescendantWithLE[var]) 
+			return h;  // there is no child with non-0 BucketError
+		const PseudotreeNode *n = m_pseudotree->getNode(var);
+		const vector<PseudotreeNode *> &children = n->getChildren();
+		//		const int nChildren = children.size() ;
+		for (vector<PseudotreeNode *>::const_iterator it = children.begin(); it != children.end(); ++it) {
+			int child = (*it)->getVar();
+			if (0 == _BucketErrorQuality[child])
+				continue;                             // most likely, child has nMBs=1.
+			dh = getLocalError(child, assignment);  // note : dh should be >= 0.0
+			DH += dh;
+			}
+// DEBUGGG
+//    if (DH < 0.0) printf("\nERROR 111");
+		} 
+	else {
+// DEBUGGGG
+exit(999);
+		if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth)
+			return h;  // there is no child with non-0 BucketError within the range of
+		// lookahead depth
+		const PseudotreeNode *n = m_pseudotree->getNode(var);
+		const vector<PseudotreeNode *> &children = n->getChildren();
+		//		const int nChildren = children.size() ;
+		for (vector<PseudotreeNode *>::const_iterator it = children.begin();it != children.end(); ++it) {
+			int child = (*it)->getVar();
+			dh = getHeuristicError(child, assignment,local_lookaheadDepth);  // note : dh should be >= 0.0
+			DH += dh;
+			}
+		}
+	return h - DH;
 }
 
 void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
                                   SearchNode *search_node,
                                   vector<double> &out) {
-  // DEBUGGGG
-  exit(999);
+// DEBUGGGG
+exit(999);
   MiniBucketElim::getHeurAll(var, assignment, search_node, out);
   if (m_options->lookahead_depth <= 0) return;
 
@@ -523,7 +519,7 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
         if (0 == _BucketErrorQuality[child])
           continue;  // most likely, child has nMBs=1.
         dh = getLocalError(child, assignment);  // note : dh should be >= 0.0
-        DH += dh;
+		DH += dh;
       }
       out[i] -= DH;
     }
@@ -584,54 +580,69 @@ double MiniBucketElimLH::getHeuristicError(int var, vector<val_t> &assignment,
   return eTotal ;
   */
 }
+#define DEBUG_BUCKET_ERROR
 
-double MiniBucketElimLH::getLocalError(int var, vector<val_t> &assignment) {
-  // check if number of MBs is 1; if yes, bucket error is 0.
-  vector<MiniBucket> &minibuckets = _MiniBuckets[var];
-  if (minibuckets.size() <= 1 || 0 == _BucketErrorQuality[var]) return 0.0;
+double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
+{
+	// check if number of MBs is 1; if yes, bucket error is 0.
+	vector<MiniBucket> &minibuckets = _MiniBuckets[var];
+	if (minibuckets.size() <= 1 || 0 == _BucketErrorQuality[var]) return 0.0;
 
+#ifndef DEBUG_BUCKET_ERROR
+	if (NULL != _BucketErrorFunctions[var]) {
+		double dh = _BucketErrorFunctions[var]->getValue(assignment);
+		return dh;
+		}
+#endif // DEBUG_BUCKET_ERROR
+
+	// enumerate over all bucket var values
+	double var_original_value = assignment[var];
+	double tableentryB = ELEM_ZERO;
+	vector<Function *> &funs_B = _BucketFunctions[var];
+	for (val_t i = m_problem->getDomainSize(var) - 1; i >= 0; i--) {
+		assignment[var] = i;
+		// combine all bucket FNs
+		double zB = ELEM_ONE;
+		for (int k = funs_B.size() - 1; k >= 0; k--)
+			zB OP_TIMESEQ funs_B[k]->getValue(assignment);
+		tableentryB = max(tableentryB, zB);
+		}
+	assignment[var] = var_original_value;
+
+	// combine MB output FNs
+	double tableentryMB = ELEM_ONE;
+	for (const MiniBucket &mini_bucket : minibuckets) {
+		Function *fMB = mini_bucket.output_fn();
+		if (NULL == fMB) continue;
+		tableentryMB OP_TIMESEQ fMB->getValue(assignment);
+		}
+
+#ifdef DEBUG_BUCKET_ERROR
   if (NULL != _BucketErrorFunctions[var]) {
     double dh = _BucketErrorFunctions[var]->getValue(assignment);
-    return dh;
+    double dh_ = (tableentryMB <= tableentryB) ? 0.0 : (tableentryMB - tableentryB) ;
+    cin.get();
+    if (fabs(dh - dh_) > 1.0e-10) {
+      exit(998) ; // error : online/offline versions are different
+    }
   }
+#endif // DEBUG_BUCKET_ERROR
 
-  // enumerate over all bucket var values
-  double var_original_value = assignment[var];
-  double tableentryB = ELEM_ZERO;
-  vector<Function *> &funs_B = _BucketFunctions[var];
-  for (val_t i = m_problem->getDomainSize(var) - 1; i >= 0; i--) {
-    assignment[var] = i;
-    // combine all bucket FNs
-    double zB = ELEM_ONE;
-    for (int k = funs_B.size() - 1; k >= 0; k--)
-      zB OP_TIMESEQ funs_B[k]->getValue(assignment);
-    tableentryB = max(tableentryB, zB);
-  }
-  assignment[var] = var_original_value;
+	// error must be >= 0 since MB approximation is an upper bound on tableentryB,
+	// i.e. Bucket fn value is <= combination of MB output fn values.
+	// note, in log-space, tableentryB could be -infinity, but in that case
+	// tableentryMB should also be -infinity.
+	if (tableentryMB <= tableentryB) return 0.0 ; // '<' is an error, '=' is ok.
 
-  // combine MB output FNs
-  double tableentryMB = ELEM_ONE;
-  for (const MiniBucket &mini_bucket : minibuckets) {
-    Function *fMB = mini_bucket.output_fn();
-    if (NULL == fMB) continue;
-    tableentryMB OP_TIMESEQ fMB->getValue(assignment);
-  }
-
-  // error must be >= 0 since MB approximation is an upper bound on tableentryB,
-  // i.e. Bucket fn value is <= combination of MB output fn values.
-  // note, in log-space, tableentryB could be -infinity, but in that case
-  // tableentryMB should also be -infinity.
-  if (tableentryMB <= tableentryB) return 0.0;
-
-  /*
+/*
 #ifdef USE_LOG
-  //	double e = log10(pow(10.0, tableentryMB) - pow(10.0, tableentryB)) ;
-  double e = tableentryMB + log10(1 - pow(10.0, tableentryB - tableentryMB)) ;
+//	double e = log10(pow(10.0, tableentryMB) - pow(10.0, tableentryB)) ;
+double e = tableentryMB + log10(1 - pow(10.0, tableentryB - tableentryMB)) ;
 #else
 double e = (tableentryMB - tableentryB) ;
 #endif
 */
-  return tableentryMB - tableentryB;
+	return tableentryMB - tableentryB;
 }
 
 int MiniBucketElimLH::computeLocalErrorTable(
