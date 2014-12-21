@@ -621,7 +621,6 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
   if (NULL != _BucketErrorFunctions[var]) {
     double dh = _BucketErrorFunctions[var]->getValue(assignment);
     double dh_ = (tableentryMB <= tableentryB) ? 0.0 : (tableentryMB - tableentryB) ;
-    cin.get();
     if (fabs(dh - dh_) > 1.0e-10) {
       exit(998) ; // error : online/offline versions are different
     }
