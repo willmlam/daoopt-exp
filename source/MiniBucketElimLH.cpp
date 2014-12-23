@@ -496,8 +496,6 @@ exit(999);
 void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
                                   SearchNode *search_node,
                                   vector<double> &out) {
-// DEBUGGGG
-exit(999);
   MiniBucketElim::getHeurAll(var, assignment, search_node, out);
   if (m_options->lookahead_depth <= 0) return;
 
