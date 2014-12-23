@@ -592,10 +592,24 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
   }
 #endif // DEBUG_BUCKET_ERROR
 
+  vector<double> funVals;
+  vector<double> sumVals;
+  sumVals.resize(m_problem->getDomainSize(var), ELEM_ONE);
+	vector<Function *> &funs_B = _BucketFunctions[var];
+  for (Function* fn : funs_B) {
+    fn->getValues(assignment, var, funVals);
+    for (size_t i = 0; i < sumVals.size(); ++i) {
+      sumVals[i] OP_TIMESEQ funVals[i];
+    }
+  }
+  double tableentryB = sumVals.front();
+  for (size_t i = 1; i < sumVals.size(); ++i) {
+    tableentryB = max(tableentryB, sumVals[i]);
+  }
+  /*
 	// enumerate over all bucket var values
 	double var_original_value = assignment[var];
 	double tableentryB = ELEM_ZERO;
-	vector<Function *> &funs_B = _BucketFunctions[var];
   for (int i = 0; i < m_problem->getDomainSize(var); ++i) {
 		assignment[var] = i;
 		// combine all bucket FNs
@@ -606,6 +620,7 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 		tableentryB = max(tableentryB, zB);
   }
 	assignment[var] = var_original_value;
+  */
 
 	// combine MB output FNs
 	double tableentryMB = ELEM_ONE;
