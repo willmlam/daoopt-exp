@@ -87,7 +87,7 @@ double Function::getValue(const vector<val_t>& assignment) const {
 
 
 /* evalates function for all values of var and writes results into out */
-void Function::getValues(const vector<val_t>& assignment, int var, vector<double>& out) {
+void Function::getValues(const vector<val_t>& assignment, int var, vector<double>& out) const {
   out.resize((int) m_problem->getDomainSize(var));
   // compute fixed portion of index, cache offset for var
   size_t idx = 0, varOffset = 0;

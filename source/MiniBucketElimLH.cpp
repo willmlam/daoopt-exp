@@ -29,10 +29,19 @@
 /* disables DEBUG output */
 #undef DEBUG
 
+/*
+extern int64 nd1SpecialCalls;
+extern int64 nd1GeneralCalls;
+*/
+
 //#define DEBUG_BUCKET_ERROR
 
+#ifndef OUR_OWN_nInfinity
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
+#endif // OUR_OWN_nInfinity
+#ifndef OUR_OWN_pInfinity
 #define OUR_OWN_pInfinity (std::numeric_limits<double>::infinity())
+#endif // OUR_OWN_pInfinity
 
 namespace daoopt {
 
@@ -108,6 +117,34 @@ void MiniBucketElimLH::reset(void) {
   _Stats.reset();
 }
 
+void MiniBucketElimLH::Delete() {
+  for (MiniBucketElimLHError& be_error : _ErrorHelper) {
+    be_error.Delete();
+  }
+  deleteLocalErrorFNs();
+
+  for (vector<MiniBucket>& mb : _MiniBuckets) {
+    mb.clear();
+  }
+  for (set<int>& scope : _BucketScopes) {
+    scope.clear();
+  }
+  for (vector<Function*>& b_fns : _BucketFunctions) {
+    b_fns.clear();
+  }
+  _MiniBuckets.clear();
+  _BucketScopes.clear();
+  _BucketFunctions.clear();
+
+  for (auto& aug_fns : m_augmented) {
+    for (Function* fn : aug_fns) {
+      delete fn;
+    }
+  }
+  m_augmented.clear();
+  m_intermediate.clear();
+}
+
 size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
                                bool computeTables) {
 
@@ -140,6 +177,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
   _BucketFunctions.resize(m_problem->getN());
   //	_BucketHFnScopes.resize(m_problem->getN()) ;
   _MiniBuckets.resize(m_problem->getN());
+  _ErrorHelper.resize(m_problem->getN());
   _BucketErrorQuality.resize(m_problem->getN());
   for (int i = m_problem->getN() - 1; i >= 0; i--) _BucketErrorQuality[i] = -1;
   _distToClosestDescendantWithMBs.resize(m_problem->getN());
@@ -186,11 +224,11 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     if (_Stats._HPseudoWidth < jointHScope.size())
     _Stats._HPseudoWidth = jointHScope.size() ;*/
     // add original functions
-    const vector<Function *> &fnlist = m_pseudotree->getFunctions(v);
+    const vector<Function *>& fnlist = m_pseudotree->getFunctions(v);
     funs.insert(funs.end(), fnlist.begin(), fnlist.end());
     // compute width
     //		int nOriginalFNs = funs.size() ;
-    for (vector<Function *>::iterator itF = funs.begin(); itF != funs.end();
+    for (vector<Function*>::iterator itF = funs.begin(); itF != funs.end();
          ++itF)
       jointScope.insert((*itF)->getScopeVec().begin(),
                         (*itF)->getScopeVec().end());
@@ -250,10 +288,10 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     sort(funs.begin(), funs.end(), scopeIsLarger);
 
     // partition functions into minibuckets
-    vector<MiniBucket> &minibuckets = _MiniBuckets[v];
+    vector<MiniBucket>& minibuckets = _MiniBuckets[v];
     minibuckets.clear();
     //		vector<Function*>::iterator itF; bool placed ;
-    for (vector<Function *>::iterator itF = funs.begin(); itF != funs.end();
+    for (vector<Function*>::iterator itF = funs.begin(); itF != funs.end();
          ++itF) {
       //			while (funs.size()) {
       bool placed = false;
@@ -385,25 +423,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
 
   // clean up for estimation mode
   if (!computeTables) {
-    for (vector<int>::reverse_iterator itV = elimOrder.rbegin();
-         itV != elimOrder.rend(); ++itV) {
-      int v = *itV;
-      _MiniBuckets[v].clear();
-      _BucketScopes[v].clear();
-      _BucketFunctions[v].clear();
-      //			_BucketHFnScopes[v].clear() ;
-    }
-    _MiniBuckets.clear();
-    _BucketScopes.clear();
-    _BucketFunctions.clear();
-    //		_BucketHFnScopes.clear() ;
-    for (vector<vector<Function *>>::iterator itA = m_augmented.begin();
-         itA != m_augmented.end(); ++itA)
-      for (vector<Function *>::iterator itB = itA->begin(); itB != itA->end();
-           ++itB)
-        delete *itB;
-    m_augmented.clear();
-    m_intermediate.clear();
+    Delete();
   } else {
     double total_memory_limit =
         m_options->lookahead_local_error_all_tables_total_limit;
@@ -427,6 +447,13 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
       if (++d2parent_v < _distToClosestDescendantWithLE[parent_v])
         _distToClosestDescendantWithLE[parent_v] = d2parent_v;
     }
+    
+    // for each bucket, compute closest distance to descendant with >0 bucket
+    // error
+    for (auto itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
+      int v = *itV;
+      _ErrorHelper[v].Initialize(*this, v, m_options->lookahead_depth);
+    }
   }
 
   cout << StrCat("Pseudowidth: ", _Stats._PseudoWidth - 1) << endl;;
@@ -445,7 +472,7 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 	int nSet = 0;
 	for (int ii = 0; ii < assignment.size(); ii++) {
 		if (assignment[ii] >= 0) nSet++;
-		}
+  }
 #endif
 
 	// normally (wo lookahead) we would go over augmented[var] and
@@ -457,6 +484,7 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 	double h = MiniBucketElim::getHeur(var, assignment, search_node);
 	if (m_options->lookahead_depth <= 0) return h;
 
+  /*
 	const int local_lookaheadDepth = m_options->lookahead_depth - 1;
 	double DH = 0.0, dh;
 	if (0 == local_lookaheadDepth) {  // if looking ahead just 1 step, logic is a little easier
@@ -491,6 +519,13 @@ exit(999);
 			}
 		}
 	return h - DH;
+  */
+  if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth) {
+    return h;
+  }
+//  ++nd1GeneralCalls;
+  double DH = _ErrorHelper[var].Error(assignment);
+  return h - DH;
 }
 
 void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
@@ -499,6 +534,7 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
   MiniBucketElim::getHeurAll(var, assignment, search_node, out);
   if (m_options->lookahead_depth <= 0) return;
 
+  /*
   const int local_lookaheadDepth = m_options->lookahead_depth - 1;
   if (0 == local_lookaheadDepth) {  // if looking ahead just 1 step, logic is a
                                     // little easier
@@ -523,66 +559,19 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
     }
     assignment[var] = var_original_value;
   } else {
-    if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth)
-      return;  // there is no child with non-0 BucketError within the range of
-               // lookahead depth
-    double var_original_value = assignment[var];
-    PseudotreeNode *n = m_pseudotree->getNode(var);
-    const vector<PseudotreeNode *> &children = n->getChildren();
-    //		int nChildren = children.size() ;
-    for (val_t i = m_problem->getDomainSize(var) - 1; i >= 0; i--) {
-      assignment[var] = i;
-      double DH = 0.0, dh;  // ELEM_ONE ;
-      for (vector<PseudotreeNode *>::const_iterator it = children.begin();
-           it != children.end(); ++it) {
-        int child = (*it)->getVar();
-        dh = getHeuristicError(
-            child, assignment,
-            local_lookaheadDepth);  // note : dh should be >= 0.0
-        DH += dh;
-      }
-      out[i] -= DH;
-    }
-    assignment[var] = var_original_value;
-  }
-}
-
-double MiniBucketElimLH::getHeuristicError(int var, vector<val_t> &assignment,
-                                           int lookahead_depth) {
-  // 2014-12-11 KK : for now, don't do lookahead more than 1 step.
-  return DBL_MAX;
-  /*
-     double le = getLocalError(var, assignment) ;
-     if (_distToClosestDescendantWithLE[var] > lookahead_depth)
-     return ; // there is no child with non-0 BucketError within the range of
-  lookahead depth
-     const PseudotreeNode *n = m_pseudotree->getNode(var) ;
-     const vector<PseudotreeNode *> & children = n->getChildren() ;
-     const int nChildren = children.size() ;
-  // compute error from each child
-  double eTotal = 0.0 ;
-  for (vector<PseudotreeNode*>::const_iterator it = children.begin() ; it !=
-  children.end(); ++it) {
-  int child = (*it)->getVar() ;
-  double min_dh = DBL_MAX ;
-  for (val_t i = m_problem->getDomainSize(var) - 1 ; i >= 0 ; i--) {
-  assignment[var] = i ;
-  double dh = getHeuristicError(child, assignment, lookahead_depth-1) ; // note
-  : dh should be >= 0.0
-  if (dh < min_dh)
-  min_dh = dh ;
-  }
-  if (min_dh < 1.0e+32)
-  eTotal += min_dh ;
-  }
-  return eTotal ;
   */
+  if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth) {
+    return;  // there is no child with non-0 BucketError within the range of
+            // lookahead depth
+  }
+//  ++nd1GeneralCalls;
+  _ErrorHelper[var].Error(assignment, out);
 }
 
 double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 {
 	// check if number of MBs is 1; if yes, bucket error is 0.
-	vector<MiniBucket> &minibuckets = _MiniBuckets[var];
+	vector<MiniBucket>& minibuckets = _MiniBuckets[var];
 	if (minibuckets.size() <= 1 || 0 == _BucketErrorQuality[var]) return 0.0;
 
 #ifndef DEBUG_BUCKET_ERROR
@@ -592,18 +581,35 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
   }
 #endif // DEBUG_BUCKET_ERROR
 
+  int var_domain_size = m_problem->getDomainSize(var);
+
+  // combine MB output FNs
+  double tableentryMB = ELEM_ONE;
+  for (const MiniBucket& mb : minibuckets) {
+    Function *fMB = mb.output_fn();
+    if(!fMB) {
+      continue;
+    }
+    tableentryMB OP_TIMESEQ fMB->getValue(assignment);
+  }
+  if (OUR_OWN_nInfinity == tableentryMB) {
+    return 0.0; // it must be that tableentryB is also -inf and error is 0.
+  }
+
+  // compute bucket output for the given assignment; this is the exact bucket
+  // value, given its functions and assignment.
   vector<double> funVals;
   vector<double> sumVals;
   sumVals.resize(m_problem->getDomainSize(var), ELEM_ONE);
-	vector<Function *> &funs_B = _BucketFunctions[var];
+	vector<Function*>& funs_B = _BucketFunctions[var];
   for (Function* fn : funs_B) {
     fn->getValues(assignment, var, funVals);
-    for (size_t i = 0; i < sumVals.size(); ++i) {
+    for (int i = 0; i < var_domain_size; ++i) {
       sumVals[i] OP_TIMESEQ funVals[i];
     }
   }
   double tableentryB = sumVals.front();
-  for (size_t i = 1; i < sumVals.size(); ++i) {
+  for (int i = 1; i < var_domain_size; ++i) {
     tableentryB = max(tableentryB, sumVals[i]);
   }
   /*
@@ -622,21 +628,13 @@ double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 	assignment[var] = var_original_value;
   */
 
-	// combine MB output FNs
-	double tableentryMB = ELEM_ONE;
-	for (const MiniBucket &mini_bucket : minibuckets) {
-		Function *fMB = mini_bucket.output_fn();
-		if (NULL == fMB) continue;
-		tableentryMB OP_TIMESEQ fMB->getValue(assignment);
-  }
-
 #ifdef DEBUG_BUCKET_ERROR
   if (NULL != _BucketErrorFunctions[var]) {
     double dh = _BucketErrorFunctions[var]->getValue(assignment);
     double dh_ = (tableentryMB <= tableentryB) ? 0.0 : (tableentryMB - tableentryB) ;
-    if (fabs(dh - dh_) > 1.0e-50) {
-      cout << StrCat("var: ", var, " : ", fabs(dh - dh_)) << endl;
-//      exit(998) ; // error : online/offline versions are different
+    if (fabs(dh - dh_) > 1.0e-6) {
+//      cout << StrCat("var: ", var, " : ", fabs(dh - dh_)) << endl;
+      exit(998) ; // error : online/offline versions are different
     }
   }
 #endif // DEBUG_BUCKET_ERROR
@@ -657,6 +655,81 @@ double e = (tableentryMB - tableentryB) ;
 */
 	return tableentryMB - tableentryB;
 }
+
+void MiniBucketElimLH::getLocalError(int parent, int var,
+                                     vector<val_t>& assignment,
+                                     std::vector<double>& out) {
+  // check if number of MBs is 1; if yes, bucket error is 0.
+  vector<MiniBucket>& minibuckets = _MiniBuckets[var];
+  if (minibuckets.size() <= 1 || 0 == _BucketErrorQuality[var]) {
+    return;
+  }
+
+  vector<double> fun_vals;
+  int j, k, parent_domain_size = m_problem->getDomainSize(parent);
+
+  if (NULL != _BucketErrorFunctions[var]) {
+    _BucketErrorFunctions[var]->getValues(assignment, parent, fun_vals);
+    for (k = 0; k < parent_domain_size; ++k) {
+      out[k] OP_DIVIDEEQ fun_vals[k];
+    }
+    return;
+  }
+
+  // we could try to compute directly : out - MB + B, but that would have 
+  // two problems:
+  // 1) we could not catch the rate cases of floating-point errors where MB<B,
+  // 2) when MB/B are -inf, the math goes crazy.
+
+  // combine MB output FNs for each value of parent
+  vector<double> mb_vals;
+  mb_vals.resize((vector<double>::size_type) parent_domain_size, ELEM_ONE);
+
+  for (const MiniBucket& mb : minibuckets) {
+    Function* fMB = mb.output_fn();
+    if (!fMB) {
+      continue;
+    }
+    fMB->getValues(assignment, parent, fun_vals);
+    for (k = 0; k < parent_domain_size; ++k) {
+      mb_vals[k] OP_TIMESEQ fun_vals[k];
+    }
+  }
+
+  // compute bucket output for the given assignment; this is the exact bucket 
+  // value, given its functions and assignment.
+  // note here we have two unassigned variables : parent and child (var), we 
+  // have to enumerate over one of them.
+  vector<Function*>& funs_B = _BucketFunctions[var];
+  double parent_original_value = assignment[parent];
+  int var_domain_size = m_problem->getDomainSize(var);
+  vector<double> sum_vals;
+  sum_vals.resize((vector<double>::size_type)var_domain_size);
+  for (k = 0; k < parent_domain_size; ++k) {
+    assignment[parent] = k;
+    for (j = 0; j < var_domain_size; ++j) {
+      sum_vals[j] = ELEM_ONE;
+    }
+    for (Function* fn : funs_B) {
+      fn->getValues(assignment, var, fun_vals);
+      for (j = 0; j < var_domain_size; ++j) {
+        sum_vals[j] OP_TIMESEQ fun_vals[j];
+      }
+    }
+    double tableentryB = sum_vals[0];
+    for (j = 1; j < var_domain_size; ++j) {
+      tableentryB = max(tableentryB, sum_vals[j]);
+    }
+
+    // process wrt MB value
+    if (mb_vals[k] <= tableentryB) {
+      continue;
+    }
+    out[k] OP_DIVIDEEQ (mb_vals[k] - tableentryB);
+  }
+  assignment[parent] = parent_original_value;
+}
+
 
 int MiniBucketElimLH::computeLocalErrorTable(
     int var, bool build_table, double TableMemoryLimitAsNumElementsLog,
@@ -764,27 +837,34 @@ int MiniBucketElimLH::computeLocalErrorTable(
   set<int> scopeB;
   int n = 0;
   val_t *tuple = NULL;
-  vector<vector<val_t *>> idxMapB;
+  vector<vector<val_t*>> idxMapB;
   //	int resB = computeMBOutFnArgsVectorPtrMap(var, funs_B, scopeB, n, tuple,
   //idxMapB) ;
   computeMBOutFnArgsVectorPtrMap(var, funs_B, scopeB, n, tuple, idxMapB);
   set<int> scopeMB;
-  vector<vector<val_t *>> idxMapMB;
+  vector<vector<val_t*>> idxMapMB;
   // int resMB = computeMBOutFnArgsVectorPtrMap(INT_MAX, funs_MB, scopeMB, n,
   // tuple, idxMapMB) ;
   computeMBOutFnArgsVectorPtrMap(INT_MAX, funs_MB, scopeMB, n, tuple, idxMapMB);
   // size of tuple is n+1
 
   // safety check : scopes must be the same
-  if (scopeB.size() != scopeMB.size())  // scope of all bucket FNs - var should
-                                        // be the same as (the union of) scopes
-                                        // of MB output FNs.
+  if (scopeB.size() != scopeMB.size()) { // scope of all bucket FNs - var should
+                                         // be the same as (the union of) scopes
+                                         // of MB output FNs.
     return 1;
-  if (scopeB.size() != scope.size()) return 1;
-  if (int(scope.size()) != n) return 1;
+  }
+  if (scopeB.size() != scope.size()) {
+    return 1;
+  }
+  if (int(scope.size()) != n) {
+    return 1;
+  }
 
   // we will iterate over all combinations of new fn scope value stored here
-  for (i = n - 2; i >= 0; i--) tuple[i] = 0;
+  for (i = n - 2; i >= 0; --i) {
+    tuple[i] = 0;
+  }
   tuple[n - 1] = -1;
 
   double *newTable = NULL;
@@ -796,11 +876,12 @@ int MiniBucketElimLH::computeLocalErrorTable(
   size_t nBadErrorValues = 0;
 #endif
 
-  if (NULL != m_options ? NULL != m_options->_fpLogFile : false)
+  if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
     fprintf(
         m_options->_fpLogFile,
         "\n   MiniBucketElimLH::computeLocalErrorTable var=%d tablesize=%lld",
         (int)var, (int64)TableSize);
+  }
   printf("\n   MiniBucketElimLH::computeLocalErrorTable var=%d tablesize=%lld",
          (int)var, (int64)TableSize);
 
@@ -810,7 +891,9 @@ int MiniBucketElimLH::computeLocalErrorTable(
   for (int64 j = 0; j < TableSize; j++) {
     // find next combination
     for (i = n - 1; i >= 0; i--) {
-      if (++tuple[i] < domains[i]) break;
+      if (++tuple[i] < domains[i]) {
+        break;
+      }
       tuple[i] = 0;
     }
 
@@ -857,22 +940,22 @@ int MiniBucketElimLH::computeLocalErrorTable(
     // is debugging.
     vector<val_t> assignment;
     assignment.resize(N);
-    for (j = 0; j < N; j++) assignment[j] = -1;
+    for (j = 0; j < N; ++j) assignment[j] = -1;
 
     // set up (partial) complete assignment
-    for (sit = scopeB.begin(), k = 0; sit != scopeB.end(); ++sit, k++)
+    for (sit = scopeB.begin(), k = 0; sit != scopeB.end(); ++sit, ++k)
       assignment[*sit] = tuple[k];
     // combine MB output FNs
     double tableentryMB_ = ELEM_ONE;
-    for (k = 0; k < funs_MB.size(); k++) {
-      tableentryMB_ OP_TIMESEQ funs_MB[k]->getValue(assignment);
+    for (const Function* fn : funs_MB) {
+      tableentryMB_ OP_TIMESEQ fn->getValue(assignment);
     }
     // enumerate over all bucket var values; combine all bucket FNs
     double tableentryB_ = ELEM_ZERO;
     for (tuple[n] = 0; tuple[n] < bucket_var_domain_size; tuple[n]++) {
       assignment[var] = tuple[n];
       zB = ELEM_ONE;
-      for (Function* fn : funs_B) {
+      for (const Function* fn : funs_B) {
         zB OP_TIMESEQ fn->getValue(assignment);
       }
       tableentryB_ = max(tableentryB_, zB);
@@ -1089,4 +1172,5 @@ int MiniBucketElimLH::computeLocalErrorTables(
 
   return 0;
 }
-}
+
+}  // namespace daoopt

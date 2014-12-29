@@ -93,7 +93,8 @@ public:
   double getValue(const vector<val_t>& assignment) const;
 
   /* writes the function values for all instantiations of var into out */
-  void getValues(const vector<val_t>& assignment, int var, vector<double>& out);
+  void getValues(const vector<val_t>& assignment, int var,
+                 vector<double>& out) const;
 
   /* returns the function value for the tuple (which is pointered function scope) */
   double getValuePtr(const vector<val_t*>& tuple) const;
