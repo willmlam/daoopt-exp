@@ -202,10 +202,12 @@ typedef std::vector<val_t> context_t;
 
 // google utilties
 #include "base/integral_types.h"
+/*
 #include "base/logging.h"
 #include "strings/split.h"
 #include "strings/strcat.h"
 #include "util/gtl/stl_util.h"
+*/
 
 #ifdef HASH_CPP11
 #include <unordered_set>
@@ -376,6 +378,16 @@ const string subprob_order[4]
 
 /*//////////////////////////////////////////////////////////////*/
 
+// undefine min/max macros
+#if defined(WINDOWS)
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+#endif
+
 namespace daoopt {
 /* static random number generator */
 class rand {
@@ -397,7 +409,7 @@ public:
 
 /*//////////////////////////////*/
 
-#if false
+#if FALSE
 /*
  * the following is based on code and explanations from
  * http://www.cygnus-software.com/papers/comparingfloats/Comparing%20floating%20point%20numbers.htm
@@ -475,7 +487,7 @@ inline bool fpLEq(double A, double B, int64_t maxDist=2) {
 #endif
 
 
-#if false
+#if FALSE
 namespace daoopt {
 /* encode doubles to 64 bit integers (and back) */
 typedef int64_t int64bit;
@@ -533,7 +545,7 @@ inline double mylog10(unsigned long a) {
 
 /*///////////////////////////////////////////////////////////*/
 
-#if false
+#if FALSE
 /* hash function for pair<int,int> */
 namespace __gnu_cxx {
 

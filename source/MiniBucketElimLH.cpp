@@ -456,13 +456,13 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     }
   }
 
-  cout << StrCat("Pseudowidth: ", _Stats._PseudoWidth - 1) << endl;;
+  cout << "Pseudowidth: " <<  _Stats._PseudoWidth - 1 << endl;
   double minibucket_mem_mb = _Stats._MemorySize *
       sizeof(double) / (1024.0 * 1024);
-  cout << StrCat("Minibucket Memory (MB): ", minibucket_mem_mb) << endl;
-  cout << StrCat("Local Error Memory (MB): ", _Stats._LEMemorySizeMB) << endl;
-  cout << StrCat("Total Heuristic Memory (MB): ",
-                 minibucket_mem_mb + _Stats._LEMemorySizeMB) << endl;
+  cout << "Minibucket Memory (MB): " << minibucket_mem_mb << endl;
+  cout << "Local Error Memory (MB): " << _Stats._LEMemorySizeMB << endl;
+  cout << "Total Heuristic Memory (MB): " <<
+                 minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
   return _Stats._MemorySize;
 }
 

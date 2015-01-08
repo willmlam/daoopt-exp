@@ -192,9 +192,12 @@ const char PATH_SEPARATOR = '/';
 // a compiler error here.
 //
 #include <stdarg.h>
+/*
 inline void va_copy(va_list& a, va_list& b) {
   a = b;
 }
+*/
+#define va_copy(a, b) (a) = (b)
 
 // Nor does it have uid_t
 typedef int uid_t;
@@ -902,6 +905,7 @@ inline void aligned_free(void *aligned_memory) {
 // See http://en.wikipedia.org/wiki/IEEE_754 for details of
 // floating point format.
 
+/*
 enum {
   FP_NAN,  //  is "Not a Number"
   FP_INFINITE,  //  is either plus or minus infinity.
@@ -910,6 +914,7 @@ enum {
   FP_NORMAL  // if nothing of the above is correct that it must be a
   // normal floating-point number.
 };
+*/
 
 inline int fpclassify_double(double x) {
   const int float_point_class =_fpclass(x);

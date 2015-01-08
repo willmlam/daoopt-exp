@@ -258,7 +258,7 @@ void FGLP::Condition(const vector<Function*>& fns, const map<int,val_t>& assn,
     // At this point we know that the function needs to be processed
     // (conditioned or copied)
       new_f = f->substitute(assn);
-      CHECK(f->getArity() - new_f->getArity() == 1);
+      assert(f->getArity() - new_f->getArity() == 1);
 
       if (use_cost_shift_reversal_) {
         // Compute function reversal shift needed

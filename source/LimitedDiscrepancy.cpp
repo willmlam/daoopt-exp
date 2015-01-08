@@ -49,7 +49,7 @@ bool LimitedDiscrepancy::doExpand(SearchNode* node) {
 
   } else { // NODE_OR /*********************************************************/
 
-#if false
+#if FALSE
     if (generateChildrenOR(node, m_expand))
       return true;
 

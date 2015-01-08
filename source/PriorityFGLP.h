@@ -13,7 +13,7 @@ class PriorityFGLP : public FGLP {
                const set<int>& sub_vars, int condition_var);
 
   virtual void Run(int max_updates, double max_time,
-                   double tolerance = DEFAULT_TOLERANCE);
+                   double tolerance);
 
   inline const mex::indexedHeap &var_priority() const { return var_priority_; }
   inline void set_var_priority(const mex::indexedHeap &vp) {

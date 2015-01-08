@@ -176,14 +176,12 @@ class FGLPVariableUpdate {
 
 class ResidualFGLP {
     public:
-        static constexpr double DEFAULT_RESIDUAL_TOLERANCE = 1e-8;
-
         ResidualFGLP(Problem *p, bool useNullaryShift = false);
 
         ResidualFGLP(ResidualFGLP *parentFGLP, const map<int,val_t> &assignment);
         
         virtual void Run(int maxUpdates, double maxTime, 
-                double tolerance=DEFAULT_RESIDUAL_TOLERANCE);
+                double tolerance);
 
         void GetVarUB(int var, vector<double> &out);
 

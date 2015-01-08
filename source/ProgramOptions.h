@@ -79,6 +79,8 @@ public:
 
   /* CVO */
   bool order_cvo; // Use Kalev Kask's variable ordering code
+  int cvo_n_random_pick;
+  double cvo_e_random_pick;
 
   /* DYNAMIC COST SHIFTING HEURISTIC OPTIONS */
   bool fglpHeur; // use pure FGLP heuristic

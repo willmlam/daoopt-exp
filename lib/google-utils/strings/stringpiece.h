@@ -129,8 +129,10 @@
 #include <unordered_map>
 using std::hash;
 using std::unordered_map;
+/*
 template<typename K, typename V>
 using hash_map = unordered_map<K, V>;
+*/
 #include <iosfwd>
 using std::ostream;
 #include <limits>
@@ -162,6 +164,15 @@ typedef string::difference_type stringpiece_ssize_type;
 #define STRINGPIECE_CHECK_SIZE 1
 #else
 #define STRINGPIECE_CHECK_SIZE 0
+#endif
+
+#if defined(WINDOWS)
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
 #endif
 
 class StringPiece {

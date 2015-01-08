@@ -36,6 +36,15 @@ using std::string;
 #include "base/strtoint.h"
 #include "strings/ascii_ctype.h"
 
+#if defined(WINDOWS)
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+#endif
+
 // Reads a <double> in *text, which may not be whitespace-initiated.
 // *len is the length, or -1 if text is '\0'-terminated, which is more
 // efficient.  Sets *text to the end of the double, and val to the

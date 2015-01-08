@@ -12,8 +12,6 @@ namespace daoopt {
 
 class FGLP {
 public:
-    static constexpr double DEFAULT_TOLERANCE = 1e-7;
-
     // Default constructor: does nothing
     FGLP() { }
 
@@ -25,7 +23,7 @@ public:
     FGLP(FGLP *parent_fglp, const map<int,val_t> &assignment,
          const set<int> &subVars, int root_var);
 
-    virtual void Run(int max_iter, double max_time, double tolerance=DEFAULT_TOLERANCE);
+    virtual void Run(int max_iter, double max_time, double tolerance);
 
     // Get the upper bounds with respect to all assignments to a variable
     void GetVarUB(int var, vector<double> &out);

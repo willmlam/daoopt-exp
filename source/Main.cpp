@@ -29,9 +29,6 @@
 
 #define VERSIONINFO "1.1.2"
 
-DECLARE_int32(cvo_n_random_pick);
-DECLARE_double(cvo_e_random_pick);
-
 namespace daoopt {
 
 string UAI2012::filename = "";
@@ -169,8 +166,8 @@ bool Main::findOrLoadOrdering() {
     cvoTempAdjVarSpace.reset(new ARE::AdjVarMemoryDynamicManager(ARE_TempAdjVarSpaceSize));
 
     cvoMasterGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
-        INT_MAX, false, true, 10, FLAGS_cvo_n_random_pick,
-        FLAGS_cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
+        INT_MAX, false, true, 10, m_options->cvo_n_random_pick,
+        m_options->cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
     cvoMasterGraph->ReAllocateEdges();
 
     cvoGraph.reset(new ARE::Graph);
@@ -203,8 +200,8 @@ bool Main::findOrLoadOrdering() {
     if (m_options->order_cvo) {
       *cvoGraph = *cvoMasterGraph;
       new_w = cvoGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
-          w, true, false, 10, FLAGS_cvo_n_random_pick,
-          FLAGS_cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
+          w, true, false, 10, m_options->cvo_n_random_pick,
+          m_options->cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
       if (new_w != 0)
         new_w = INT_MAX;
       else {
@@ -774,11 +771,11 @@ bool Main::outputStats() const {
   time_t time_end;
   time(&time_end);
   double time_passed = difftime(time_end, _time_start);
-  cout << StrCat("Time elapsed:  ", time_passed, " seconds") << endl;
+  cout << "Time elapsed:  " << time_passed << " seconds" << endl;
   time_passed = difftime(_time_pre, _time_start);
-  cout << StrCat("Preprocessing: ", time_passed, " seconds") << endl;
+  cout << "Preprocessing: " << time_passed << " seconds" << endl;
   time_passed = difftime(time_end, _time_pre);
-  cout << StrCat("Search:        ", time_passed, " seconds") << endl;
+  cout << "Search:        " << time_passed << " seconds" << endl;
   cout << "-------------------------------" << endl;
 
 

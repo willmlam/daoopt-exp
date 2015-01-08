@@ -25,7 +25,9 @@
 
 namespace daoopt {
 
-#if false
+context_t SearchNodeAND::emptyCtxt;
+
+#if FALSE
 double SearchNodeOR::getHeur() const {
   return m_heurValue;
   /*

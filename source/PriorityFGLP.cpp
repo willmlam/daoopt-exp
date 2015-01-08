@@ -218,7 +218,7 @@ void PriorityFGLP::Condition(const vector<Function*>& fns,
       continue;
     } else if (ContainsKey(f->getScopeSet(), condition_var)) {
       new_f = f->substitute(assn);
-      CHECK(f->getArity() - new_f->getArity() == 1);
+      assert(f->getArity() - new_f->getArity() == 1);
 
       if (use_cost_shift_reversal_) {
         double shift = ELEM_ONE;

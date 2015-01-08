@@ -31,6 +31,15 @@ using std::numeric_limits;
 #include "strings/ascii_ctype.h"
 #include "strings/util.h"
 
+#if defined(WINDOWS)
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+#endif
+
 // Implementations for some of the Split2 API. Much of the Split2 API is
 // templated so it exists in header files, either strings/split.h or
 // strings/split_internal.h.

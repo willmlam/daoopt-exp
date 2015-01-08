@@ -28,7 +28,7 @@ namespace daoopt {
 typedef PseudotreeNode PtNode;
 
 
-#if false
+#if FALSE
 void BestFirst::expandNext() {
 
   SearchNode* node = m_queue.top();

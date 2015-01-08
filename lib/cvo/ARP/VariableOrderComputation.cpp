@@ -1,6 +1,6 @@
 // CVO.cpp : Defines the entry point for the console application.
 //
-#if false
+#if FALSE
 
 #include <stdlib.h>
 #include <stdio.h>

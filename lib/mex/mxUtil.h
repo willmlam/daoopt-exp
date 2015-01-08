@@ -3,7 +3,13 @@
 
 #include<cmath>
 #include<ctime>
+#if defined(WINDOWS)
+#include <time.h>
+#define NOMINMAX
+#include <windows.h>
+#else
 #include<sys/time.h>
+#endif
 #include<cassert>
 #include<cstdlib>
 #include<stdint.h>
@@ -15,6 +21,7 @@
 
 #include "mxObject.h"
 
+
 /*
 #ifdef WINDOWS
     #include <windows.h>
@@ -25,7 +32,7 @@
     // Assume POSIX compliant system. We need the following for querying the system time
     #include <sys/time.h>
 #endif
-*/
+ */
 
 
 /* // from libDAI

@@ -16,7 +16,60 @@
 #define BASE_MUTEX_H_
 
 #include <stdlib.h>
+#if defined(WINDOWS)
+#include <windows.h>
+typedef SRWLOCK pthread_rwlock_t;
+typedef int pthread_rwlockattr_t;
+static int pthread_rwlock_init(pthread_rwlock_t *l, pthread_rwlockattr_t *a)
+{
+	(void) a;
+	InitializeSRWLock(l);
+
+	return 0;
+}
+
+static int pthread_rwlock_destroy(pthread_rwlock_t *l)
+{
+	(void) *l;
+	return 0;
+}
+
+static int pthread_rwlock_rdlock(pthread_rwlock_t *l)
+{
+//	pthread_testcancel();
+	AcquireSRWLockShared(l);
+
+	return 0;
+}
+
+static int pthread_rwlock_wrlock(pthread_rwlock_t *l)
+{
+//	pthread_testcancel();
+	AcquireSRWLockExclusive(l);
+
+	return 0;
+}
+
+static int pthread_rwlock_unlock(pthread_rwlock_t *l)
+{
+	void *state = *(void **)l;
+
+	if (state == (void *) 1)
+	{
+		/* Known to be an exclusive lock */
+		ReleaseSRWLockExclusive(l);
+	}
+	else
+	{
+		/* A shared unlock will work */
+		ReleaseSRWLockShared(l);
+	}
+
+	return 0;
+}
+#else
 #include <pthread.h>
+#endif
 
 #include "base/logging.h"
 #include "base/macros.h"

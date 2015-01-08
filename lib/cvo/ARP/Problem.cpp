@@ -1948,7 +1948,7 @@ done :
 	return return_value ;
 }
 
-#if false  // TODO: disabled by Lars
+#if FALSE  // TODO: disabled by Lars
 int ARE::ARP::ComputeSingletonConsistency(int & nNewSingletonDomainVariables)
 {
 	nNewSingletonDomainVariables = 0 ;

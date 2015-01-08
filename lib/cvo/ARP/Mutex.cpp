@@ -1,4 +1,4 @@
-#if false
+#if FALSE
 #include <stdlib.h>
 
 #ifdef WINDOWS

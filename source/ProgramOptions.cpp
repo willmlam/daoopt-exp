@@ -134,8 +134,9 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
   opt->executableName = av[0];
 
   try{
-    gflags::SetUsageMessage(
-        StrCat(opt->executableName, " -input_file <problem.uai>"));
+    string usage_message(opt->executableName);
+    usage_message.append(" -input_file <problem.uai>");
+    gflags::SetUsageMessage(usage_message);
     gflags::ParseCommandLineFlags(&ac, &av, true);
 
     if (FLAGS_input_file.empty()) {
@@ -191,6 +192,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     opt->order_tolerance = FLAGS_order_tolerance;
     opt->maxWidthAbort = FLAGS_max_width;
     opt->order_cvo = FLAGS_cvo;
+    opt->cvo_n_random_pick = FLAGS_cvo_n_random_pick;
+    opt->cvo_e_random_pick = FLAGS_cvo_e_random_pick;
 
     opt->in_boundFile = FLAGS_bound_file;
     opt->initialBound = FLAGS_initial_bound;

@@ -91,7 +91,11 @@ vector<Factor> Factor::readUai10(std::istream& is) {
   size_t nvar, ncliques, csize, v, nval;
   char* st; st = new char[20];
   is >> st;
+#if defined(WINDOWS)
+  if (0 != stricmp(st,"MARKOV") )
+#else
   if ( strcasecmp(st,"MARKOV") ) 
+#endif
     throw std::runtime_error("Only UAI-2010 Markov-format files are supported currently");
 
   is >> nvar;

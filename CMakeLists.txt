@@ -27,13 +27,20 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+if(NOT WIN32)
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -O0 -g3")
 set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -g3")
-
 set(CMAKE_CXX_FLAGS_RELEASE "-DDEBUG -O3")
 set(CMAKE_C_FLAGS_RELEASE "-DDEBUG -O3")
+else()
+set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG /Od /J")
+set(CMAKE_C_FLAGS_DEBUG "-DDEBUG /Od /J")
+set(CMAKE_CXX_FLAGS_RELEASE "-DDEBUG /Ox /J")
+set(CMAKE_C_FLAGS_RELEASE "-DDEBUG /Ox /J")
+endif()
 
-# Check for C++11 support
+# Check for C++11 support (only works for gcc)
+if(NOT WIN32)
 include(CheckCXXCompilerFlag) 
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11) 
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X) 
@@ -46,6 +53,7 @@ elseif(COMPILER_SUPPORTS_CXX0X)
 else() 
         message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.") 
 endif() 
+endif()
 
 
 if(DAOOPT_LINK_STATIC)
@@ -92,7 +100,7 @@ if (FGLP_PREPROC_ONLY)
   set(LIBS Gzstream google_strings google_base gflags)
 else()
   add_subdirectory(lib)
-  set(LIBS Gzstream Sls4mpe Mex Cvo google_strings google_base gflags)
+  set(LIBS Gzstream Sls4mpe Mex Cvo gflags)
 endif()
 
 # Main daoopt source files
@@ -105,6 +113,7 @@ set(FILES
   ./source/BranchAndBoundRotate.cpp
   ./source/BranchAndBoundSampler.cpp
   ./source/CacheTable.cpp
+  ./source/DaooptInterface.cpp
   ./source/FGLP.cpp
   ./source/FGLPHeuristic.cpp
   ./source/FGLPMBEHybrid.cpp
@@ -156,6 +165,7 @@ if (FGLP_PREPROC_ONLY)
   target_link_libraries(fglpPreproc ${LIBS} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 else()
   add_executable(daoopt daoopt.cpp ${FILES})
+  add_executable(daoopt-i daoopt-i.cpp ${FILES})
   if (DAOOPT_LINK_STATIC)
     SET_TARGET_PROPERTIES(daoopt PROPERTIES LINK_SEARCH_START_STATIC 1)
     SET_TARGET_PROPERTIES(daoopt PROPERTIES LINK_SEARCH_END_STATIC 1)

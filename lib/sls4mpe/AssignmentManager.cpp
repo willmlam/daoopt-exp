@@ -98,7 +98,9 @@ bool AssignmentManager::updateIfNewBest(double log_prob){
 	}
 
 	if(gotBetter && log_prob > overallBestLogProb + EPS){  // new global best.
-	  int solVec[num_vars];
+//	  int solVec[num_vars];
+      int* solVec = new int[num_vars];
+      if (!solVec) return false;
 	  for (int i=0; i<num_vars; ++i)
 	    solVec[i] = variables[i]->value;
     slsWrapper->reportSolution(log_prob, num_vars, solVec);

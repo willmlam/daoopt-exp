@@ -122,7 +122,7 @@ inline bool increaseTuple(size_t& idx, val_t* tuple, const vector<val_t>& limit)
   else return false;
 }
 
-#if false
+#if FALSE
 /* Convert an int/size_t into a std::string */
 inline char* myitoa(size_t x) {
   size_t z = x;
@@ -144,7 +144,7 @@ inline char* myitoa(int x) {
 }
 #endif
 
-#if false
+#if FALSE
 /* Convert an int/size_t into a std::string */
 inline std::string myitoa(size_t x) {
   size_t z = x;
@@ -275,5 +275,10 @@ void print_hex(const _T* d) {
 }
 
 }  // namespace daoopt
+
+template<typename Collection, typename Key>
+bool ContainsKey(const Collection& container, const Key& key) {
+  return container.find(key) != container.end();
+}
 
 #endif /* UTILS_H_ */

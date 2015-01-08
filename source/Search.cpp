@@ -458,7 +458,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 
 
 /* define the following to enable fetching of function values in bulk */
-#define GET_VALUE_BULK
+//#define GET_VALUE_BULK
 double Search::assignCostsOR(SearchNode* n) {
 
   int v = n->getVar();
