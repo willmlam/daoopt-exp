@@ -31,6 +31,12 @@
 
 namespace daoopt {
 
+struct _membuf : std::streambuf {
+  _membuf(char* begin, char* end) {
+    this->setg(begin, begin, end);
+  }
+};
+
 //extern time_t time_start;
 //
 extern string out_bound_file;
@@ -391,43 +397,17 @@ void Problem::saveOrdering(const string& file, const vector<int>& elim) const {
 
 
 
-bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
-  {
-    ifstream inTemp(prob.c_str());
-    inTemp.close();
+//bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
+bool Problem::parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
+                       bool collapse) {
+  assert(prob && probN > 0);
+  assert(!evid || evidN > 0);
 
-    if (inTemp.fail()) { // file not existent yet
-      cerr << "Error reading problem file " << prob << ", aborting." << endl;
-      return false;
-    }
-  }
-  if (!evid.empty()) {
-    ifstream inTemp(evid.c_str());
-    inTemp.close();
+  _membuf probBuf(prob, prob+probN);
 
-    if (inTemp.fail()) { // file not existent yet
-      cerr << "Error reading evidence file " << evid << ", aborting." << endl;
-      return false;
-    }
-  }
+  istream in(&probBuf);
 
-  igzstream in(prob.c_str());
-
-  // Extract the filename without extension.
-  string fname = prob;
-  size_t len, start, pos1, pos2;
-//  static const basic_string <char>::size_type npos = -1;
-#if defined(WINDOWS)
-  pos1 = fname.find_last_of("\\");
-#elif defined(LINUX)
-  pos1 = fname.find_last_of("/");
-#endif
-  pos2 = fname.find_last_of(".");
-  if (pos1 == string::npos) { len = pos2; start = 0; }
-  else { len = (pos2-pos1-1); start = pos1+1; }
-  m_name = fname.substr(start, len);
-
-  cout << "Reading problem " << m_name << " ..." << endl;
+  cout << "Reading problem..." << endl;
 
   vector<int> arity;
   vector<vector<int> > scopes;
@@ -445,7 +425,7 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
     m_prob = PROB_MULT;
   } else {
     cerr << "Unsupported problem type \"" << s << "\", aborting." << endl;
-    in.close(); return false;
+    return false;
   }
 
   in >> x; // No. of variables
@@ -460,7 +440,7 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
     if (x > numeric_limits<val_t>::max()) {
       cerr << "Domain size " << x << " out of range for internal representation.\n"
            << "(Recompile with different type for variable values.)" << endl;
-      in.close(); return false;
+      return false;
     }
     xs = (val_t)x;
     m_domains[i] = xs;
@@ -483,7 +463,7 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
       in >> y; // the actual variables in the scope
       if(y>=m_n) {
         cerr << "Variable index " << y << " out of range." << endl;
-        in.close(); return false;
+        return false;
       }
       scope.push_back(y); // preserve order from file
     }
@@ -545,12 +525,12 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
     m_functions.push_back(f);
 
   } // All function tables read
-  in.close();
+  
 
   if (collapse) collapseFunctions();
 
   // Read evidence?
-  if (evid.empty()) {
+  if (!evid) {
     m_e = 0;
     cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
     return true; // No evidence, return
@@ -558,7 +538,9 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
 
   cout << "Reading evidence..." << endl;
 
-  in.open(evid.c_str());
+  _membuf evidBuf(evid, evid+evidN);
+
+  istream in2(&evidBuf);
 
   /*
   in >> x; // Number of evidence samples
@@ -567,22 +549,21 @@ bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
   }
   */
 
-    in >> x;
+    in2 >> x;
     m_e = x; // Number of evidence variables
 
     for (int i=0; i<m_e; ++i) {
-        in >> x; // Variable index
-        in >> y; // Variable value
+        in2 >> x; // Variable index
+        in2 >> y; // Variable value
         xs = (val_t) y;
         if (xs >= m_domains[x]) {
         cout << "Variable " << x << " has domain size " << (int) m_domains[x]
             << ", evidence value " << y << " out of range." << endl;
-        in.close(); return false;
+        return false;
         }
         m_evidence.insert(make_pair(x,xs));
     }
 
-  in.close();
 
   cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
   return true;

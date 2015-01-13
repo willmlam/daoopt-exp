@@ -77,6 +77,8 @@ int maxIterations = BIG;
 double maxTime = BIG;
 long int maxSteps = BIG;
 
+bool global_abort = false;
+
 int caching = CACHING_GOOD_VARS;
 int algo = ALGO_GLS; // ALGO_ILS
 
@@ -270,6 +272,8 @@ void deallocateVarsAndPTs(bool name) {
 void runAlgorithm(int **outBestAssignment, double *outLogLikelihood){	
 	if(preprocessingSizeBound > 0) outputBestMPE = false;
 
+  global_abort = false;
+
 //	assignmentManager = new AssignmentManager();
 //	pR = new ProblemReader();
 	mbeElim = new MiniBucketElimination();
@@ -289,7 +293,7 @@ void runAlgorithm(int **outBestAssignment, double *outLogLikelihood){
 		anytime_mb();
 		end_run();
 	} else {
-		while (! abort_flag && num_run < maxRuns) {
+		while ((!global_abort) && ! abort_flag && num_run < maxRuns) {
 			init_run();
 			switch(algo) {
 				case ALGO_GN:
@@ -495,7 +499,7 @@ void mb_ils_hybrid(){
 /* MAIN ALGORITHMS                                   */
 /*****************************************************/
 bool lsContinue(){
-	return run_time_so_far < maxTime 
+	return (!global_abort) && run_time_so_far < maxTime 
 		  && num_flip < maxSteps 
 			&& assignmentManager->runBestLogProb+EPS < assignmentManager->optimalLogMPEValue;
 }

@@ -426,9 +426,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     Delete();
   } else {
     double total_memory_limit =
-        m_options->lookahead_local_error_all_tables_total_limit;
+        m_options->lookahead_LE_AllTablesTotalLimit;
     double table_memory_limit =
-        m_options->lookahead_local_error_single_table_limit;
+        m_options->lookahead_LE_SingleTableLimit;
     computeLocalErrorTables(true, total_memory_limit, table_memory_limit);
 
     // for each bucket, compute closest distance to descendant with >0 bucket
@@ -452,7 +452,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     // error
     for (auto itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
       int v = *itV;
-      _ErrorHelper[v].Initialize(*this, v, m_options->lookahead_depth);
+      _ErrorHelper[v].Initialize(*this, v, m_options->lookaheadDepth);
     }
   }
 
@@ -482,10 +482,10 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 	// bucket tree.
 
 	double h = MiniBucketElim::getHeur(var, assignment, search_node);
-	if (m_options->lookahead_depth <= 0) return h;
+	if (m_options->lookaheadDepth <= 0) return h;
 
   /*
-	const int local_lookaheadDepth = m_options->lookahead_depth - 1;
+	const int local_lookaheadDepth = m_options->lookaheadDepth - 1;
 	double DH = 0.0, dh;
 	if (0 == local_lookaheadDepth) {  // if looking ahead just 1 step, logic is a little easier
 		if (1 != _distToClosestDescendantWithLE[var]) 
@@ -506,7 +506,7 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 	else {
 // DEBUGGGG
 exit(999);
-		if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth)
+		if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth)
 			return h;  // there is no child with non-0 BucketError within the range of
 		// lookahead depth
 		const PseudotreeNode *n = m_pseudotree->getNode(var);
@@ -520,7 +520,7 @@ exit(999);
 		}
 	return h - DH;
   */
-  if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth) {
+  if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) {
     return h;
   }
 //  ++nd1GeneralCalls;
@@ -532,10 +532,10 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
                                   SearchNode *search_node,
                                   vector<double> &out) {
   MiniBucketElim::getHeurAll(var, assignment, search_node, out);
-  if (m_options->lookahead_depth <= 0) return;
+  if (m_options->lookaheadDepth <= 0) return;
 
   /*
-  const int local_lookaheadDepth = m_options->lookahead_depth - 1;
+  const int local_lookaheadDepth = m_options->lookaheadDepth - 1;
   if (0 == local_lookaheadDepth) {  // if looking ahead just 1 step, logic is a
                                     // little easier
     if (1 != _distToClosestDescendantWithLE[var])
@@ -560,12 +560,22 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
     assignment[var] = var_original_value;
   } else {
   */
-  if (_distToClosestDescendantWithLE[var] > m_options->lookahead_depth) {
+  if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) {
     return;  // there is no child with non-0 BucketError within the range of
             // lookahead depth
   }
 //  ++nd1GeneralCalls;
-  _ErrorHelper[var].Error(assignment, out);
+
+	MiniBucketElimLHError & eh = _ErrorHelper[var] ;
+#ifdef GET_LH_VALUE_BULK
+	eh.Error(assignment, out) ;
+#else
+	short i, var_domain_size = m_problem->getDomainSize(var) ;
+	for (i = 0 ; i < var_domain_size ; ++i) {
+		assignment[var] = i ;
+		out[i] OP_DIVIDEEQ eh.Error(assignment) ;
+		}
+#endif // GET_LH_VALUE_BULK
 }
 
 double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)

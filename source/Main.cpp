@@ -22,10 +22,13 @@
  */
 
 #include "Main.h"
+#include "DaooptInterface.h"
+#include "MiniBucketElim.h"
+#include "MiniBucketElimLH.h"
 
 #include "UAI2012.h"
 
-#include "cvo/ARP/ARPall.hxx"
+#include "ARP/ARPall.hxx"
 
 #define VERSIONINFO "1.1.2"
 
@@ -61,12 +64,32 @@ bool Main::parseOptions(int argc, char** argv) {
   return true;
 }
 
+bool Main::setOptions(const ProgramOptions& options) {
+  ProgramOptions* opt = new ProgramOptions(options);
+  if (opt->seed == NONE) {
+    opt->seed = time(0);
+  }
+  rand::seed(opt->seed);
+
+  m_options.reset(opt);
+
+  return true;
+}
+
+bool Main::setSLSOptions(int slsIter, int slsTimePerIter) {
+  m_options.get()->slsIter = slsIter;
+  m_options.get()->slsTime = slsTimePerIter;
+  return true;
+}
+
 
 bool Main::loadProblem() {
   m_problem.reset(new Problem);
 
   // load problem file
-  if (!m_problem->parseUAI(m_options->in_problemFile, m_options->in_evidenceFile, m_options->collapse))
+//  if (!m_problem->parseUAI(m_options->in_problemFile, m_options->in_evidenceFile, m_options->collapse))
+  if (!m_problem->parseUAI(m_options->problemSpec, m_options->problemSpec_len,
+      m_options->evidSpec, m_options->evidSpec_len, m_options->collapse))
     return false;
   cout << "Created problem with " << m_problem->getN()
        << " variables and " << m_problem->getC() << " functions." << endl;
@@ -147,6 +170,7 @@ bool Main::findOrLoadOrdering() {
   double timediff = 0.0;
   time(&time_order_start);
 
+  /*
   scoped_ptr<ARE::Graph> cvoGraph;
   scoped_ptr<ARE::Graph> cvoMasterGraph;
   scoped_ptr<CMauiAVLTreeSimple> cvoAvlVars2CheckScore;
@@ -172,14 +196,18 @@ bool Main::findOrLoadOrdering() {
 
     cvoGraph.reset(new ARE::Graph);
   }
+  */
 
 
   // Search for variable elimination ordering, looking for min. induced
   // width, breaking ties via pseudo tree height
   cout << "Searching for elimination ordering,";
+  /*
   if (m_options->order_cvo) {
     cout << " CVO,";
   }
+  */
+  
   if (m_options->order_iterations != NONE)
     cout << " " << m_options->order_iterations << " iterations";
   if (m_options->order_timelimit != NONE)
@@ -197,6 +225,7 @@ bool Main::findOrLoadOrdering() {
     vector<int> elimCand;  // new ordering candidate
     bool improved = false;  // improved in this iteration?
     int new_w;
+    /*
     if (m_options->order_cvo) {
       *cvoGraph = *cvoMasterGraph;
       new_w = cvoGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
@@ -210,7 +239,7 @@ bool Main::findOrLoadOrdering() {
             cvoGraph->_VarElimOrder + cvoGraph->_nNodes);
       }
     }
-    else {
+    else */{
       new_w = m_pseudotree->eliminate(g, elimCand, w, m_options->order_tolerance);
     }
     if (new_w < w) {
@@ -271,10 +300,10 @@ bool Main::findOrLoadOrdering() {
 
   // Pseudo tree has dummy node after build(), add to problem
   m_problem->addDummy(); // add dummy variable to problem, to be in sync with pseudo tree
-  m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+  m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
   m_pseudotree->addDomainInfo(m_problem->getDomains());
 
-#if defined PARALLEL_STATIC
+#if defined PARALLEL_STATIC || TRUE
   m_pseudotree->computeSubprobStats();
 #endif
 #if defined PARALLEL_DYNAMIC //|| defined PARALLEL_STATIC
@@ -305,6 +334,8 @@ bool Main::findOrLoadOrdering() {
 
 
 bool Main::runSLS() {
+  // allows to stop sls4mpe computation.
+  sls4mpe::global_abort = false;
 #ifdef PARALLEL_STATIC
   if (m_options->par_postOnly)
     return true;  // skip SLS for static post mode
@@ -326,6 +357,63 @@ bool Main::runSLS() {
   return true;
 }
 
+bool Main::stopSLS() {
+  sls4mpe::global_abort = true;
+  return true;
+}
+
+Heuristic* Main::newHeuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) {
+#ifdef NO_HEURISTIC
+  return new Unheuristic;
+#else
+  if (po->fglpHeur || po->fglpMBEHeur) { 
+    bool useFGLP = true;
+
+    /*
+    // Decide if we shouldn't be using dynamic FGLP.
+    if (po->fglpMBEHeurChoice) {
+      // Try to see the ibound possible first
+      // Temporarily set mplp to 0
+      int store_mplp = po->mplp;
+      int store_mplps = po->mplps;
+      int store_ibound = po->ibound;
+      po->mplp = 0;
+      po->mplps = 0;
+      unique_ptr<MiniBucketElim> test_heuristic(
+          new MiniBucketElim(p, pt, po, po->ibound));
+      test_heuristic->limitSize(po->memlimit, nullptr);
+      int ib = test_heuristic->getIbound();
+
+      // limitSize changes the ibound in po: restore it.
+      po->ibound = store_ibound;
+
+      po->mplp = store_mplp;
+      po->mplps = store_mplps;
+      if (ib < pt->getWidth() / 2) {
+        cout << "ibound < w/2, using dynamic FGLP" << endl;
+      } else {
+        cout << "ibound >= w/2, using regular MBE-MM" << endl;
+        useFGLP = false;
+      }
+    }
+    */
+
+    if (useFGLP) {
+      if (po->fglpHeur) {
+        return new FGLPHeuristic(p, pt, po);
+      } else if(po->fglpMBEHeur) {
+        return new FGLPMBEHybrid(p, pt, po);
+      }
+    }
+  }
+  else if (po->lookaheadDepth > 0) {
+    return new MiniBucketElimLH(p, pt, po, po->ibound);
+  } else {
+    return new MiniBucketElim(p, pt, po, po->ibound);
+  }
+#endif
+}
+
 
 bool Main::initDataStructs() {
 
@@ -339,69 +427,8 @@ bool Main::initDataStructs() {
 #endif
 
   // Heuristic is initialized here, built later in compileHeuristic()
-#ifdef NO_HEURISTIC
-  m_heuristic.reset(new UnHeuristic);
-#else
-  if (m_options->fglpHeur || m_options->fglpMBEHeur || m_options->fglpMBEHeurChoice) {
-
-      bool useFGLP = true;
-
-      // Decide if we shouldn't be using dynamic FGLP.
-      if (m_options->fglpMBEHeurChoice) {
-        // Try to see the ibound possible first
-        // Temporarily set mplp to 0
-        int store_mplp = m_options->mplp;
-        int store_mplps = m_options->mplps;
-        int store_ibound = m_options->ibound;
-        m_options->mplp = 0;
-        m_options->mplps = 0;
-        m_heuristic.reset(new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-              m_options.get(), m_options->ibound) );
-        m_heuristic->limitSize(m_options->memlimit, nullptr);
-        int ib = static_cast<MiniBucketElim*>(m_heuristic.get())->getIbound();
-
-        // limitSize changes the ibound in m_options: restore it.
-        m_options->ibound = store_ibound;
-
-        m_options->mplp = store_mplp;
-        m_options->mplps = store_mplps;
-        if (ib < m_pseudotree->getWidth() / 2) {
-          cout << "ibound < w/2, using dynamic FGLP" << endl;
-        } else {
-          cout << "ibound >= w/2, using regular MBE-MM" << endl;
-          useFGLP = false;
-        }
-      }
-
-      if (useFGLP) {
-        if (m_options->fglpHeur) {
-          m_heuristic.reset(new FGLPHeuristic(m_problem.get(),
-                            m_pseudotree.get(), m_options.get()));
-        } else if(m_options->fglpMBEHeur) {
-          m_heuristic.reset(new FGLPMBEHybrid(m_problem.get(),
-                            m_pseudotree.get(), m_options.get()));
-        }
-      }
-    }
-    else {
-      if (m_options->lookahead_depth > 0) {
-        m_heuristic.reset(
-            new MiniBucketElimLH(m_problem.get(), m_pseudotree.get(),
-                                 m_options.get(), m_options->ibound));
-      } else {
-        m_heuristic.reset(
-            new MiniBucketElim(m_problem.get(), m_pseudotree.get(),
-                                 m_options.get(), m_options->ibound));
-      }
-    }
-//  }
-  /*
-  else {
-      m_heuristic.reset(new MiniBucketElimMplp(m_problem.get(), m_pseudotree.get(),
-                  m_options.get(), m_options->ibound) );
-  }
-  */
-#endif
+  m_heuristic.reset(newHeuristic(m_problem.get(), m_pseudotree.get(),
+                    m_options.get()));
 
   // Main search engine
 #if defined PARALLEL_DYNAMIC
@@ -413,12 +440,16 @@ bool Main::initDataStructs() {
 #else
   if (m_options->rotate) {
     m_search.reset(new BranchAndBoundRotate(
-        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(), m_options.get()));
+        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
+        m_options.get()));
   } else {
     m_search.reset(new BranchAndBound(
-        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(), m_options.get()));
+        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
+        m_options.get()));
   }
 #endif
+  m_prop.reset(new BoundPropagator(m_problem.get(), m_space.get(),
+                                   !m_options->nocaching));
 
   // Subproblem specified? If yes, restrict.
   if (!m_options->in_subproblemFile.empty()) {
@@ -458,6 +489,37 @@ bool Main::initDataStructs() {
   return true;
 }
 
+bool Main::preprocessHeuristic() {
+  Pseudotree* cur_pt = m_pseudotree.get();  // could be null
+  const vector<val_t>* curAsg = (m_search.get()) ? &m_search->getAssignment()
+    : NULL;
+
+  if (cur_pt) {
+    m_options->ibound = min(m_options->ibound, m_pseudotree->getWidthCond());
+  }
+  size_t sz = 0;
+
+  // pseudo tree can be NULL right now!
+  m_heuristic.reset(newHeuristic(m_problem.get(), cur_pt, m_options.get()));
+
+  if (m_options->memlimit != NONE && cur_pt) {
+    sz = m_heuristic->limitSize(m_options->memlimit, curAsg);
+    sz *= sizeof(double) / (1024*1024.0);
+    cout << "Enforcing memory limit resulted in i-bound " << m_options->ibound
+         << " with " << sz << " MByte." << endl;
+  }
+  if (m_options->nosearch) {
+    cout << "Skipping heuristic preprocessing..." << endl;
+    return false;
+  }
+
+  if (m_heuristic->preprocess(curAsg)) {
+    if (cur_pt) {
+      m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
+    }
+  }
+  return true;
+}
 
 bool Main::compileHeuristic() {
   m_options->ibound = min(m_options->ibound, m_pseudotree->getWidthCond());
@@ -500,7 +562,7 @@ bool Main::compileHeuristic() {
   cout << '\t' << (sz / (1024*1024.0)) * sizeof(double) << " MBytes" << endl;
 
   // heuristic might have changed problem functions, pseudotree needs remapping
-  m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+  m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
 
   // set initial lower bound if provided (but only if no subproblem was specified)
   if (m_options->in_subproblemFile.empty() ) {
@@ -718,16 +780,19 @@ bool Main::runSearchStatic() {
 
 
 /* sequential mode or worker mode for distributed execution */
-bool Main::runSearchWorker() {
-  BoundPropagator prop(m_problem.get(), m_space.get(), !m_options->nocaching);
+bool Main::runSearchWorker(size_t nodeLimit) {
+  size_t limit = nodeLimit > 0 ? nodeLimit : 0;
   SearchNode* n = m_search->nextLeaf();
-  while (n) {
-    prop.propagate(n, true); // true = report solutions
+  while (n && (nodeLimit == 0 || limit-- > 0)) {
+    m_prop->propagate(n, true); // true = report solutions
     n = m_search->nextLeaf();
   }
-
-  m_solved = true;
-  return true;
+  if (!n) {
+    m_solved = true;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 
@@ -813,6 +878,40 @@ bool Main::outputStats() const {
   return true;
 }
 
+int Main::outputStatsToFile() const {
+  FILE* fp = m_options->_fpLogFile;
+  if (!fp) {
+    return 1;
+  }
+
+  if (m_options->nosearch) {
+    fprintf(fp, "\nNo search option used, full search skipped, exiting.");
+    return 0;
+  }
+
+  fprintf(fp, "\n--------- Search done ---------") ;
+	fprintf(fp, "\nProblem name:  %s ", m_problem->getName().c_str()) ;
+	fprintf(fp, "\nOR nodes:      %lld", (int64) m_space->stats.numExpOR) ;
+	fprintf(fp, "\nAND nodes:     %lld", (int64) m_space->stats.numExpAND) ;
+	fprintf(fp, "\nOR processed:  %lld", (int64) m_space->stats.numProcOR) ;
+	fprintf(fp, "\nAND processed: %lld", (int64) m_space->stats.numProcAND) ;
+	fprintf(fp, "\nLeaf nodes:    %lld", (int64) m_space->stats.numLeaf) ;
+	fprintf(fp, "\nPruned nodes:  %lld", (int64) m_space->stats.numPruned) ;
+	fprintf(fp, "\nDeadend nodes: %lld", (int64) m_space->stats.numDead) ;
+
+	time_t time_end;
+	time(&time_end);
+	double time_passed = difftime(time_end, _time_start);
+	fprintf(fp, "\nTime elapsed:  %g seconds", time_passed) ;
+	time_passed = difftime(_time_pre, _time_start);
+	fprintf(fp, "\nPreprocessing: %g seconds", time_passed) ;
+	fprintf(fp, "\n-------------------------------") ;
+
+	double mpeCost = m_problem->getSolutionCost();
+	fprintf(fp, "\n%g (%g)\n", (double) (SCALE_LOG(mpeCost)), (double) (SCALE_NORM(mpeCost))) ;
+
+	return 0;
+}
 
 bool Main::start() const {
 
@@ -892,6 +991,129 @@ bool Main::outputInfo() const {
 
  cout << oss.str();
  return true;
+}
+
+double Main::getSolution() const {
+  return m_problem->getSolutionCost();
+}
+
+const vector<val_t>& Main::getSolutionAssg() const {
+  return m_problem->getSolutionAssg();
+}
+
+double computeAvgDepth(const vector<count_t>& before, const vector<count_t>& after, int offset) {
+  size_t leafCount = 0;
+  offset = max(offset, 0);  // offset at least 0.
+  for (size_t d = offset; d < before.size(); ++d)
+    leafCount += after[d] - before[d];
+  double avg = 0.0;
+  for (size_t d = offset; d < before.size(); ++d)
+    avg += (after[d] - before[d]) * (d - offset) * 1.0 / leafCount;
+  return avg;
+}
+
+double Main::evaluate(SearchNode* node) const {
+  assert(node && node->getType() == NODE_OR);
+
+  int var = node->getVar();
+  PseudotreeNode* ptnode = m_pseudotree->getNode(var);
+  const SubprobStats* stats = ptnode->getSubprobStats();
+  const SubprobFeatures* feats = node->getSubprobFeatures();
+
+  // "dynamic subproblem features
+  double ibnd = m_options->ibound;
+  double ub = node->getHeur(),
+         lb = node->getInitialBound();
+  double rPruned = feats->ratioPruned,
+         rLeaf = feats->ratioLeaf,
+         rDead = feats->ratioLeaf;
+  double avgNodeD = feats->avgNodeDepth,
+         avgLeafD = feats->avgLeafDepth,
+         avgBraDg = feats->avgBranchDeg;
+
+  if (lb == -INFINITY) {
+    myprint("Warning: No initial lower bound, will yield infinite estimate.\n");
+  }
+
+  // "static" subproblem properties
+  double D = node->getDepth(),
+         Vars = ptnode->getSubprobSize(),
+         Leafs = stats->getLeafCount();
+  double Wmax = stats->getClusterStats(stats->MAX),
+         Wavg = stats->getClusterStats(stats->AVG),
+         Wsdv = stats->getClusterStats(stats->SDV),
+         Wmed = stats->getClusterStats(stats->MED);
+  double WCmax = stats->getClusterCondStats(stats->MAX),
+         WCavg = stats->getClusterCondStats(stats->AVG),
+         WCsdv = stats->getClusterCondStats(stats->SDV),
+         WCmed = stats->getClusterCondStats(stats->MED);
+  double Kmax = stats->getDomainStats(stats->MAX),
+         Kavg = stats->getDomainStats(stats->AVG),
+         Ksdv = stats->getDomainStats(stats->SDV);
+  double Hmax = stats->getDepthStats(stats->MAX),
+         Havg = stats->getDepthStats(stats->AVG),
+         Hsdv = stats->getDepthStats(stats->SDV),
+         Hmed = stats->getDepthStats(stats->MED);
+
+  /*
+  double z = (lb == ELEM_ZERO) ? 0.0 : 2*(ub-lb);
+  z += Hmax + 0.5 * log10(Vars);
+  */
+
+  double z =
+      // LassoLars(alpha=0.01), degree=1, stats4.csv (10603 samples)
+      + ( 1.64620e-04 * (ub))  + ( 3.83243e-01 * (ub-lb))  + ( 6.77123e-02 * (avgNodeD))  - ( 4.05910e-02 * (D))  + ( 3.78208e-03 * (Vars))  - ( 7.44384e-03 * (Leafs))  + ( 4.63889e-01 * (Wavg))  + ( 2.47618e-01 * (Wsdv))  - ( 1.68938e-01 * (WCmax))  + ( 9.91102e-02 * (Havg))  - ( 2.57769e-01 * (Hsdv));
+      // LassoLars(alpha=0.01), degree=2, stats4.csv (10603 samples)
+      //- ( 1.06230e-03 * (lb)*(avgNodeD))  + ( 1.69370e-03 * (lb)*(avgLeafD))  + ( 1.39504e-03 * (lb)*(Vars))  - ( 7.41810e-03 * (lb)*(Leafs))  - ( 2.40857e-04 * (lb)*(Hmax))  - ( 3.04937e-03 * (ub)*(ub))  - ( 7.36406e-04 * (ub)*(ub-lb))  + ( 9.39502e-04 * (ub)*(D))  - ( 8.06125e-04 * (ub)*(WCsdv))  - ( 1.54377e-02 * (ub-lb)*(ub-lb))  + ( 3.90821e-04 * (ub-lb)*(avgNodeD))  + ( 1.20563e-02 * (ub-lb)*(D))  - ( 6.50204e-04 * (ub-lb)*(Vars))  + ( 2.60533e-04 * (ub-lb)*(Leafs))  - ( 3.72410e-02 * (ub-lb)*(WCmax))  + ( 1.00336e-02 * (ub-lb)*(Hmax))  + ( 7.41045e-03 * (ub-lb)*(Hsdv))  + ( 8.60623e-03 * (ub-lb)*(Hmed))  - ( 9.21925e-04 * (rPruned)*(Vars))  + ( 1.46400e-02 * (rDead)*(Vars))  + ( 2.89068e-03 * (rLeaf)*(Vars))  + ( 1.43511e-03 * (avgNodeD)*(avgNodeD))  - ( 5.70504e-04 * (avgNodeD)*(Vars))  + ( 1.68691e-03 * (avgNodeD)*(Leafs))  - ( 1.79182e-03 * (avgNodeD)*(Hmed))  + ( 3.72780e-04 * (avgLeafD)*(D))  + ( 4.70759e-04 * (avgLeafD)*(Vars))  - ( 1.65965e-03 * (avgLeafD)*(Leafs))  + ( 1.51711e-03 * (avgLeafD)*(Wmax))  + ( 5.29760e-03 * (avgLeafD)*(Wsdv))  - ( 1.72148e-03 * (avgLeafD)*(Hmax))  + ( 1.15015e-02 * (avgLeafD)*(Havg))  - ( 7.82195e-03 * (avgLeafD)*(Hmed))  - ( 5.89913e-03 * (avgBraDg)*(Vars))  + ( 4.15688e-03 * (D)*(D))  + ( 1.90502e-04 * (D)*(Vars))  - ( 4.01007e-05 * (D)*(Leafs))  + ( 1.07401e-02 * (D)*(WCmax))  + ( 9.35496e-05 * (Vars)*(Vars))  - ( 1.28385e-03 * (Vars)*(Wmax))  - ( 1.09807e-04 * (Vars)*(Wmed))  + ( 1.14059e-03 * (Vars)*(WCmax))  + ( 3.61452e-03 * (Vars)*(WCavg))  + ( 2.92006e-04 * (Vars)*(WCsdv))  - ( 1.12599e-02 * (Vars)*(Ksdv))  + ( 1.38700e-04 * (Vars)*(Havg))  - ( 4.01527e-04 * (Vars)*(Hsdv))  - ( 4.28666e-04 * (Vars)*(Hmed))  - ( 1.19686e-03 * (Leafs)*(Leafs))  - ( 8.13292e-03 * (Leafs)*(WCmax))  + ( 3.42008e-03 * (Leafs)*(Havg))  - ( 5.46289e-03 * (Wmax)*(Hmax))  + ( 1.62756e-02 * (WCmax)*(WCmax))  + ( 4.64474e-05 * (Hmed)*(Hmed));
+
+  if (z < 0.0 || z > 100.0) {
+    oss ss; ss << "evaluate: unreasonable estimate for node " << *node << ": " << z << endl;
+    myprint(ss.str());
+  }
+
+  node->setComplexityEstimate(z);
+  DIAG(oss ss; ss<< "eval " << *node << " : "<< z<< endl; myprint(ss.str()));
+
+  return z;
+}
+
+
+double Main::runEstimation(size_t nodeLimit) {
+  SearchNode* node = m_space->getTrueRoot();
+  int var = node->getVar();
+  PseudotreeNode* ptnode = m_pseudotree->getNode(var);
+  const SubprobStats* stats = ptnode->getSubprobStats();  // TODO: where would this get set?
+
+  // Copy current node profiles and search stats
+  vector<count_t> startNodeP = m_search->getNodeProfile();
+  vector<count_t> startLeafP = m_search->getLeafProfile();
+  SearchStats startStats = m_space->stats;
+
+  node->setInitialBound(m_search->getNodeLowerBound(node));
+
+  SearchStats& currStats = m_space->stats;
+  if (runSearchWorker(nodeLimit)) {
+    // Search finished, return 0.0
+    return 0.0;
+  }
+
+  // Compute features
+  SubprobFeatures* features = node->getSubprobFeatures();
+  features->ratioPruned =
+      (currStats.numPruned - startStats.numPruned) * 1.0 / nodeLimit;
+  features->ratioDead =
+      (currStats.numDead - startStats.numDead) * 1.0 / nodeLimit;
+  features->ratioLeaf =
+      (currStats.numLeaf - startStats.numLeaf) * 1.0 / nodeLimit;
+
+  features->avgNodeDepth = computeAvgDepth(startNodeP, m_search->getNodeProfile(), node->getDepth());
+  features->avgLeafDepth = computeAvgDepth(startLeafP, m_search->getLeafProfile(), node->getDepth());
+  features->avgBranchDeg = pow(nodeLimit, 1.0 / features->avgLeafDepth);
+
+  // Compute estimate
+  double estimate = evaluate(node);
+
+  return estimate;
 }
 
 }  // namespace daoopt

@@ -66,7 +66,7 @@ protected:
   size_t m_childCountFull;           // Number of total child nodes (initial count)
   size_t m_childCountAct;            // Number of remaining active child nodes
 
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
+#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC || TRUE
   count_t m_subCount;                // number of nodes expanded below this node
 #endif
 #ifdef PARALLEL_DYNAMIC
@@ -103,7 +103,7 @@ public:
   virtual void setCacheInst(size_t i) = 0;
   virtual size_t getCacheInst() const = 0;
 
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
+#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC || TRUE
   count_t getSubCount() const { return m_subCount; }
   void setSubCount(count_t c) { m_subCount = c; }
   void addSubCount(count_t c) { m_subCount += c; }
@@ -123,7 +123,7 @@ public:
   void setSubLeafD(count_t d) { m_subLeafD = d; }
   void addSubLeafD(count_t d) { m_subLeafD += d; }
 #endif
-#ifdef PARALLEL_STATIC
+#if defined PARALLEL_STATIC || TRUE
   virtual SubprobFeatures* getSubprobFeatures() { assert(false); return NULL; }  // OR only
   virtual const SubprobFeatures* getSubprobFeatures() const { assert(false); return NULL; }
 #endif
@@ -214,7 +214,7 @@ public:
   const context_t& getCacheContext() const { assert(false); return emptyCtxt; }
   void setCacheInst(size_t i) { assert(false); }
   size_t getCacheInst() const { assert(false); return 0; }
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
+#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC || TRUE
   void setInitialBound(double d) { assert(false); }
   double getInitialBound() const { assert(false); return 0.0; }
   void setComplexityEstimate(double d) { assert(false); }
@@ -243,7 +243,7 @@ protected:
 #ifdef PARALLEL_DYNAMIC
   size_t m_cacheInst;    // Cache instance counter
 #endif
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
+#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC || TRUE
   double m_initialBound; // the lower bound when the node was first generated
   double m_complexityEstimate; // subproblem complexity estimate
 #endif
@@ -253,7 +253,7 @@ protected:
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   context_t m_subprobContext; // Stores the context values to this subproblem
 #endif
-#ifdef PARALLEL_STATIC
+#if TRUE
   SubprobFeatures m_subprobFeatures; // subproblem feature set
 #endif
 
@@ -285,12 +285,12 @@ public:
   size_t getCacheInst() const { return 0; }
 #endif
 
-#ifdef PARALLEL_STATIC
+#if defined PARALLEL_STATIC || TRUE
   SubprobFeatures* getSubprobFeatures() { return &m_subprobFeatures; }
   const SubprobFeatures* getSubprobFeatures() const { return &m_subprobFeatures; }
 #endif
 
-#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
+#if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC || TRUE
   void setInitialBound(double d) { m_initialBound = d; }
   double getInitialBound() const { return m_initialBound; }
 
@@ -399,7 +399,7 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
   SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(nullptr)
     //, m_cacheContext(NULL)
-#if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC
+#if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC || TRUE
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)
 #endif
   { /* empty */ }

@@ -95,11 +95,11 @@ public:
   double ndfglpt; // convergence tolerance for FGLP
 
   /* LOOKAHEAD HEURISTIC OPTIONS */
-  int lookahead_depth; // depth of lookahead when computing the h (heuristic)
+  int lookaheadDepth; // depth of lookahead when computing the h (heuristic)
                        // function; 0=no lookahead
-  double lookahead_local_error_single_table_limit; // as number of entries; 
+  double lookahead_LE_SingleTableLimit; // as number of entries; 
                                                    // log10.
-  double lookahead_local_error_all_tables_total_limit; // as number of entries;
+  double lookahead_LE_AllTablesTotalLimit; // as number of entries;
                                                        // log10.
 
   /* MISC OPTIONS */
@@ -110,6 +110,14 @@ public:
   int maxTime; // timeout threshold (seconds)
 
   double initialBound; // initial lower bound
+
+  char* problemSpec;  // problem specification in UAI format
+  size_t problemSpec_len;  // length of the problemSpec buffer
+  char* evidSpec;  // evidence specification in UAI format
+  size_t evidSpec_len;  // length of the evidSpec buffer
+
+  const std::vector<int>* varOrder;  // externally provided variable elimination
+                                     // ordering
 
   std::string executableName; // name of the executable
   std::string problemName; // name of the problem
@@ -149,6 +157,21 @@ inline ProgramOptions::ProgramOptions()
     maxWidthAbort(NONE), slsIter(0), slsTime(5),
     aobbLookahead(0),
     initialBound(ELEM_NAN),
+    problemSpec(NULL), problemSpec_len(0),
+    evidSpec(NULL), evidSpec_len(0), varOrder(NULL),
+    order_cvo(false), cvo_n_random_pick(-1), cvo_e_random_pick(0.0),
+    fglpHeur(false), fglpMBEHeur(false),
+    mplp(0), mplps(0),
+    jglp(0), jglps(0),
+    useShiftedLabels(false), useNullaryShift(false), usePriority(false),
+    ndfglp(0), ndfglps(0),
+    match(false),
+    collapse(false),
+    perturb(0),
+    lookaheadDepth(0), lookahead_LE_SingleTableLimit(-1.0),
+    lookahead_LE_AllTablesTotalLimit(-1.0),
+    maxTime(kint32max),
+
     _fpLogFile(nullptr) {
 }
 

@@ -103,7 +103,9 @@ public:
 public:
 
   /* parses a UAI format input file */
-  bool parseUAI(const string& prob, const string& evid, bool collapse=false);
+  bool parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
+                bool collapse=false);
+//  bool parseUAI(const string& prob, const string& evid, bool collapse=false);
 
   /* writes the current problem to a UAI file */
   void writeUAI(const string& prob) const;

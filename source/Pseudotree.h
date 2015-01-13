@@ -31,9 +31,7 @@
 #include "Function.h"
 #include "Problem.h"
 
-#ifdef PARALLEL_STATIC
 #include "SubprobStats.h"
-#endif
 
 namespace daoopt {
 
@@ -113,7 +111,7 @@ public:
   const vector<int>& getElimOrder() const { return m_elimOrder; }
 
   /* augments the pseudo tree with function information */
-  void addFunctionInfo(const vector<Function*>& fns);
+  void resetFunctionInfo(const vector<Function*>& fns);
 
   /* adds domain size info to pseudo tree nodes */
   void addDomainInfo(const vector<val_t>& domains);
@@ -123,7 +121,7 @@ public:
   int computeComplexities(int workers);
 #endif
 
-#ifdef PARALLEL_STATIC
+#if defined PARALLEL_STATIC || TRUE
   void computeSubprobStats();
   double getStateSpaceCond() const;
 #endif
@@ -203,7 +201,7 @@ protected:
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   Complexity* m_complexity; // Contains information about subproblem complexity
 #endif
-#ifdef PARALLEL_STATIC
+#ifdef TRUE
   SubprobStats* m_subprobStats;
 #endif
   vector<int> m_subproblemVars; // The variables in the subproblem (including self)
@@ -275,7 +273,7 @@ public:
   int updateDepthHeight(int d);
   int updateSubWidth();
 
-#ifdef PARALLEL_STATIC
+#ifdef TRUE
 public:
   const SubprobStats* getSubprobStats() const { return m_subprobStats; }
   void computeStatsCluster(vector<int>&);
@@ -390,8 +388,10 @@ inline PseudotreeNode::PseudotreeNode(Pseudotree* t, int v, const set<int>& s) :
 #if defined PARALLEL_DYNAMIC
   m_domain(UNKNOWN), m_var(v), m_depth(UNKNOWN), m_subHeight(UNKNOWN), m_parent(NULL), m_tree(t), m_complexity(NULL),
   m_contextS(s), m_contextV(s.begin(), s.end()) {}
-#elif defined PARALLEL_STATIC
-  m_domain(UNKNOWN), m_var(v), m_depth(UNKNOWN), m_subHeight(UNKNOWN), m_parent(NULL), m_tree(t), m_complexity(NULL), m_subprobStats(NULL),
+#elif defined PARALLEL_STATIC || TRUE
+  m_domain(UNKNOWN), m_var(v), m_depth(UNKNOWN), m_subHeight(UNKNOWN), m_parent(NULL), m_tree(t),
+  //m_complexity(NULL),
+  m_subprobStats(NULL),
   m_contextS(s), m_contextV(s.begin(), s.end())
 {
   m_subprobStats = new SubprobStats();
@@ -405,7 +405,7 @@ inline PseudotreeNode::~PseudotreeNode()  {
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
     if (m_complexity) delete m_complexity;
 #endif
-#ifdef PARALLEL_STATIC
+#if defined PARALLEL_STATIC || TRUE
     if (m_subprobStats) delete m_subprobStats;
 #endif
 }

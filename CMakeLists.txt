@@ -15,10 +15,11 @@ option(DAOOPT_LINK_STATIC "Link binary statically" OFF)
 option(FGLP_PREPROC_ONLY "Compile FGLP preprocessor only" OFF)
 
 # General Compiler flags
-add_definitions(-Wall)
+add_definitions(-fpermissive)
 
 if(WIN32)
   add_definitions(-DWINDOWS)
+  add_definitions(/W0)
 else()
   add_definitions(-DLINUX)
 endif()
@@ -30,13 +31,13 @@ endif()
 if(NOT WIN32)
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -O0 -g3")
 set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -g3")
-set(CMAKE_CXX_FLAGS_RELEASE "-DDEBUG -O3")
-set(CMAKE_C_FLAGS_RELEASE "-DDEBUG -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_RELEASE "-O3")
 else()
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG /Od /J")
 set(CMAKE_C_FLAGS_DEBUG "-DDEBUG /Od /J")
-set(CMAKE_CXX_FLAGS_RELEASE "-DDEBUG /Ox /J")
-set(CMAKE_C_FLAGS_RELEASE "-DDEBUG /Ox /J")
+set(CMAKE_CXX_FLAGS_RELEASE "/Ox /J")
+set(CMAKE_C_FLAGS_RELEASE "/Ox /J")
 endif()
 
 # Check for C++11 support (only works for gcc)
@@ -87,7 +88,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories(
   ${DAOOPT_SOURCE_DIR}/source
   ${DAOOPT_SOURCE_DIR}/lib
+  ${DAOOPT_SOURCE_DIR}/lib/ARP
+  ${DAOOPT_SOURCE_DIR}/lib/ARP/BE
+  ${DAOOPT_SOURCE_DIR}/lib/ARP/CVO
+  ${DAOOPT_SOURCE_DIR}/lib/ARP/Problem
+  ${DAOOPT_SOURCE_DIR}/lib/ARP/Utils
   ${DAOOPT_SOURCE_DIR}/lib/google-utils
+  ${DAOOPT_SOURCE_DIR}/lib/miniSAT
 )
 
 
@@ -100,7 +107,7 @@ if (FGLP_PREPROC_ONLY)
   set(LIBS Gzstream google_strings google_base gflags)
 else()
   add_subdirectory(lib)
-  set(LIBS Gzstream Sls4mpe Mex Cvo gflags)
+  set(LIBS Gzstream Sls4mpe Mex Arp Minisat gflags)
 endif()
 
 # Main daoopt source files
@@ -166,9 +173,12 @@ if (FGLP_PREPROC_ONLY)
 else()
   add_executable(daoopt daoopt.cpp ${FILES})
   add_executable(daoopt-i daoopt-i.cpp ${FILES})
+	add_executable(daoopt_lookahead daoopt_lookahead.cpp ${FILES})
   if (DAOOPT_LINK_STATIC)
     SET_TARGET_PROPERTIES(daoopt PROPERTIES LINK_SEARCH_START_STATIC 1)
     SET_TARGET_PROPERTIES(daoopt PROPERTIES LINK_SEARCH_END_STATIC 1)
   endif()
   target_link_libraries(daoopt ${LIBS} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(daoopt-i ${LIBS} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
+	target_link_libraries(daoopt_lookahead ${LIBS} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 endif()

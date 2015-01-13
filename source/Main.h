@@ -24,17 +24,17 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-//#include "_base.h"
+#include "_base.h"
 
-#include "Problem.h"
-#include "Function.h"
-#include "Graph.h"
-#include "Pseudotree.h"
-#include "ProgramOptions.h"
-#include "MiniBucketElim.h"
-#include "MiniBucketElimLH.h"
 #include "FGLPHeuristic.h"
 #include "FGLPMBEHybrid.h"
+#include "Function.h"
+#include "Graph.h"
+#include "MiniBucketElim.h"
+#include "MiniBucketElimLH.h"
+#include "Problem.h"
+#include "ProgramOptions.h"
+#include "Pseudotree.h"
 #ifdef ENABLE_SLS
 #include "SLSWrapper.h"
 #endif
@@ -62,6 +62,7 @@ namespace daoopt {
 class Main {
  protected:
   bool m_solved;
+  bool m_started;
   scoped_ptr<ProgramOptions> m_options;
   scoped_ptr<Problem> m_problem;
   scoped_ptr<Pseudotree> m_pseudotree;
@@ -81,45 +82,70 @@ class Main {
 #endif
   scoped_ptr<SearchSpace> m_space;
 #endif
+  scoped_ptr<BoundPropagator> m_prop;
 
  protected:
   bool runSearchDynamic();
   bool runSearchStatic();
-  bool runSearchWorker();
+  bool runSearchWorker(size_t nodeLimit = 0);
+
+  static Heuristic* newHeuristic(Problem* p, Pseudotree* pt,
+      ProgramOptions* po);
+
+  double evaluate(SearchNode* node) const;
 
  public:
   bool start() const;
   bool parseOptions(int argc, char** argv);
+  bool setOptions(const ProgramOptions& options);
+  bool setSLSOptions(int slsIter, int slsTimePerIter);
   bool outputInfo() const;
   bool loadProblem();
   bool findOrLoadOrdering();
   bool runSLS();
+  bool stopSLS();
   bool initDataStructs();
+  bool preprocessHeuristic();
   bool compileHeuristic();
   bool runLDS();
   bool finishPreproc();
-  bool runSearch();
+  bool runSearch(size_t nodeLimit = 0);
   bool outputStats() const;
+  int outputStatsToFile() const;
 
   bool isSolved() const { return m_solved; }
+
+  double getSolution() const;
+  const vector<val_t>& getSolutionAssg() const;
+
+  double runEstimation(size_t nodeLimit = 0);
+
+  inline Heuristic* getHeuristic() { return m_heuristic.get(); }
 
   Main();
 };
 
 /* Inline implementations */
 
-inline Main::Main() : m_solved(false) { /* nothing here */ }
+inline Main::Main() : m_solved(false), m_started(false) { /* nothing here */ }
 
-inline bool Main::runSearch() {
-  if (m_options->nosearch) return true;
-  if (m_solved) return true;
-  cout << "--- Starting search ---" << endl;
+inline bool Main::runSearch(size_t nodeLimit) {
+  if (m_options->nosearch) {
+    return true;
+  }
+  if (m_solved) {
+    return true;
+  }
+  if (!m_started) {
+    cout << "--- Starting search ---" << endl;
+    m_started = true;
+  }
 #if defined PARALLEL_DYNAMIC
   return runSearchDynamic();
 #elif defined PARALLEL_STATIC
   return runSearchStatic();
 #else
-  return runSearchWorker();
+  return runSearchWorker(nodeLimit);
 #endif
 }
 

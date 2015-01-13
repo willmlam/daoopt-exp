@@ -100,6 +100,8 @@ public:
    * (mostly makes sense for conditioned subproblems) */
   double curLowerBound() const { return lowerBound(m_space->getTrueRoot()); }
 
+  double getNodeLowerBound(SearchNode* n) const { return lowerBound(n); }
+
   /* cur value of root OR node */
   double getCurOptValue() const;
 #ifndef NO_ASSIGNMENT

@@ -16,7 +16,7 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
               m_options->mplpt);
     fglp->set_owns_factors(false);
     m_problem->replaceFunctions(fglp->factors());
-    m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+    m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
     m_options->mplp = 0;
     m_options->mplps = 0;
 
@@ -63,7 +63,7 @@ FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
 
       // JGLP code duplicates scopes, recollapse functions
       m_problem->collapseFunctions();
-      m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+      m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
 
       // Make sure preprocessing doesn't run again.
       m_options->jglp = 0;

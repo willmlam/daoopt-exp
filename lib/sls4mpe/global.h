@@ -105,6 +105,8 @@ extern double maxTime;
 extern int maxIterations;
 extern long maxSteps;
 
+extern bool global_abort;
+
 extern int caching;
 extern int init_algo;
 extern int pertubationType;

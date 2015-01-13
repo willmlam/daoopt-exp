@@ -129,7 +129,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
   if (computeTables && (m_options->mplp > 0 || m_options->mplps > 0)) {
     cout << "Running FGLP" << endl;
     DoFGLP();
-    m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+    m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
   }
 
   if (computeTables && (m_options->jglp > 0 || m_options->jglps > 0)) {
@@ -143,7 +143,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     }
     cout << "Running JGLP with i-bound " << m_options->jglpi << endl;
     DoJGLP();
-    m_pseudotree->addFunctionInfo(m_problem->getFunctions());
+    m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
 
     // May need to readjust i-bound based on new parameterization
     cout << "Readjusting minibucket i-bound" << endl;

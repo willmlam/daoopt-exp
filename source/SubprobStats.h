@@ -26,7 +26,7 @@
 
 #include "_base.h"
 
-#ifdef PARALLEL_STATIC
+#if TRUE
 
 namespace daoopt {
 

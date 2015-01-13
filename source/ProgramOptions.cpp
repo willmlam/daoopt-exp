@@ -110,9 +110,9 @@ DEFINE_bool(fglp_schedule_priority, false,
 
 DEFINE_int32(dfglp_iterations, -1, "# iterations of FGLP at every node");
 DEFINE_double(dfglp_time, -1.0, "time for FGLP at every node");
-DEFINE_double(dfglp_tolerance, 1e-7, "converagnece tolerance for dyanmic FGLP");
+DEFINE_double(dfglp_tolerance, 1e-7, "convergence tolerance for dynamic FGLP");
 
-// Lookahead options
+// Lookahead optinas
 DEFINE_int32(lookahead_depth, 0, "depth of lookahead when computing the h"
              "(heuristic) function; 0=no lookahead");
 DEFINE_double(lookahead_local_error_single_table_limit, 7.0, 
@@ -181,10 +181,10 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
     opt->ndfglps = FLAGS_dfglp_time;
     opt->ndfglpt = FLAGS_dfglp_tolerance;
 
-    opt->lookahead_depth = FLAGS_lookahead_depth;
-    opt->lookahead_local_error_single_table_limit =
+    opt->lookaheadDepth = FLAGS_lookahead_depth;
+    opt->lookahead_LE_SingleTableLimit =
         FLAGS_lookahead_local_error_single_table_limit;
-    opt->lookahead_local_error_all_tables_total_limit =
+    opt->lookahead_LE_AllTablesTotalLimit =
         FLAGS_lookahead_local_error_all_tables_total_limit;
 
     opt->order_iterations = FLAGS_order_iterations;

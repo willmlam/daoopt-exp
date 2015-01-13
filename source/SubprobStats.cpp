@@ -23,7 +23,7 @@
 
 #include <SubprobStats.h>
 
-#ifdef PARALLEL_STATIC
+#if TRUE
 
 namespace daoopt {
 
@@ -45,7 +45,8 @@ template<typename T, size_t N> T* end(T (&ra)[N]) {
   return ra + N;
 }
 
-const vector<string> SubprobStats::legend(LEGEND, end(LEGEND));
+//const vector<string> SubprobStats::legend(LEGEND, end(LEGEND));
+const vector<string> SubprobStats::legend(LEGEND, LEGEND + 23);
 
 void SubprobStats::computeStats(const vector<int>& xs, double*& target) {
   double mini, maxi, avg, sdev, med;

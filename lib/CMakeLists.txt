@@ -11,8 +11,11 @@ target_link_libraries(Gzstream Zlib)
 # Mex mplp code by Alex Ihler
 add_subdirectory(mex)
 
-# Kalev's ordering code
-add_subdirectory(cvo)
+# Kalev's library, including cvo
+add_subdirectory(ARP)
+
+# MiniSAT
+add_subdirectory(miniSAT)
 
 # google3-like utilities
 #add_subdirectory(google-utils)

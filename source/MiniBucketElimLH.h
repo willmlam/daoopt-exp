@@ -425,7 +425,7 @@ public :
 		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _DescendantNodes.begin(); itRB!=_DescendantNodes.end(); ++itRB) {
 			MiniBucketElimLHErrorNode *n = *itRB ;
 			int u = n->_v ;
-			int d = n->_depth2go ;
+//			int d = n->_depth2go ;
 			std::vector<Function *> & funs = n->_RelevantBucketFunctions ;
 			// add OF_n
 			const vector<Function *> & OFlist = H.m_pseudotree->getFunctions(u) ;
