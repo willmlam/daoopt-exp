@@ -115,10 +115,10 @@ DEFINE_double(dfglp_tolerance, 1e-7, "convergence tolerance for dynamic FGLP");
 // Lookahead optinas
 DEFINE_int32(lookahead_depth, 0, "depth of lookahead when computing the h"
              "(heuristic) function; 0=no lookahead");
-DEFINE_double(lookahead_local_error_single_table_limit, 7.0, 
+DEFINE_double(lookahead_local_error_single_table_limit, 5.0, 
               "lookahead: limit as number of entries for a single local error" 
               "table (in log10)");
-DEFINE_double(lookahead_local_error_all_tables_total_limit, 8.0, 
+DEFINE_double(lookahead_local_error_all_tables_total_limit, -DBL_MAX, 
               "lookahead: limit as number of entries for all local error" 
               "tables (in log10)");
 
