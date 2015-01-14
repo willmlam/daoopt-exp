@@ -366,7 +366,7 @@ Heuristic* Main::newHeuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) {
 #ifdef NO_HEURISTIC
   return new Unheuristic;
 #else
-  if (po->fglpHeur || po->fglpMBEHeur) { 
+  if (po->fglpHeur || po->fglpMBEHeur) {
     bool useFGLP = true;
 
     /*
@@ -398,19 +398,20 @@ Heuristic* Main::newHeuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) {
     }
     */
 
-    if (useFGLP) {
-      if (po->fglpHeur) {
-        return new FGLPHeuristic(p, pt, po);
-      } else if(po->fglpMBEHeur) {
-        return new FGLPMBEHybrid(p, pt, po);
-      }
-    }
-  }
-  else if (po->lookaheadDepth > 0) {
-    return new MiniBucketElimLH(p, pt, po, po->ibound);
-  } else {
-    return new MiniBucketElim(p, pt, po, po->ibound);
-  }
+	if (useFGLP) {
+		if (po->fglpHeur) {
+			return new FGLPHeuristic(p, pt, po);
+			}
+		else if(po->fglpMBEHeur) {
+			return new FGLPMBEHybrid(p, pt, po);
+			}
+		}
+	}
+
+	if (po->lookaheadDepth > 0) {
+		return new MiniBucketElimLH(p, pt, po, po->ibound);
+		}
+	return new MiniBucketElim(p, pt, po, po->ibound);
 #endif
 }
 

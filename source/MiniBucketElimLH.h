@@ -145,7 +145,7 @@ public:
 	// note : localerror should always be >=0, regardless of whether normal/log representation, since item_1 is at least as large as item_2 (above).
 	// note : the scope of the table (as fn) is the same as the bucket output fn.
 	// note : this fn sets _BucketErrorQuality[var] to 0/1 when it can be determined; sometimes when bucket error table is all 0, we won't compute the table and will set _BucketErrorQuality[var]=0.
-	int computeLocalErrorTable(int var, bool build_table, 
+	int computeLocalErrorTable(int var, bool build_table, bool sample_table_if_not_computed, 
 		double TableMemoryLimitAsNumElementsLog, 
 		double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
 		double & avgError, // OUT : avg bucket error; computed when output table is not too large.

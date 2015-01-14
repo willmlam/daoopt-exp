@@ -518,7 +518,7 @@ inline std::string encodeDoubleAsInt(double d) {
 }
 
 inline double decodeDoubleFromString(std::string s) {
-  double x = -INFINITY;
+  double x = -((double)INFINITY);
   std::istringstream ss(s);
   ss >> x;
   return x;
