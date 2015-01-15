@@ -87,6 +87,19 @@ bool Main::loadProblem() {
   m_problem.reset(new Problem);
 
   // load problem file
+  assert(m_options->in_problemFile != "" || m_options->problemSpec);
+  string evid_string;
+  if (!m_options->evidSpec) {
+    evid_string = "0\n";
+    m_options->evidSpec = &evid_string[0];
+    m_options->evidSpec_len = evid_string.size();
+  }
+  string problem_string;
+  if (!m_options->problemSpec) {
+    problem_string = getFileContents(m_options->in_problemFile.c_str());
+    m_options->problemSpec = &problem_string[0];
+    m_options->problemSpec_len = problem_string.size();
+  }
 //  if (!m_problem->parseUAI(m_options->in_problemFile, m_options->in_evidenceFile, m_options->collapse))
   if (!m_problem->parseUAI(m_options->problemSpec, m_options->problemSpec_len,
       m_options->evidSpec, m_options->evidSpec_len, m_options->collapse))
