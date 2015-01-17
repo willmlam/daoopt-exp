@@ -95,12 +95,10 @@ public:
   double ndfglpt; // convergence tolerance for FGLP
 
   /* LOOKAHEAD HEURISTIC OPTIONS */
-  int lookaheadDepth; // depth of lookahead when computing the h (heuristic)
-                       // function; 0=no lookahead
-  double lookahead_LE_SingleTableLimit; // as number of entries; 
-                                                   // log10.
-  double lookahead_LE_AllTablesTotalLimit; // as number of entries;
-                                                       // log10.
+  int lookaheadDepth; // depth of lookahead when computing the h (heuristic) function; 0=no lookahead
+  double lookahead_LE_SingleTableLimit; // as number of entries; log10.
+  double lookahead_LE_AllTablesTotalLimit; // as number of entries; log10.
+  double lookahead_LE_IgnoreThreshold ; // if bucket error is larger than this, it will be ignored for by lookahead. default is DBL_MIN.
 
   /* MISC OPTIONS */
   bool collapse; // collapse functions with identical scopes onto each other
@@ -170,6 +168,7 @@ inline ProgramOptions::ProgramOptions()
     perturb(0),
     lookaheadDepth(0), lookahead_LE_SingleTableLimit(-1.0),
     lookahead_LE_AllTablesTotalLimit(-1.0),
+    lookahead_LE_IgnoreThreshold(DBL_MIN), 
     maxTime(kint32max),
 
     _fpLogFile(nullptr) {

@@ -75,23 +75,28 @@ public :
 } ;
 
 /* enhanced minibucket elimination */
-class MiniBucketElimLH : public MiniBucketElim {
-  friend class MiniBucketElimLHError;
-  friend class MiniBucketElimLHErrorNode;
+class MiniBucketElimLH : public MiniBucketElim
+{
+	friend class MiniBucketElimLHError ;
+	friend class MiniBucketElimLHErrorNode ;
 
  protected:
+
 	MiniBucketElimLHStatistics _Stats ;
+
+	// in the bucket tree, distance of the variable from the root, as the number of edges needed to travel to reach the bucket. 0 for the root.
+	std::vector<int> _Depth ;
+	int _MaxDepth ;
 
 	// joint scope of each bucket, including the bucket's var
 	std::vector<std::set<int>> _BucketScopes ;
+	// original + augmented function of each bucket; this is the set of functions that minibucket algorithm works with.
 	std::vector<std::vector<Function *>> _BucketFunctions ;
-//	std::vector<std::set<int>> _BucketHFnScopes ;
-
 	// a set of minibuckets, one for each var
 	std::vector<std::vector<MiniBucket>> _MiniBuckets ;
 
 	std::vector<Function*> _BucketErrorFunctions ;
-	std::vector<signed char> _BucketErrorQuality ; // for each var, whether the bucketerror[var]=0; -1 means unknown. 0=bucket error is 0, 1=bucket error is >0.
+	std::vector<signed char> _BucketErrorQuality ; // for each var, whether the bucketerror[var]=0; -1 means unknown. 0=bucket error is 0, 1=bucket error is >0 (but perhaps trivial), 2+=bucket error is >0 and non-trivial.
 	double _BuckerErrorFnTableSizes_Total ; // log
 	double _BuckerErrorFnTableSizes_Precomputed ; // log
 	double _BuckerErrorFnTableSizes_Ignored ; // log
@@ -103,7 +108,7 @@ class MiniBucketElimLH : public MiniBucketElim {
 	std::vector<int> _distToClosestDescendantWithMBs ;
 	std::vector<int> _distToClosestDescendantWithLE ;
 
-  std::vector<MiniBucketElimLHError> _ErrorHelper;
+	std::vector<MiniBucketElimLHError> _LookaheadHelper ;
 
 public:
 
@@ -144,7 +149,7 @@ public:
 	// note : error_fn/avg_error/avg_exact are in the same representation space (normal/log) as the problem itself.
 	// note : localerror should always be >=0, regardless of whether normal/log representation, since item_1 is at least as large as item_2 (above).
 	// note : the scope of the table (as fn) is the same as the bucket output fn.
-	// note : this fn sets _BucketErrorQuality[var] to 0/1 when it can be determined; sometimes when bucket error table is all 0, we won't compute the table and will set _BucketErrorQuality[var]=0.
+	// note : this fn sets _BucketErrorQuality[var] to 0/1+ when it can be determined; sometimes when bucket error table is all 0, we won't compute the table and will set _BucketErrorQuality[var]=0.
 	int computeLocalErrorTable(int var, bool build_table, bool sample_table_if_not_computed, 
 		double TableMemoryLimitAsNumElementsLog, 
 		double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
@@ -182,7 +187,7 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOpt
 	_BuckerErrorFnTableSizes_Precomputed(-1), 
 	_BuckerErrorFnTableSizes_Ignored(-1), 
 	_nBucketsWithNonZeroBuckerError(-1), 
-	_nBucketsWithMoreThan1MB(-1)
+	_nBucketsWithMoreThan1MB(-1) 
 {
 }
 
@@ -403,7 +408,7 @@ public :
 			int depth2go = N->_depth2go - 1 ;
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC) {
 				int child = (*itC)->getVar() ;
-				if (0 == H._BucketErrorQuality[child] ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ;
+				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
 				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
 				try { _DescendantNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }

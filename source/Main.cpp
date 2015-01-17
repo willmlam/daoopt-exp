@@ -561,6 +561,7 @@ bool Main::compileHeuristic() {
     if (!mbFromFile) {
       cout << "Computing mini bucket heuristic..." << endl;
       cout << "(Moment matching: " << (m_options->match ? "yes" : "no") << ")" << endl;
+      cout << "(Lookahead level: " << m_options->lookaheadDepth << ")" << endl;
       sz = m_heuristic->build(& m_search->getAssignment(), true); // true =  actually compute heuristic
       time_t cur_time;
       time(&cur_time);

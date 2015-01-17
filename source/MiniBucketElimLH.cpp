@@ -35,6 +35,7 @@ extern int64 nd1GeneralCalls;
 */
 
 //#define DEBUG_BUCKET_ERROR
+//#define NO_LH_PREPROCESSING
 
 #ifndef OUR_OWN_nInfinity
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
@@ -115,32 +116,29 @@ void MiniBucketElimLH::reset(void) {
   _Stats.reset();
 }
 
-void MiniBucketElimLH::Delete() {
-  for (MiniBucketElimLHError& be_error : _ErrorHelper) {
-    be_error.Delete();
-  }
-  deleteLocalErrorFNs();
+void MiniBucketElimLH::Delete(void) 
+{
+	for (MiniBucketElimLHError & be_error : _LookaheadHelper) 
+		be_error.Delete();
+	deleteLocalErrorFNs();
 
-  for (vector<MiniBucket>& mb : _MiniBuckets) {
-    mb.clear();
-  }
-  for (set<int>& scope : _BucketScopes) {
-    scope.clear();
-  }
-  for (vector<Function*>& b_fns : _BucketFunctions) {
-    b_fns.clear();
-  }
-  _MiniBuckets.clear();
-  _BucketScopes.clear();
-  _BucketFunctions.clear();
+	for (vector<MiniBucket> & mb : _MiniBuckets) 
+		mb.clear() ;
+	for (set<int> & scope : _BucketScopes) 
+		scope.clear() ;
+	for (vector<Function*> & b_fns : _BucketFunctions) 
+		b_fns.clear() ;
+	_MiniBuckets.clear() ;
+	_BucketScopes.clear() ;
+	_BucketFunctions.clear() ;
 
-  for (auto& aug_fns : m_augmented) {
-    for (Function* fn : aug_fns) {
-      delete fn;
-    }
-  }
-  m_augmented.clear();
-  m_intermediate.clear();
+	for (auto & aug_fns : m_augmented) {
+		for (Function *fn : aug_fns) {
+			delete fn ;
+			}
+		}
+	m_augmented.clear() ;
+	m_intermediate.clear() ;
 }
 
 size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool computeTables)
@@ -163,6 +161,23 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	m_augmented.resize(m_problem->getN());
 	m_intermediate.resize(m_problem->getN());
 
+	// compute depth of each bucket
+	_MaxDepth = -1 ;
+	_Depth.resize(m_problem->getN());
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _Depth[i] = -1;
+	for (vector<int>::iterator itV = elimOrder.begin(); itV != elimOrder.end(); ++itV) {
+		int v = *itV;  // this is the variable being eliminated
+		PseudotreeNode *n = m_pseudotree->getNode(v) ;
+		PseudotreeNode *p = n->getParent();
+		if (NULL == p) 
+			_Depth[v] = 0 ;
+		else {
+			int u = p->getVar() ;
+			_Depth[v] = 1 + _Depth[u] ;
+			}
+		if (_Depth[v] > _MaxDepth) _MaxDepth = _Depth[v] ;
+		}
+
 	// keep track of total memory consumption
 	_Stats._MemorySize = 0;
 
@@ -170,7 +185,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	_BucketFunctions.resize(m_problem->getN());
 	//	_BucketHFnScopes.resize(m_problem->getN()) ;
 	_MiniBuckets.resize(m_problem->getN());
-	_ErrorHelper.resize(m_problem->getN());
+	_LookaheadHelper.resize(m_problem->getN());
 	_BucketErrorQuality.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _BucketErrorQuality[i] = -1;
 	_distToClosestDescendantWithMBs.resize(m_problem->getN());
@@ -379,6 +394,10 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 			_distToClosestDescendantWithMBs[parent_v] = d2parent_v;
 		}
 
+	// some statistic about local error and lookahead.
+	int LH_nNodesWithDescendants = 0, LH_nTotalDescendants = 0 ;
+	int LH_minDepthOfNodeWithLookahead = INT_MAX, LH_maxDepthOfNodeWithLookahead = -1 ;
+
 	// clean up for estimation mode
 	if (!computeTables) {
 		Delete();
@@ -390,25 +409,31 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 
 		// for each bucket, compute closest distance to descendant with >0 bucket error.
 		for (vector<int>::reverse_iterator itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
-			int v = *itV;  // this is the variable being eliminated
-			PseudotreeNode *parent_n = m_pseudotree->getNode(v)->getParent();
+			int v = *itV ;  // this is the variable being eliminated
+			PseudotreeNode *parent_n = m_pseudotree->getNode(v)->getParent() ;
 			if (NULL == parent_n) 
-				continue;
-			int parent_v = parent_n->getVar(), d2parent_v = INT_MAX;
-			if (0 != _BucketErrorQuality[v])
-				d2parent_v = 0;
+				continue ;
+			int parent_v = parent_n->getVar(), d2parent_v = INT_MAX ;
+			if (_BucketErrorQuality[v] > 1) 
+				d2parent_v = 0 ; // this bucket has substantial error
 			else
-				d2parent_v = _distToClosestDescendantWithLE[v];
+				d2parent_v = _distToClosestDescendantWithLE[v] ;
 			if (d2parent_v >= INT_MAX) 
-				continue;
+				continue ;
 			if (++d2parent_v < _distToClosestDescendantWithLE[parent_v])
-				_distToClosestDescendantWithLE[parent_v] = d2parent_v;
+				_distToClosestDescendantWithLE[parent_v] = d2parent_v ;
 			}
     
 		// for each bucket, compute closest distance to descendant with >0 bucket error
 		for (auto itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
 			int v = *itV;
-			_ErrorHelper[v].Initialize(*this, v, m_options->lookaheadDepth);
+			_LookaheadHelper[v].Initialize(*this, v, m_options->lookaheadDepth);
+			if (_LookaheadHelper[v]._DescendantNodes.size() > 0) {
+				++LH_nNodesWithDescendants ; LH_nTotalDescendants += (int) _LookaheadHelper[v]._DescendantNodes.size() ;
+				int depth = _Depth[v] ;
+				if (LH_minDepthOfNodeWithLookahead > depth) LH_minDepthOfNodeWithLookahead = depth ;
+				if (LH_maxDepthOfNodeWithLookahead < depth) LH_maxDepthOfNodeWithLookahead = depth ;
+				}
 			}
 		}
 
@@ -417,6 +442,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	cout << "Minibucket Memory (MB): " << minibucket_mem_mb << endl;
 	cout << "Local Error Memory (MB): " << _Stats._LEMemorySizeMB << endl;
 	cout << "Total Heuristic Memory (MB): " << minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
+	cout << "LH nBucketsWithNonZeroBuckerError: " << _nBucketsWithNonZeroBuckerError << " nBucketsWithMoreThan1MB: " << _nBucketsWithMoreThan1MB << endl;
+	cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants << " nTotalDescendants: " << LH_nTotalDescendants << " (BuckerErrorIgnoreThreshold=" << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
+	cout << "LH minDepthOfNodeWithLookahead: " << LH_minDepthOfNodeWithLookahead << " maxDepthOfNodeWithLookahead: " << LH_maxDepthOfNodeWithLookahead << " (MaxDepth=" << _MaxDepth << ")" << endl;
 	return _Stats._MemorySize;
 }
 
@@ -477,7 +505,7 @@ exit(999);
 		return h;
 		}
 //  ++nd1GeneralCalls;
-	double DH = _ErrorHelper[var].Error(assignment);
+	double DH = _LookaheadHelper[var].Error(assignment);
 	return h - DH;
 }
 
@@ -520,7 +548,7 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment, SearchNode
 		}
 //  ++nd1GeneralCalls;
 
-	MiniBucketElimLHError & eh = _ErrorHelper[var] ;
+	MiniBucketElimLHError & eh = _LookaheadHelper[var] ;
 #ifdef GET_LH_VALUE_BULK
 	eh.Error(assignment, out) ;
 #else
@@ -817,6 +845,9 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		}
 	printf("\n   MiniBucketElimLH::computeLocalErrorTable var=%d tablesize=%lld", (int)var, (int64)TableSize);
 
+	int64 nEntries_both_inf = 0, nEntries_B_inf = 0, nEntries_none_inf = 0 ;
+	double avgExact_none_inf = 0.0, avgError_none_inf = 0.0 ;
+
 	// enumerate all new fn scope combinations
 	double e, numErrorItems = 0.0 ;
 	avgError = avgExact = 0.0 ;
@@ -851,11 +882,18 @@ printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
 			for (k = 0; k < int(funs_MB.size()); k++) 
 				tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
 
+			// compute numbers of special cases
+			if (OUR_OWN_nInfinity == tableentryB) {
+				if (OUR_OWN_nInfinity == tableentryMB) nEntries_both_inf++ ;
+				else nEntries_B_inf++ ;
+				}
+			else { avgExact_none_inf += tableentryB ; nEntries_none_inf++ ; }
+
 			if (tableentryMB <= tableentryB) {  // '<' is an error, '=' is ok.
 				e = 0.0;
-	#if defined DEBUG || _DEBUG
-			if (tableentryMB < tableentryB) nBadErrorValues++;
-	#endif
+#if defined DEBUG || _DEBUG
+				if (tableentryMB < tableentryB) nBadErrorValues++;
+#endif
 				}
 			else  // note tableentryB may be -infinity.
 				e = tableentryMB - tableentryB;
@@ -865,6 +903,8 @@ printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
 			numErrorItems += 1.0;
 			avgError += e;
 			avgExact += tableentryB;
+			if (e < 1.0e+32) 
+				avgError_none_inf += e ;
 			if (NULL != newTable) 
 				newTable[j] = e;
 			}
@@ -893,6 +933,13 @@ printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
 			for (k = 0; k < int(funs_MB.size()); k++) 
 				tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
 
+			// compute numbers of special cases
+			if (OUR_OWN_nInfinity == tableentryB) {
+				if (OUR_OWN_nInfinity == tableentryMB) nEntries_both_inf++ ;
+				else nEntries_B_inf++ ;
+				}
+			else { avgExact_none_inf += tableentryB ; nEntries_none_inf++ ; }
+
 			if (tableentryMB <= tableentryB) {  // '<' is an error, '=' is ok.
 				e = 0.0;
 #if defined DEBUG || _DEBUG
@@ -907,9 +954,17 @@ printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
 			numErrorItems += 1.0;
 			avgError += e;
 			avgExact += tableentryB;
+			if (e < 1.0e+32) 
+				avgError_none_inf += e ;
 			}
 		sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
 		}
+
+	// avgExact_none_inf/avgError_none_inf are avg in case when neither MB/B value is -infinity.
+	if (nEntries_none_inf > 0) 
+		{ avgExact_none_inf /= nEntries_none_inf ; avgError_none_inf /= nEntries_none_inf ; }
+	// rel_error is relative error in case when neither MB/B value is -infinity.
+	double rel_error = fabs(avgExact_none_inf) > 0.0 ? fabs(100.0 * avgError_none_inf / avgExact_none_inf) : -DBL_MAX ;
 
 	if (numErrorItems > 0.0) {
 		avgError = avgError / numErrorItems;
@@ -918,15 +973,28 @@ printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
 	else if (build_table)
 		build_table = false;
 
-	// if avgError is 0, don't build table. note avgError could be infinity (in
-	// case of log space representation).
-	if (avgError <= DBL_MIN && enumerate_table) {
-printf("\nBUCKET ERROR is 0 (table); var=%d, nEntriesGenerated=%I64d, TableSize=%I64d", (int) var, (int64) nEntriesGenerated, (int64) TableSize) ;
+	if (! enumerate_table && nEntriesGenerated > 0) 
+		// we have no data
+		return 0 ;
+
+	double threshold = DBL_MIN ;
+	if (NULL != m_options) 
+		threshold = m_options->lookahead_LE_IgnoreThreshold ;
+	if (threshold < DBL_MIN) 
+		threshold = DBL_MIN ;
+	// if there is substantial error, mark it as such.
+	// if avgError is 0, don't build table. note avgError could be infinity (in case of log space representation).
+	if (nEntries_B_inf > 0 || rel_error > threshold) {
+		// this table has substantial bucket error; we should be lookahead.
+		_BucketErrorQuality[var] = 2 ;
+		}
+	else if (avgError <= DBL_MIN && enumerate_table) {
+//printf("\nBUCKET ERROR is 0 (table); var=%d (depth=%d), nEntriesGenerated=%I64d, TableSize=%I64d", (int) var, (int) _Depth[var], (int64) nEntriesGenerated, (int64) TableSize) ;
 		_BucketErrorQuality[var] = 0;
 		build_table = false;
 		}
 	else if (avgError <= DBL_MIN && nEntriesGenerated > 0) {
-printf("\nBUCKET ERROR is 0 (sample); var=%d, nSamples=%I64d, TableSize=%I64d, sample_coverage=%g", (int) var, (int64) nEntriesGenerated, (int64) TableSize, sample_coverage) ;
+//printf("\nBUCKET ERROR is 0 (sample); var=%d (depth=%d), nSamples=%I64d, TableSize=%I64d, sample_coverage=%g (avg er=%g ex=%g)", (int) var, (int) _Depth[var], (int64) nEntriesGenerated, (int64) TableSize, sample_coverage, avgError, avgExact) ;
 		_BucketErrorQuality[var] = 0;
 		build_table = false;
 		}
@@ -945,9 +1013,10 @@ printf("\nBUCKET ERROR is 0 (sample); var=%d, nSamples=%I64d, TableSize=%I64d, s
 		}
 
 	if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
-		double rel_error = avgExact > 0.0 ? fabs(100.0 * avgError / avgExact) : DBL_MAX;
-		fprintf(m_options->_fpLogFile, "\n   Computing localError for var=%d, nMBs = %d, avg error = %g, avg exact = %g, tablesize = %lld entries",
-			(int)var, (int)minibuckets.size(), (double)avgError,(double)avgExact, (int64)TableSize);
+		double rel_error = fabs(avgExact_none_inf) > 0.0 ? fabs(100.0 * avgError_none_inf / avgExact_none_inf) : DBL_MAX;
+		fprintf(m_options->_fpLogFile, 
+			"\n   Computing localError for var=%d (depth=%d), nMBs = %d, avg error = %g(%g), avg exact = %g(%g), tablesize = %lld entries; nSpecialCases=%lld/%lld/%lld",
+			(int)var, (int) _Depth[var], (int)minibuckets.size(), (double)avgError, (double)avgError_none_inf,(double)avgExact, (double)avgExact_none_inf, (int64)TableSize, (int64) nEntries_both_inf, (int64) nEntries_B_inf, (int64) nEntries_none_inf);
 		if (rel_error < 1.0e+100)
 			fprintf(m_options->_fpLogFile, ", rel avg error = %g%c", (double)rel_error, '%');
 		}
@@ -955,7 +1024,7 @@ printf("\nBUCKET ERROR is 0 (sample); var=%d, nSamples=%I64d, TableSize=%I64d, s
 	_Stats._LEMemorySizeMB += TableSize * sizeof(double) / (1024.0 * 1024);
 
 	if (NULL != newTable) delete[] newTable;
-	delete[] tuple;
+	if (NULL != tuple) delete[] tuple;
 
 	return 0;
 }
@@ -1018,6 +1087,9 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		bool build_table = build_tables ;
 		if (table_size_actual_limit <= 0 && do_sample) 
 			{ build_table = false ; table_size_actual_limit = TableMemoryLimitAsNumElementsLog ; }
+#ifdef NO_LH_PREPROCESSING
+		build_table = do_sample = false ; table_size_actual_limit = -DBL_MIN ;
+#endif // 
 		computeLocalErrorTable(v, build_table, do_sample, table_size_actual_limit, tableSize, avgError, E, errorFn);
 		_BucketErrorFunctions[v] = errorFn;
 		if (_BucketErrorQuality[v] > 0) 

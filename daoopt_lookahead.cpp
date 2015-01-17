@@ -58,8 +58,8 @@ if (x < z) {
 double zz = z - x ;*/
 
 	int nParams = argc ;
-	if (8 != nParams) {
-		printf("\nUSAGE:\n $ %s uaifile evidencefile varelimorderfile ibound lookaheadDepth BEtablesizetotal BEsingletablesize logfile", argv[0]) ;
+	if (10 != nParams) {
+		printf("\nUSAGE:\n $ %s uaifile evidencefile varelimorderfile ibound lookaheadDepth BEtablesizetotal BEsingletablesize BuckerErrorIgnoreThreshold logfile", argv[0]) ;
 		return 0 ;
 		}
 	std::string uaifile = (NULL != argv[1] ? argv[1] : "") ;
@@ -68,8 +68,9 @@ double zz = z - x ;*/
 	std::string ibound = (NULL != argv[4] ? argv[4] : "") ;
 	std::string sLookaheadDepth = (NULL != argv[5] ? argv[5] : "") ;
 	std::string sBEtablesizetotal = (NULL != argv[6] ? argv[6] : "") ;
-  std::string sBEsingletablesize = (NULL != argv[7] ? argv[7] : "") ;
-	std::string sLogFile = (NULL != argv[8] ? argv[8] : "") ; if (0 == sLogFile.length()) sLogFile = "daoopt_lookahead.txt" ;
+	std::string sBEsingletablesize = (NULL != argv[7] ? argv[7] : "") ;
+	std::string sBuckerErrorIgnoreThreshold = (NULL != argv[8] ? argv[8] : "") ;
+	std::string sLogFile = (NULL != argv[9] ? argv[9] : "") ; if (0 == sLogFile.length()) sLogFile = "daoopt_lookahead.txt" ;
 
 	// Load problem specification and evidence into memory
 	std::string problem = getFileContents(uaifile.c_str());
@@ -86,17 +87,23 @@ double zz = z - x ;*/
 
 	daoopt::ProgramOptions options; // Set various options here, as documented in ProgramOptions.h
 	options.ibound = ibound.length() > 0 ? atoi(ibound.c_str()) : 2 ;
+  options.cbound = 1000;
 	options.lookaheadDepth = sLookaheadDepth.length() > 0 ? atoi(sLookaheadDepth.c_str()) : 0 ;
 	options.order_iterations = 0;
 	options.seed = 2323;
-	options.lds = 0;
+	options.lds = -1;
 	options.match = true;
-	options.lookahead_LE_AllTablesTotalLimit = sBEtablesizetotal.length() > 0 ? atof(sBEtablesizetotal.c_str()) : 0.0 ;
+  options.subprobOrder = 0;
+	options.lookahead_LE_AllTablesTotalLimit = sBEtablesizetotal.length() > 0 ? atof(sBEtablesizetotal.c_str()) : -DBL_MIN ;
 	if (options.lookahead_LE_AllTablesTotalLimit < 0.0) options.lookahead_LE_AllTablesTotalLimit = -DBL_MIN ;
 	else if (options.lookahead_LE_AllTablesTotalLimit > 20.0) options.lookahead_LE_AllTablesTotalLimit = 20.0 ;
-  options.lookahead_LE_SingleTableLimit = sBEsingletablesize.length() > 0 ?
-    atof(sBEsingletablesize.c_str()) : 0.0;
-	if (options.lookahead_LE_SingleTableLimit < 0.0) options.lookahead_LE_SingleTableLimit = 0.0 ;
+    options.lookahead_LE_SingleTableLimit = sBEsingletablesize.length() > 0 ? atof(sBEsingletablesize.c_str()) : 0.0;
+//	options.lookahead_LE_SingleTableLimit = options.lookahead_LE_AllTablesTotalLimit - 0.5 ;
+	// even if tables are not generated, sample tables
+	if (options.lookahead_LE_SingleTableLimit < 5.0) options.lookahead_LE_SingleTableLimit = 5.0 ;
+options.lookahead_LE_SingleTableLimit = 6.0 ;
+	options.lookahead_LE_IgnoreThreshold = sBuckerErrorIgnoreThreshold.length() > 0 ? atof(sBuckerErrorIgnoreThreshold.c_str()) : DBL_MIN ;
+	if (options.lookahead_LE_IgnoreThreshold < DBL_MIN) options.lookahead_LE_IgnoreThreshold = DBL_MIN ;
 
 	// store problem/evid pointers in options object.
 	options.problemSpec = &problem[0];  // char* (non-const)
