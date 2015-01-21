@@ -248,11 +248,13 @@ for (int ii = 0 ; ii < cvoBestOrder._nVars ; ii++) {
 	printf("\nWILL PREPROCESS ...") ;
 	daoopt.preprocess(options) ;
 
+  /*
 	double Estimate_NumSearchSpaceNodesExpanded = daoopt.estimate() ;
 	if (0.0 == Estimate_NumSearchSpaceNodesExpanded) { // solved by preprocessing
 		double Query_Answer = daoopt.getSolution(NULL) ;
 		printf("\nSOLVED by preprocessing... answer=%g", Query_Answer) ;
 		}
+    */
 
 /*	if (options.lookaheadDepth > 0) {
 		if (NULL != options._fpLogFile && NULL != uaifile.c_str()) {

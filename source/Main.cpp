@@ -800,7 +800,9 @@ bool Main::runSearchWorker(size_t nodeLimit) {
   SearchNode* n = m_search->nextLeaf();
   while (n && (nodeLimit == 0 || limit-- > 0)) {
     m_prop->propagate(n, true); // true = report solutions
-    n = m_search->nextLeaf();
+    if (nodeLimit == 0 || limit > 0) {
+      n = m_search->nextLeaf();
+    }
   }
   if (!n) {
     m_solved = true;
