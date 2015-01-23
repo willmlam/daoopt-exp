@@ -115,15 +115,12 @@ DEFINE_double(dfglp_tolerance, 1e-7, "convergence tolerance for dynamic FGLP");
 // Lookahead optinas
 DEFINE_int32(lookahead_depth, 0, "depth of lookahead when computing the h"
              "(heuristic) function; 0=no lookahead");
-DEFINE_double(lookahead_local_error_single_table_limit, 5.0, 
+DEFINE_double(lookahead_local_error_single_table_limit, 7.0, 
               "lookahead: limit as number of entries for a single local error" 
               "table (in log10)");
-DEFINE_double(lookahead_local_error_all_tables_total_limit, -DBL_MAX, 
+DEFINE_double(lookahead_local_error_all_tables_total_limit, 8.0, 
               "lookahead: limit as number of entries for all local error" 
               "tables (in log10)");
-DEFINE_double(lookahead_local_error_ignore_threshold, DBL_MIN,
-              "lookahead: if the bucket error is larger than this it will be"
-              "ignored by lookahead");
 
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 
@@ -189,8 +186,6 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         FLAGS_lookahead_local_error_single_table_limit;
     opt->lookahead_LE_AllTablesTotalLimit =
         FLAGS_lookahead_local_error_all_tables_total_limit;
-    opt->lookahead_LE_IgnoreThreshold =
-        FLAGS_lookahead_local_error_ignore_threshold;
 
     opt->order_iterations = FLAGS_order_iterations;
     opt->order_timelimit = FLAGS_order_time;

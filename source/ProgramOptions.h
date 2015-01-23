@@ -168,7 +168,7 @@ inline ProgramOptions::ProgramOptions()
     perturb(0),
     lookaheadDepth(0), lookahead_LE_SingleTableLimit(-1.0),
     lookahead_LE_AllTablesTotalLimit(-1.0),
-    lookahead_LE_IgnoreThreshold(DBL_MIN), 
+	lookahead_LE_IgnoreThreshold(DBL_MIN), 
     maxTime(kint32max),
 
     _fpLogFile(nullptr) {

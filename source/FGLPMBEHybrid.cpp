@@ -98,6 +98,10 @@ double FGLPMBEHybrid::getHeur(int var, vector<val_t> &assignment,
   return ELEM_ZERO;
 }
 
+double FGLPMBEHybrid::getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH) {
+  return ELEM_ZERO;
+}
+
 void FGLPMBEHybrid::getHeurAll(int var, vector<val_t> &assignment,
                                SearchNode *node, vector<double> &out) {
   vector<double> fglpOut(out.size(), ELEM_ONE);

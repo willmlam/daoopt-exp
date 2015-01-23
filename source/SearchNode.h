@@ -62,6 +62,11 @@ protected:
   double m_nodeValue;                // node value (as in cost)
   double m_heurValue;                // heuristic estimate of the node's value
 
+  // after checking if this node can be pruned, pruning gap is the min value of "curPSTVal - curOR->getValue()" over all ancestors/checks.
+  // if _PruningGap is <=0, the node can be pruned. if _PruningGap>0, pruning check failed.
+  // _PruningGap indicates how close we came to pruning; e.g. if the h was smaller by this amount, we would have pruned the node.
+  double _PruningGap ;
+
   CHILDLIST m_children;              // Child nodes
   size_t m_childCountFull;           // Number of total child nodes (initial count)
   size_t m_childCountAct;            // Number of remaining active child nodes
@@ -80,7 +85,6 @@ protected:
 
   unique_ptr<ExtraNodeInfo> m_eInfo; // stores extra info specific to a heuristic
 
-
 public:
   virtual int getType() const = 0;
   virtual int getVar() const = 0;
@@ -96,6 +100,8 @@ public:
   // the first one is overridden in SearchNodeOR, the second one isn't
   virtual double getHeur() const { return m_heurValue; }
 //  virtual double getHeurOrg() const { return m_heurValue; }
+
+  inline double & PruningGap(void) { return _PruningGap ; }
 
   virtual void setCacheContext(const context_t&) = 0;
   virtual const context_t& getCacheContext() const = 0;
@@ -190,10 +196,19 @@ class SearchNodeAND : public SearchNode {
 protected:
   val_t m_val;          // Node value, assignment to OR parent variable
   double m_nodeLabel;   // Label of arc <X_i,a>, i.e. instantiated function costs
-  double m_subSolved;   // Saves solutions of optimally solved subproblems, so that
-                        // their nodes can be deleted
+  double m_subSolved;   // Saves solutions of optimally solved subproblems, so that their nodes can be deleted
   static context_t emptyCtxt;
   static std::list<std::pair<double,double> > emptyPSTList;
+
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  // heuristic estimate of the node's value, broken down per each independent subproblem;
+  // size of this array is nChildren; this array is allocated by (and belongs to) parent OR node. 
+  // the sum over this array should equal to h of this node (not including label or original functions of this node).
+  // this array is computed when the h of the parent OR node is computed; when computing parent OR node's h, we represent it as the sum 
+  // of h's from all its (independent) children (child buckets in the bucket tree). 
+  // this number comes handy when checking/observing how the h changes when moving from parent to child (as the h becomes more accurate).
+  double *_heurValueForEachIndSubproblem ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 
 public:
   int getType() const { return NODE_AND; }
@@ -208,6 +223,11 @@ public:
   double getSubSolved() const { return m_subSolved; }
 
   int getDepth() const { return m_parent->getDepth(); }
+
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  double getHeurValueForEachIndSubproblem(int idxChild) const { return NULL != _heurValueForEachIndSubproblem ? _heurValueForEachIndSubproblem[idxChild] : DBL_MAX ; }
+  void setHeurValueForEachIndSubproblem(double *v) { _heurValueForEachIndSubproblem = v ; }
+#endif //#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 
   /* empty implementations, functions meaningless for AND nodes */
   void setCacheContext(const context_t& c) { assert(false); }
@@ -250,6 +270,13 @@ protected:
   double* m_heurCache;   // Stores the precomputed heuristic values of the AND children
   context_t m_cacheContext; // Stores the context (for caching)
 
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  // this is the portion of parent (AND) node's h values that came from this OR node.
+  // this value is computed when the OR-parent of the AND-parent of this node is computed; then a vector for all children is stored in the AND-parent of this node.
+  // when AND-parent of this node is expanded, this vector is distributed between its OR-children.
+  double _heurValueOfParentFromThisNode ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   context_t m_subprobContext; // Stores the context values to this subproblem
 #endif
@@ -263,6 +290,10 @@ public:
   val_t getVal() const { assert(false); return NONE; } // no val for OR nodes!
 
   int getDepth() const { return m_depth; }
+
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  double & heurValueOfParentFromThisNode(void) { return _heurValueOfParentFromThisNode; }
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 
   void setValue(double d) { m_nodeValue = d; }
   double getValue() const { return m_nodeValue; }
@@ -320,7 +351,7 @@ ostream& operator << (ostream&, const SearchNode&);
 
 /* Inline definitions */
 inline SearchNode::SearchNode(SearchNode* parent) :
-    m_flags(0), m_parent(parent), m_nodeValue(ELEM_NAN), m_heurValue(INFINITY),
+    m_flags(0), m_parent(parent), m_nodeValue(ELEM_NAN), m_heurValue(INFINITY), _PruningGap(DBL_MAX), 
     m_children(NULL), m_childCountFull(0), m_childCountAct(0)
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   , m_subCount(0)
@@ -390,7 +421,11 @@ inline void SearchNodeOR::clearHeurCache() {
 
 
 inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label) :
-    SearchNode(parent), m_val(val), m_nodeLabel(label), m_subSolved(ELEM_ONE)
+    SearchNode(parent), m_val(val), m_nodeLabel(label) 
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	, _heurValueForEachIndSubproblem(NULL) 
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	, m_subSolved(ELEM_ONE)
 {
   m_nodeValue = ELEM_NAN;
 }
@@ -398,6 +433,9 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
   SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(nullptr)
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  , _heurValueOfParentFromThisNode(DBL_MAX) 
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
     //, m_cacheContext(NULL)
 #if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC || TRUE
   , m_initialBound(ELEM_NAN), m_complexityEstimate(ELEM_NAN)

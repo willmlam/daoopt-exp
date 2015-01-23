@@ -92,8 +92,6 @@ class MiniBucketElimLH : public MiniBucketElim
 	std::vector<std::set<int>> _BucketScopes ;
 	// original + augmented function of each bucket; this is the set of functions that minibucket algorithm works with.
 	std::vector<std::vector<Function *>> _BucketFunctions ;
-	// a set of minibuckets, one for each var
-	std::vector<std::vector<MiniBucket>> _MiniBuckets ;
 
 	std::vector<Function*> _BucketErrorFunctions ;
 	std::vector<signed char> _BucketErrorQuality ; // for each var, whether the bucketerror[var]=0; -1 means unknown. 0=bucket error is 0, 1=bucket error is >0 (but perhaps trivial), 2+=bucket error is >0 and non-trivial.
@@ -119,16 +117,11 @@ public:
 	// reset the data structures
 	virtual void reset() ;
 
-  // delete the data structures
-  virtual void Delete();
-
 	// computes the heuristic for variable var given a (partial) assignment
-	virtual double getHeur(int var, std::vector<val_t>& assignment,
-                         SearchNode* n);
+	virtual double getHeur(int var, std::vector<val_t>& assignment, SearchNode* n) ;
+	virtual double getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH);
 	// computes heuristic values for all instantiations of var, given context assignment
-	virtual void getHeurAll(int var, std::vector<val_t>& assignment, 
-                          SearchNode* n, std::vector<double>& out);
-
+	virtual void getHeurAll(int var, std::vector<val_t>& assignment, SearchNode* n, std::vector<double>& out);
 
 	// computes the lookahead heuristic for variable var given a (partial) assignment.
 	// note : this fn returns BucketError[var]. all variables in the output fn of bucket[var] should be instantiated by 'assignment'.
@@ -193,7 +186,7 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOpt
 
 inline MiniBucketElimLH::~MiniBucketElimLH(void)
 {
-  Delete();
+  this->reset();
 }
 
 /*
@@ -215,6 +208,7 @@ public :
 	MiniBucketElimLH *_H ;
 public :
 	int _v ; // variable of this node.
+	int _idxWRTparent ; // idx of this node as child of its parent; this is wrt the childlen list of the parent.
 	int _k ; // domain size of this variable.
 	int _depth2go ; // depth still to go from this node; as number of edges.
 	std::vector<Function *> _RelevantMiniBucketFunctions ; // IF/AF that came from within of the LH-subteee rooted at this node
@@ -318,7 +312,7 @@ public :
 			out[k] OP_DIVIDEEQ (MBVals[k] - tableentryB) ;
 			}
 	}
-	MiniBucketElimLHErrorNode(void) : _H(NULL), _v(-1), _k(-1), _depth2go(-1)
+	MiniBucketElimLHErrorNode(void) : _H(NULL), _v(-1), _idxWRTparent(-1), _k(-1), _depth2go(-1)
 	{
 	}
 	~MiniBucketElimLHErrorNode(void)
@@ -355,6 +349,24 @@ public :
 		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
 		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC) 
 			e OP_TIMESEQ (*itC)->Error(assignment) ;
+		return e ;
+	}
+	inline double ErrorPerIndSubproblem(vector<val_t> & assignment, double current_pruning_gap, std::vector<double> & subprobH) const
+	{
+		if (0 == _DescendantNodes.size()) 
+			return 0.0 ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
+		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity, 
+		// whereas in reality, some children have 0-error, some non-0-error.
+		double e = ELEM_ONE ;
+		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
+		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC) {
+			double eChild = (*itC)->Error(assignment) ; // eChild should be >=0.
+			subprobH[(*itC)->_idxWRTparent] OP_DIVIDEEQ eChild ;
+			e OP_TIMESEQ eChild ;
+			current_pruning_gap OP_DIVIDEEQ eChild ;
+			if (current_pruning_gap <= 0.0) 
+				break ; // error so far is big enough to cause pruning; no need to improve the error further.
+			}
 		return e ;
 	}
 	// get heuristic error for each value of the variable '_v'.
@@ -405,11 +417,11 @@ public :
 			if (rootchilddepth == N->_depth2go) currentrootchild = N ;
 			const PseudotreeNode *N_ = H.m_pseudotree->getNode(N->_v) ;
 			const vector<PseudotreeNode *> & children = N_->getChildren() ;
-			int depth2go = N->_depth2go - 1 ;
-			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC) {
+			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
+			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
 				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
-				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
+				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_idxWRTparent = idxChild ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
 				try { _DescendantNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				if (depth2go > 0) { try { nodes2process.push(n) ; } catch (...) { delete n ; return 1 ; }}

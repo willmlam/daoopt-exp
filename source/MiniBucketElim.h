@@ -60,6 +60,9 @@ class MiniBucketElim : public Heuristic {
   // generated in a pseudotree descendant and passed to an ancestor of v
   // (points to the same function objects as m_augmented)
   vector<vector<Function*> > m_intermediate;
+  
+  // a set of minibuckets, one for each var
+  std::vector<std::vector<MiniBucket>> _MiniBuckets ;
 
   int m_memlimit;
 
@@ -97,12 +100,10 @@ class MiniBucketElim : public Heuristic {
   double getGlobalUB() const { return m_globalUB; }
 
   // computes the heuristic for variable var given a (partial) assignment
-  virtual double getHeur(int var, vector<val_t>& assignment,
-                         SearchNode* n);
-  // computes heuristic values for all instantiations of var, given context
-  // assignment
-  virtual void getHeurAll(int var, vector<val_t>& assignment,
-                          SearchNode* n, vector<double>& out);
+  virtual double getHeur(int var, vector<val_t>& assignment, SearchNode* n);
+  virtual double getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH);
+  // computes heuristic values for all instantiations of var, given context assignment
+  virtual void getHeurAll(int var, vector<val_t>& assignment, SearchNode* n, vector<double>& out);
 
   double getLabel(int var, const vector<val_t>& assignment, SearchNode* n);
   void getLabelAll(int var, const vector<val_t>& assignment, SearchNode* n,
@@ -170,7 +171,7 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                                       ProgramOptions* po, int ib)
     : Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE) {}
 
-inline MiniBucketElim::~MiniBucketElim() {}
+inline MiniBucketElim::~MiniBucketElim() { reset() ; }
 
 inline bool scopeIsLarger(Function* p, Function* q) {
   assert(p && q);

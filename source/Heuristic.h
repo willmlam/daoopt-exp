@@ -101,11 +101,13 @@ public:
    * variable) will be extracted.
    */
   virtual double getHeur(int var, std::vector<val_t>& assignment, SearchNode* node) = 0;
+  /* This function computes the heuristic, just as getHeur(), but broken down into components, one from each independent subproblem.
+   */
+  virtual double getHeurPerIndSubproblem(int var, std::vector<val_t>& assignment, SearchNode* node, double label, std::vector<double> & subprobH) = 0;
 
   /* same as above, but writes heuristic values for all instantiations
    * of var into out. */
-  virtual void getHeurAll(int var, std::vector<val_t>& assignment, SearchNode* node,
-      std::vector<double>& out) = 0;
+  virtual void getHeurAll(int var, std::vector<val_t>& assignment, SearchNode* node, std::vector<double>& out) = 0;
 
   /* gets the label value of for a node 
    * (mainly for heuristics which reparameterize the problem) */

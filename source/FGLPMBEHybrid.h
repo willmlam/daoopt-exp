@@ -55,11 +55,9 @@ public:
 
     inline double getGlobalUB() const { return min(fglpHeur->getGlobalUB(), (mbeHeur ? mbeHeur->getGlobalUB() : ELEM_ONE)); }
 
-    double getHeur(int var, std::vector<val_t> &assignment, SearchNode *node);
-
-    void getHeurAll(int var, std::vector<val_t> &assignment, SearchNode *node, 
-            std::vector<double> &out);
-
+    virtual double getHeur(int var, std::vector<val_t> &assignment, SearchNode *node);
+	virtual double getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH);
+    virtual void getHeurAll(int var, std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
     double getLabel(int var, const std::vector<val_t> &assignment, SearchNode *node);
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);

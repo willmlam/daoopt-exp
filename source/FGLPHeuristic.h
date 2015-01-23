@@ -79,9 +79,9 @@ public:
 
     double getGlobalUB() const { return m_globalUB; }
 
-    double getHeur(int var, std::vector<val_t> &assignment, SearchNode *node);
-
-    void getHeurAll(int var, std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
+    virtual double getHeur(int var, std::vector<val_t> &assignment, SearchNode *node);
+	virtual double getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH);
+    virtual void getHeurAll(int var, std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
     // Readjusts the heuristic value so it is consistent with the original 
     // functions that are already assigned.

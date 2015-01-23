@@ -27,6 +27,8 @@
 #include "ProgramOptions.h"
 #include <iomanip>
 
+//#define DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+
 namespace daoopt {
 
 extern time_t _time_start; // from Main.cpp
@@ -224,17 +226,22 @@ SearchNode* Search::nextLeaf() {
 bool Search::canBePruned(SearchNode* n) const {
   DIAG(oss ss; ss << std::setprecision(20) << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
  
+  n->PruningGap() = DBL_MAX ;
+
   // never prune the root node (is there a better solution maybe?)
   if (n->getDepth() < 0) return false;
 
       // heuristic is upper bound, prune if zero
-  if (n->getHeur() == ELEM_ZERO) return true;
+  if (n->getHeur() == ELEM_ZERO) 
+	  { n->PruningGap() = ELEM_ZERO ; return true; }
 
   double curPSTVal = n->getHeur();  // includes label in case of AND node
   SearchNode* curOR = (n->getType() == NODE_OR) ? n : n->getParent();
 
-  if (curPSTVal <= curOR->getValue())  // simple pruning case
-    return true;
+  double pg = curPSTVal - curOR->getValue() ;
+  n->PruningGap() = pg ;
+  if (pg <= 0.0)  // simple pruning case
+	  return true;
 
   SearchNode* curAND = NULL;
 
@@ -256,8 +263,9 @@ bool Search::canBePruned(SearchNode* n) const {
     DIAG( ostringstream ss; ss << std::setprecision(20) << "\t ?PST root: " << *curOR << " pst=" << curPSTVal << " v=" << curOR->getValue() << endl; myprint(ss.str()); )
 
     //if ( fpLt(curPSTVal, curOR->getValue()) ) {
-    //
-    if ( curPSTVal <= curOR->getValue() /*|| fabs(curPSTVal - curOR->getValue()) < 1e-10*/ ) {
+	pg = curPSTVal - curOR->getValue() ;
+	if (pg < n->PruningGap()) n->PruningGap() = pg ;
+    if ( pg <= 0.0 /*|| fabs(curPSTVal - curOR->getValue()) < 1e-10*/ ) {
         for (SearchNode* nn = (n->getType() == NODE_OR) ? n : n->getParent();
             nn != curOR; nn = nn->getParent()->getParent())
             nn->setNotOpt();  // mark possibly not optimally solved subproblems
@@ -309,13 +317,20 @@ bool Search::generateChildrenAND(SearchNode* n, vector<SearchNode*>& chi) {
 #endif
   if (depth>=0) m_nodeProfile[depth] +=1; // ignores dummy node
 
+  // we have stored heuristic from each child
+  const PseudotreeNode *node = m_pseudotree->getNode(var) ;
+  int nChildren = node->getChildren().size() ;
+
   // create new OR children (going in reverse due to reversal on stack)
-  for (vector<PseudotreeNode*>::const_reverse_iterator it=ptnode->getChildren().rbegin();
-       it!=ptnode->getChildren().rend(); ++it)
-  {
+  int idxChild = nChildren - 1 ;
+  for (vector<PseudotreeNode*>::const_reverse_iterator it=ptnode->getChildren().rbegin(); it!=ptnode->getChildren().rend(); ++it, --idxChild) {
+	// _heurValueForEachIndSubproblem[idxChild] is the portion of this node's h that we got from that child.
     int vChild = (*it)->getVar();
     SearchNodeOR* c = new SearchNodeOR(n, vChild, depth+1);
     chi.push_back(c);
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	c->heurValueOfParentFromThisNode() = ((SearchNodeAND*)n)->getHeurValueForEachIndSubproblem(idxChild) ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 #ifndef NO_HEURISTIC
     // Compute and set heuristic estimate, includes child labels
     if (assignCostsOR(c) == ELEM_ZERO) {  // dead end, clean up and exit
@@ -395,7 +410,12 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
   double* heur = n->getHeurCache();
 #endif
 
-  for (val_t i=m_problem->getDomainSize(var)-1; i>=0; --i) {
+  val_t vDomain = m_problem->getDomainSize(var) ;
+  int subprobH_ = 2*vDomain ;
+  const PseudotreeNode *node = m_pseudotree->getNode(var) ;
+  int nChildren = node->getChildren().size() ;
+
+  for (val_t i = vDomain - 1 ; i >= 0 ; --i) {
 #ifdef NO_HEURISTIC
     // compute label value for new child node
     m_assignment[var] = i;
@@ -425,6 +445,9 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
     SearchNodeAND* c = new SearchNodeAND(n, i, heur[2*i+1]); // uses cached label
     // set cached heur. value
     c->setHeur( heur[2*i] );
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	c->setHeurValueForEachIndSubproblem(nChildren > 0 ? heur + (subprobH_ + i*nChildren) : NULL) ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 #endif
     chi.push_back(c);
   }
@@ -459,57 +482,73 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 
 /* define the following to enable fetching of function values in bulk */
 //#define GET_VALUE_BULK
-double Search::assignCostsOR(SearchNode* n) {
-
+double Search::assignCostsOR(SearchNode* n)
+{
   int v = n->getVar();
+  const PseudotreeNode *node = m_pseudotree->getNode(v) ;
+  int nChildren = node->getChildren().size() ;
   int vDomain = m_problem->getDomainSize(v);
+  // in dv, [0 ... 2*vDomain) are label+heuristic/label values; [2*vDomain ... 2*vDomain + vDomain*nChildren) are heuristic values, for each value of this var and each child.
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  double* dv = new double[vDomain*2 + vDomain*nChildren];
+#else
   double* dv = new double[vDomain*2];
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   for (int i=0; i<vDomain; ++i) dv[2*i+1] = ELEM_ONE;
   double h = ELEM_ZERO; // the new OR nodes h value
 
 #ifdef GET_VALUE_BULK
-  m_costTmp.clear();
-  m_costTmp.resize(vDomain, ELEM_ONE);
-  m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
-  for (int i=0; i<vDomain; ++i) {
-    dv[2*i] = m_costTmp[i];
-  }
-
   // Need to get correct costs for function after shifting
   // need to request from heuristic class instead
+  vector<double> labelAll ;
+  labelAll.clear();
+  labelAll.resize(vDomain, ELEM_ONE);
+  m_heuristic->getLabelAll(v, m_assignment, n, labelAll);
+
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
-  m_heuristic->getLabelAll(v, m_assignment, n, m_costTmp);
+  m_heuristic->getHeurAll(v, m_assignment, n, labelAll, m_costTmp);
   for (int i=0; i<vDomain; ++i) {
-    dv[2*i+1] = m_costTmp[i];
+    dv[2*i] = m_costTmp[i];
+    dv[2*i+1] = labelAll[i];
   }
+
   for (int i=0; i<vDomain; ++i) {
     dv[2*i] = dv[2*i+1] OP_TIMES dv[2*i];
     h = max(h, dv[2*i]);
   }
 #else
-  double d;
+  double label, heuristic;
+  int j ;
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+  std::vector<double> subprobH ;
+  int idxSubPH_ = 2*vDomain ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   for (val_t i=0;i<m_problem->getDomainSize(v);++i) {
     m_assignment[v] = i;
-    // compute heuristic value
-    dv[2*i] = m_heuristic->getHeur(v,m_assignment, n);
-
-    
-    // precompute label value
-    /*
-    d = ELEM_ONE;
-    for (vector<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it)
-      d OP_TIMESEQ (*it)->getValue(m_assignment);
-      */
 
     // get label from based on heuristic class instead
-    d = m_heuristic->getLabel(v,m_assignment,n);
+    label = m_heuristic->getLabel(v,m_assignment,n);
+
+	// compute heuristic value
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+    heuristic = m_heuristic->getHeurPerIndSubproblem(v, m_assignment, n, label, subprobH);
+#else
+    heuristic = m_heuristic->getHeur(v, m_assignment, n);
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 
     // store label and heuristic into cache table
-    dv[2*i+1] = d; // label
-    dv[2*i] OP_TIMESEQ d; // heuristic
+    dv[2*i+1] = label; // label
+    dv[2*i] = heuristic OP_TIMES label; // heuristic
     if (dv[2*i] > h)
         h = dv[2*i]; // keep max. for OR node heuristic
+
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	// store h of each subproblem
+	int idxSubPH_End = idxSubPH_ + nChildren ; j = 0 ;
+	for (; idxSubPH_ < idxSubPH_End ; idxSubPH_++, j++) 
+		dv[idxSubPH_] = subprobH[j] ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   }
 #endif
 

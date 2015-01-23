@@ -273,6 +273,62 @@ void Problem::perturbDeterminism(double epsilon) {
 }
 
 
+bool Problem::parseOrdering(const vector<int>& input, vector<int>& elim) const {
+
+  bool fullOrdering = false; // default
+  if (input.size() == (size_t) m_nOrg) {
+    fullOrdering = true;
+  }
+
+  int n=0, x=UNKNOWN;
+  vector<bool> check(m_n, false);
+
+  for (vector<int>::const_iterator it=input.begin(); it!=input.end(); ++it) {
+    if (!fullOrdering) {
+
+      if (*it < 0 || *it >= m_n) {
+        cerr << "Problem reading ordering, variable index " << *it << " out of range" << endl;
+        exit(1);
+      }
+
+      if (check[*it]) {
+        cerr << "Problem reading ordering, variable " << *it << " appears more than once." << endl;
+        exit(1);
+      } else check[*it] = true;
+
+      elim.push_back(*it); ++n;
+
+    } else { // full order, needs filtering
+
+      if (*it < 0 || *it >= m_nOrg) {
+        cerr << "Problem reading ordering, variable index " << *it << " out of range" << endl;
+        exit(1);
+      }
+
+      map<int,int>::const_iterator it2 = m_old2new.find(*it);
+      if (it2 != m_old2new.end()) {
+        x = it2->second;
+        if (check[x]) {
+          cerr << "Problem reading ordering, variable " << *it << " appears more than once." << endl;
+          exit(1);
+        } else check[x] = true;
+
+        elim.push_back(x); ++n;
+      } else { /* evidence */ }
+
+    }
+
+  }
+
+  if (n!=m_n) {
+    cerr << "Problem reading ordering, number of variables doesn't match." << endl;
+    exit(1);
+  }
+
+  return true;
+}
+
+
 bool Problem::parseOrdering(const string& file, vector<int>& elim) const {
 
   assert(m_n!=UNKNOWN);

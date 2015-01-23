@@ -111,27 +111,26 @@ static int computeMBOutFnArgsVectorPtrMap(int elim_var, vector<Function *> &Func
 	return 0;
 }
 
-void MiniBucketElimLH::reset(void) {
-  MiniBucketElim::reset();
-  _Stats.reset();
-}
-
-void MiniBucketElimLH::Delete(void) 
+void MiniBucketElimLH::reset(void)
 {
 	for (MiniBucketElimLHError & be_error : _LookaheadHelper) 
 		be_error.Delete();
 	deleteLocalErrorFNs();
 
-	for (vector<MiniBucket> & mb : _MiniBuckets) 
-		mb.clear() ;
 	for (set<int> & scope : _BucketScopes) 
 		scope.clear() ;
 	for (vector<Function*> & b_fns : _BucketFunctions) 
 		b_fns.clear() ;
-	_MiniBuckets.clear() ;
 	_BucketScopes.clear() ;
 	_BucketFunctions.clear() ;
 
+	_Stats.reset();
+
+	MiniBucketElim::reset();
+}
+
+/*void MiniBucketElimLH::Delete(void) 
+{
 	for (auto & aug_fns : m_augmented) {
 		for (Function *fn : aug_fns) {
 			delete fn ;
@@ -140,7 +139,7 @@ void MiniBucketElimLH::Delete(void)
 	m_augmented.clear() ;
 	m_intermediate.clear() ;
 }
-
+*/
 size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool computeTables)
 {
 
@@ -148,7 +147,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
   cout << "$ Building MBEX(" << m_ibound << ")" << endl;
 #endif
 
-	this->reset();
+	reset();
 	_Stats._iBound = m_ibound;
 
 	vector<int> elimOrder;    // will hold dfs order
@@ -197,6 +196,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	// ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
 	for (vector<int>::reverse_iterator itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
 		int v = *itV;  // this is the variable being eliminated
+		// partition functions into minibuckets
+		vector<MiniBucket>& minibuckets = _MiniBuckets[v];
+		minibuckets.clear();
 
 		vector<Function *> &funs = _BucketFunctions[v];  // this is the list of all (original + MB-generated) in the bucket of v
 		funs.clear();
@@ -275,9 +277,6 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 		// sort functions by decreasing scope size
 		sort(funs.begin(), funs.end(), scopeIsLarger);
 
-		// partition functions into minibuckets
-		vector<MiniBucket>& minibuckets = _MiniBuckets[v];
-		minibuckets.clear();
 	    // vector<Function*>::iterator itF; bool placed ;
 		for (vector<Function*>::iterator itF = funs.begin(); itF != funs.end(); ++itF) {
 			//			while (funs.size()) {
@@ -400,7 +399,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 
 	// clean up for estimation mode
 	if (!computeTables) {
-		Delete();
+		this->reset();
 		}
 	else {
 		double total_memory_limit = m_options->lookahead_LE_AllTablesTotalLimit;
@@ -448,6 +447,62 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	return _Stats._MemorySize;
 }
 
+double MiniBucketElimLH::getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode *search_node, double label, std::vector<double> & subprobH) 
+{
+/*// DEBUGGG
+double h_ = MiniBucketElim::getHeur(var, assignment, search_node);*/
+	double h = MiniBucketElim::getHeurPerIndSubproblem(var, assignment, search_node, label, subprobH);
+/*double diff = fabs(h - h_) ;
+if (diff > 1.0e-6) 
+printf("\nERROR") ;*/
+	if (m_options->lookaheadDepth <= 0) 
+		return h ;
+	if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) 
+		return h ;
+
+/*// DEBUGGG
+double hSubproblem = ELEM_ONE ;
+// iterate over subproblem intermediate functions; add to subproblem h
+vector<Function*>::const_iterator itF = m_intermediate[var].begin(), itFend = m_intermediate[var].end() ;
+for (; itF != itFend ; ++itF) 
+	hSubproblem OP_TIMESEQ (*itF)->getValue(assignment) ;
+// iterate over subproblem MB output functions; add to subproblem h
+vector<MiniBucket> & minibuckets = _MiniBuckets[var] ;
+for (const MiniBucket& mb : minibuckets) {
+	Function *fMB = mb.output_fn() ;
+	if (NULL == fMB) continue ;
+	hSubproblem OP_TIMESEQ fMB->getValue(assignment) ;
+	}*/
+
+	double current_gap = OUR_OWN_pInfinity ;
+	// the parent should be an AND node; get its pruning gap; it should be >0 since pruning check has failed if we got here.
+	// we will check if the current h is enough to cover the pruning gap.
+	SearchNodeOR *this_node = dynamic_cast<SearchNodeOR*>(search_node) ;
+	SearchNodeAND *parent_node = dynamic_cast<SearchNodeAND*>(search_node->getParent()) ;
+	double pg = parent_node->PruningGap() ; // should be > 0, otherwise the parent would have been pruned
+	if (!std::isnan(pg)) {
+		double hOfParentFromThis = 
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+			this_node->heurValueOfParentFromThisNode() ;
+#else
+			OUR_OWN_nInfinity ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+		current_gap = pg - (hOfParentFromThis - (label + h)) ;
+		if (current_gap <= 0.0) 
+			// this node would be pruned with the h as is. don't need to look ahead.
+			return h ;
+		}
+
+	// the (label + heuristic) of this node is comparable to the h(parent)_from_this_node; 
+	// if "h(parent)_from_this_node" - "(label + heuristic) of this node" >= PruningGap, this node can/will be pruned.
+	// normally (wo lookahead) we would go over augmented[var] and intermediate[var] lists and combine all values.
+	// i.e. we would process bucket[var].
+	// however, for us here, we would have to look at one level below that in the bucket tree.
+
+	double DH = _LookaheadHelper[var].ErrorPerIndSubproblem(assignment, current_gap, subprobH) ;
+	return h - DH ;
+}
+
 double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, SearchNode *search_node) 
 {
 #if defined DEBUG || _DEBUG
@@ -457,13 +512,14 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 		}
 #endif
 
-	// normally (wo lookahead) we would go over augmented[var] and intermediate[var] lists and combine all values.
-	// i.e. we would process bucket[var].
-	// however, for us here, we would have to look at one level below that in the bucket tree.
-
 	double h = MiniBucketElim::getHeur(var, assignment, search_node);
 	if (m_options->lookaheadDepth <= 0) 
-		return h;
+		return h ;
+	if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) 
+		return h ;
+
+	double DH = _LookaheadHelper[var].Error(assignment) ;
+	return h - DH ;
 
   /*
 	const int local_lookaheadDepth = m_options->lookaheadDepth - 1;
@@ -501,12 +557,6 @@ exit(999);
 		}
 	return h - DH;
   */
-	if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) {
-		return h;
-		}
-//  ++nd1GeneralCalls;
-	double DH = _LookaheadHelper[var].Error(assignment);
-	return h - DH;
 }
 
 

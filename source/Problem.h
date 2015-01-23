@@ -112,6 +112,7 @@ public:
 
   /* parses an ordering from file 'file' and stores it in 'elim' */
   bool parseOrdering(const string& file, vector<int>& elim) const;
+  bool parseOrdering(const vector<int>& input, vector<int>& elim) const;
   /* stores ordering from 'elim' in file 'file' */
   void saveOrdering(const string& file, const vector<int>& elim) const;
 

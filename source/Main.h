@@ -117,6 +117,7 @@ class Main {
 
   double getSolution() const;
   const vector<val_t>& getSolutionAssg() const;
+  void getSolutionAssgOrg(vector<val_t> &) const; // get solution assignment in terms of original problem specification, with evid added back in.
 
   double runEstimation(size_t nodeLimit = 0);
 

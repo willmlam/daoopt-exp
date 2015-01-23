@@ -97,7 +97,9 @@ bool DaooptInterface::solve(size_t nodeLimit) {
 double DaooptInterface::getSolution(vector<int>* assignment) const {
   double cost = m_main->getSolution();
   if (assignment != NULL) {
-    const vector<val_t>& assg = m_main->getSolutionAssg();
+//    const vector<val_t>& assg = m_main->getSolutionAssg();
+    vector<val_t> assg ;
+	m_main->getSolutionAssgOrg(assg);
     assignment->resize(0);  // Kill existing contents
     for (vector<val_t>::const_iterator it = assg.begin(); it != assg.end(); ++it) {
       assignment->push_back((int) *it);

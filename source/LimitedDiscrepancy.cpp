@@ -38,6 +38,7 @@ bool LimitedDiscrepancy::doExpand(SearchNode* node) {
   int var = node->getVar();
   PseudotreeNode* ptnode = m_pseudotree->getNode(var);
   int depth = ptnode->getDepth();
+  int nChildren = ptnode->getChildren().size() ;
 
   if (node->getType() == NODE_AND) { /*******************************************/
 
@@ -80,6 +81,9 @@ bool LimitedDiscrepancy::doExpand(SearchNode* node) {
     // use heuristic cache to order child domain values
     priority_queue< pair<double,size_t>, vector<pair<double,size_t> >, PairComp > pqueue;
 
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	int subprobH_ = 2*m_problem->getDomainSize(var) ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
     for (val_t i=m_problem->getDomainSize(var)-1; i>=0; --i) {
       if (heur[2*i+1]!=ELEM_ZERO) // check precomputed label
         pqueue.push(make_pair(heur[2*i],i));
@@ -109,6 +113,9 @@ bool LimitedDiscrepancy::doExpand(SearchNode* node) {
       pqueue.pop();
       SearchNodeAND* n = new SearchNodeAND(node, i, heur[2*i+1]); // use cached label
       n->setHeur(heur[2*i]); // cached heur. value
+#ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+	  n->setHeurValueForEachIndSubproblem(nChildren > 0 ? heur + (subprobH_ + i*nChildren) : NULL) ;
+#endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
       vec.push_back(n);
       m_stack.push(make_pair(n, m_discCache-pqueue.size() ));
     }

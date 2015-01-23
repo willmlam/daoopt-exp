@@ -274,24 +274,11 @@ void print_hex(const _T* d) {
     printf("%X", ar[i]);
 }
 
-// Hack to read a file into a string.
-static inline std::string getFileContents(const char* filename) {
-	std::ifstream in(filename, std::ios::in | std::ios::binary);
-	std::string contents;
-	in.seekg(0, std::ios::end);
-	contents.resize(in.tellg());
-	in.seekg(0, std::ios::beg);
-	in.read(&contents[0], contents.size());
-	in.close();
-	return(contents);
-}
-
 }  // namespace daoopt
 
 template<typename Collection, typename Key>
 bool ContainsKey(const Collection& container, const Key& key) {
   return container.find(key) != container.end();
 }
-
 
 #endif /* UTILS_H_ */

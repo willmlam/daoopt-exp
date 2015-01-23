@@ -91,6 +91,11 @@ double FGLPHeuristic::getHeur(int var, vector<val_t> &assignment, SearchNode *no
     return ELEM_ZERO;
 }
 
+double FGLPHeuristic::getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH) {
+    // TO DO
+    return ELEM_ZERO;
+}
+
 void FGLPHeuristic::getHeurAll(int var, vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
 
 //    cout << "var: " << var << endl;

@@ -47,30 +47,57 @@ ostream& operator <<(ostream& os, const vector<Function*>& l) {
 namespace daoopt {
 
 /* computes the augmented part of the heuristic estimate */
-double MiniBucketElim::getHeur(int var, vector<val_t>& assignment,
-                               SearchNode* n) {
+double MiniBucketElim::getHeur(int var, vector<val_t>& assignment, SearchNode* n)
+{
+	assert( var >= 0 && var < m_problem->getN());
+	double h = ELEM_ONE;
 
-  assert( var >= 0 && var < m_problem->getN());
+	// go over augmented and intermediate lists and combine all values
+	vector<Function*>::const_iterator itF = m_augmented[var].begin();
+	for (; itF!=m_augmented[var].end(); ++itF) 
+		h OP_TIMESEQ (*itF)->getValue(assignment);
 
-  double h = ELEM_ONE;
+	itF = m_intermediate[var].begin();
+	for (; itF!=m_intermediate[var].end(); ++itF) 
+		h OP_TIMESEQ (*itF)->getValue(assignment);
 
-  // go over augmented and intermediate lists and combine all values
-  vector<Function*>::const_iterator itF = m_augmented[var].begin();
-  for (; itF!=m_augmented[var].end(); ++itF) {
-    h OP_TIMESEQ (*itF)->getValue(assignment);
-  }
+	return h;
+}
 
-  itF = m_intermediate[var].begin();
-  for (; itF!=m_intermediate[var].end(); ++itF) {
-    h OP_TIMESEQ (*itF)->getValue(assignment);
-  }
-
-  return h;
+double MiniBucketElim::getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH)
+{
+	/* note : 
+		union of augmented/intermediate functions in this bucket = 
+			union of intermediate functions of each child bucket + union of output functions of minibuckets of each child bucket.
+		this allows breacking the h into components, one from each child bucket.
+	*/
+	double h = ELEM_ONE ;
+	const PseudotreeNode *n = m_pseudotree->getNode(var) ;
+	const vector<PseudotreeNode *> & children = n->getChildren() ;
+	subprobH.resize(children.size(), ELEM_ONE) ;
+	vector<PseudotreeNode*>::const_iterator itCend = children.end() ;
+	int i = 0 ;
+	for (vector<PseudotreeNode*>::const_iterator itC = children.begin() ; itC != itCend ; ++itC, ++i) {
+		int child = (*itC)->getVar() ;
+		double & hSubproblem = subprobH[i] ; hSubproblem = ELEM_ONE ;
+		// iterate over subproblem intermediate functions; add to subproblem h
+		vector<Function*>::const_iterator itF = m_intermediate[child].begin(), itFend = m_intermediate[child].end() ;
+		for (; itF != itFend ; ++itF) 
+			hSubproblem OP_TIMESEQ (*itF)->getValue(assignment) ;
+		// iterate over subproblem MB output functions; add to subproblem h
+		vector<MiniBucket> & minibuckets = _MiniBuckets[child] ;
+		for (const MiniBucket& mb : minibuckets) {
+			Function *fMB = mb.output_fn() ;
+			if (NULL == fMB) continue ;
+			hSubproblem OP_TIMESEQ fMB->getValue(assignment) ;
+			}
+		h OP_TIMESEQ hSubproblem ;
+		}
+	return h ;
 }
 
 
-void MiniBucketElim::getHeurAll(int var, vector<val_t>& assignment,
-                                SearchNode* n, vector<double>& out) {
+void MiniBucketElim::getHeurAll(int var, vector<val_t>& assignment, SearchNode* n, vector<double>& out) {
   out.clear();
   out.resize(m_problem->getDomainSize(var), ELEM_ONE);
   vector<double> funVals;
@@ -96,8 +123,7 @@ double MiniBucketElim::getLabel(int var, const vector<val_t> &assignment, Search
     return d;
 }
 
-void MiniBucketElim::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node,
-        vector<double> &out) {
+void MiniBucketElim::getLabelAll(int var, const vector<val_t> &assignment, SearchNode *node, vector<double> &out) {
     vector<double> costTmp(m_problem->getDomainSize(var), ELEM_ONE);
     for (Function *f : m_pseudotree->getFunctions(var)) {
         f->getValues(assignment, var, costTmp);
@@ -110,12 +136,19 @@ void MiniBucketElim::getLabelAll(int var, const vector<val_t> &assignment, Searc
 
 void MiniBucketElim::reset() {
 
-  vector<vector<Function*> > empty;
-  m_augmented.swap(empty);
+  for (vector<MiniBucket> & mb : _MiniBuckets) 
+	  mb.clear() ;
+  _MiniBuckets.clear() ;
 
-  vector<vector<Function*> > empty2;
-  m_intermediate.swap(empty2);
-
+//  vector<vector<Function*> > empty;
+//  m_augmented.swap(empty);
+//  vector<vector<Function*> > empty2;
+//  m_intermediate.swap(empty2);
+	for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
+		for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB)
+			delete *itB;
+	m_augmented.clear();
+	m_intermediate.clear();
 }
 
 
@@ -155,12 +188,17 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   m_augmented.resize(m_problem->getN());
   m_intermediate.resize(m_problem->getN());
+  _MiniBuckets.resize(m_problem->getN());
 
   // keep track of total memory consumption
   size_t memSize = 0;
 
   // ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
   for (vector<int>::reverse_iterator itV=elimOrder.rbegin(); itV!=elimOrder.rend(); ++itV) {
+	  int v = *itV;  // this is the variable being eliminated
+	  // partition functions into minibuckets
+	  vector<MiniBucket>& minibuckets = _MiniBuckets[v];
+	  minibuckets.clear();
 
 #ifdef DEBUG
     cout << "$ Bucket for variable " << *itV << endl;
@@ -194,7 +232,6 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     sort(funs.begin(), funs.end(), scopeIsLarger);
 
     // partition functions into minibuckets
-    vector<MiniBucket> minibuckets;
 //    vector<Function*>::iterator itF; bool placed;
     for (vector<Function*>::iterator itF = funs.begin(); itF!=funs.end();
          ++itF) {
@@ -300,11 +337,12 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
 
   // clean up for estimation mode
   if (!computeTables) {
-    for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
+	  this->reset() ;
+/*    for (vector<vector<Function*> >::iterator itA = m_augmented.begin(); itA!=m_augmented.end(); ++itA)
       for (vector<Function*>::iterator itB = itA->begin(); itB!=itA->end(); ++itB)
         delete *itB;
     m_augmented.clear();
-    m_intermediate.clear();
+    m_intermediate.clear();*/
   }
 
   return memSize;
