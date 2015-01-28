@@ -397,6 +397,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	int LH_nNodesWithDescendants = 0, LH_nTotalDescendants = 0 ;
 	int LH_minDepthOfNodeWithLookahead = INT_MAX, LH_maxDepthOfNodeWithLookahead = -1 ;
 
+  size_t mem_size = _Stats._MemorySize;
+	double minibucket_mem_mb = mem_size * sizeof(double) / (1024.0 * 1024);
+
 	// clean up for estimation mode
 	if (!computeTables) {
 		this->reset();
@@ -436,15 +439,16 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 			}
 		}
 
-	cout << "Pseudowidth: " <<  _Stats._PseudoWidth - 1 << endl;
-	double minibucket_mem_mb = _Stats._MemorySize * sizeof(double) / (1024.0 * 1024);
-	cout << "Minibucket Memory (MB): " << minibucket_mem_mb << endl;
-	cout << "Local Error Memory (MB): " << _Stats._LEMemorySizeMB << endl;
-	cout << "Total Heuristic Memory (MB): " << minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
-	cout << "LH nBucketsWithNonZeroBuckerError: " << _nBucketsWithNonZeroBuckerError << " nBucketsWithMoreThan1MB: " << _nBucketsWithMoreThan1MB << endl;
-	cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants << " nTotalDescendants: " << LH_nTotalDescendants << " (BuckerErrorIgnoreThreshold=" << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
-	cout << "LH minDepthOfNodeWithLookahead: " << LH_minDepthOfNodeWithLookahead << " maxDepthOfNodeWithLookahead: " << LH_maxDepthOfNodeWithLookahead << " (MaxDepth=" << _MaxDepth << ")" << endl;
-	return _Stats._MemorySize;
+  if (computeTables) {
+    cout << "Pseudowidth: " <<  _Stats._PseudoWidth - 1 << endl;
+    cout << "Minibucket Memory (MB): " << minibucket_mem_mb << endl;
+    cout << "Local Error Memory (MB): " << _Stats._LEMemorySizeMB << endl;
+    cout << "Total Heuristic Memory (MB): " << minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
+    cout << "LH nBucketsWithNonZeroBuckerError: " << _nBucketsWithNonZeroBuckerError << " nBucketsWithMoreThan1MB: " << _nBucketsWithMoreThan1MB << endl;
+    cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants << " nTotalDescendants: " << LH_nTotalDescendants << " (BuckerErrorIgnoreThreshold=" << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
+    cout << "LH minDepthOfNodeWithLookahead: " << LH_minDepthOfNodeWithLookahead << " maxDepthOfNodeWithLookahead: " << LH_maxDepthOfNodeWithLookahead << " (MaxDepth=" << _MaxDepth << ")" << endl;
+  }
+	return mem_size;
 }
 
 double MiniBucketElimLH::getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode *search_node, double label, std::vector<double> & subprobH) 
