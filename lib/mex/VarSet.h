@@ -89,8 +89,8 @@ class VarSet : public virtual mxObject {
 // Constructors, Destructor 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 	VarSet(void)                        : v_(), dLocal(), d_(NULL)                 { }  
-	VarSet(const VarSet& vs)            : v_(vs.v_), dLocal(vs.d_,vs.d_+vs.size()) { d_=&dLocal[0]; }
-	VarSet(const Var& v)                : v_(1,v.label()), dLocal(1,v.states())    { d_=&dLocal[0]; }  
+	VarSet(const VarSet& vs)            : v_(vs.v_), dLocal(vs.d_,vs.d_+vs.size()) { d_=dLocal.data(); }
+	VarSet(const Var& v)                : v_(1,v.label()), dLocal(1,v.states())    { d_=dLocal.data(); }  
 	VarSet(const Var& v, const Var& v2) : v_(2), dLocal(2) { 
 		if (v.label()<v2.label())      { v_[0]=v.label(); dLocal[0]=v.states(); v_[1]=v2.label(); dLocal[1]=v2.states(); }
 		else if (v2.label()<v.label()) { v_[1]=v.label(); dLocal[1]=v.states(); v_[0]=v2.label(); dLocal[0]=v2.states(); }
@@ -98,7 +98,7 @@ class VarSet : public virtual mxObject {
 	}  
 	template<typename iter>
 	VarSet(iter B,iter E, size_t size_hint=0) : v_(), dLocal() {
-		v_.reserve(size_hint); dLocal.reserve(size_hint); d_=&dLocal[0];
+		v_.reserve(size_hint); dLocal.reserve(size_hint); d_=dLocal.data();
 		for (;B!=E;++B) *this|=*B; 
 	}
 	// Destructor /////////////////////////
@@ -106,7 +106,7 @@ class VarSet : public virtual mxObject {
 
 	// Copy, Swap /////////////////////////
 	VarSet& operator= (const VarSet& B) {
-		v_=B.v_; dLocal=vector<vsize>(B.d_,B.d_+B.size()); d_=&dLocal[0];
+		v_=B.v_; dLocal=vector<vsize>(B.d_,B.d_+B.size()); d_=dLocal.data();
   	return *this;
 	}
 
@@ -294,11 +294,11 @@ bool mxCheckValid(const mxArray* M) { return v_.mxCheckValid(M); }
 void mxSet(mxArray* M) { mxSet(M,NULL); }
 void mxSet(mxArray* M, const vsize* dnew) { 
 	v_.mxSet(M); 
-	if (dnew) d_=dnew; else { dLocal.resize(size()); d_=&dLocal[0]; std::fill(dLocal.begin(),dLocal.end(),0); }
+	if (dnew) d_=dnew; else { dLocal.resize(size()); d_=dLocal.data(); std::fill(dLocal.begin(),dLocal.end(),0); }
 }
 mxArray* mxGet() { return v_.mxGet(); }
-void mxRelease() { v_.mxRelease(); if (!isLocal()) { dLocal=vector<vsize>(d_,d_+size()); d_=&dLocal[0]; } }
-void mxDestroy() { v_.mxDestroy(); if (!isLocal()) { dLocal=vector<vsize>(d_,d_+size()); d_=&dLocal[0]; } }
+void mxRelease() { v_.mxRelease(); if (!isLocal()) { dLocal=vector<vsize>(d_,d_+size()); d_=dLocal.data(); } }
+void mxDestroy() { v_.mxDestroy(); if (!isLocal()) { dLocal=vector<vsize>(d_,d_+size()); d_=dLocal.data(); } }
 VarSet& mxSwap(VarSet& v) { v_.mxSwap(v.v_); dLocal.swap(v.dLocal); std::swap(d_,v.d_); std::swap(M_,v.M_); }
 #endif
 
@@ -307,8 +307,8 @@ protected:
 	vector<vsize> dLocal;	// non-const version (equals d_) if we allocated the dimensions ourselves
   const vsize* d_;			// dimensions of the variables (potentially from Matlab)
 
-	bool isLocal() { return (d_==&dLocal[0]); }		// check for local storage of dimensions
-	explicit VarSet(const size_t Nv) : v_(Nv), dLocal(Nv) { d_=&dLocal[0]; }	// "reserved memory" constructor
+	bool isLocal() { return d_==dLocal.data(); }		// check for local storage of dimensions
+	explicit VarSet(const size_t Nv) : v_(Nv), dLocal(Nv) { d_=dLocal.data(); }	// "reserved memory" constructor
 
 };
 

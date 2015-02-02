@@ -138,6 +138,8 @@ class MiniBucketElim : public Heuristic {
  protected:
   mex::vector<mex::Factor> CopyFactors(void);
   void RewriteFactors(const vector<mex::Factor>& factors);
+
+  void LPReparameterization();
 };
 
 class Scope {

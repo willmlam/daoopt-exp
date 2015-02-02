@@ -148,6 +148,10 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 #endif
 
 	reset();
+  if (computeTables) {
+    LPReparameterization();
+  }
+
 	_Stats._iBound = m_ibound;
 
 	vector<int> elimOrder;    // will hold dfs order

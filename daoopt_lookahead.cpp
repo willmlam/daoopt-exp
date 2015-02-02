@@ -94,6 +94,7 @@ double zz = z - x ;*/
 	options.lds = -1;
 	options.match = true;
   options.subprobOrder = 0;
+  options.jglp = 5;
 	options.lookahead_LE_AllTablesTotalLimit = sBEtablesizetotal.length() > 0 ? atof(sBEtablesizetotal.c_str()) : -DBL_MIN ;
 	if (options.lookahead_LE_AllTablesTotalLimit < 0.0) options.lookahead_LE_AllTablesTotalLimit = -DBL_MIN ;
 	else if (options.lookahead_LE_AllTablesTotalLimit > 20.0) options.lookahead_LE_AllTablesTotalLimit = 20.0 ;
