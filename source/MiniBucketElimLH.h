@@ -148,7 +148,8 @@ public:
 		double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
 		double & avgError, // OUT : avg bucket error; computed when output table is not too large.
 		double & avgExact, // OUT : avg value over entire bucket output table; computed when error is computed.
-		Function * & error_fn) ; // OUT : bucket error fn; computed when output table is not too large.
+		Function * & error_fn, // OUT : bucket error fn; computed when output table is not too large.
+		int64 & nEntriesGenerated) ; // OUT : number of actual table entires computed
 	int computeLocalErrorTables(
 		bool build_tables, 
 		double TotalMemoryLimitAsNumElementsLog, 

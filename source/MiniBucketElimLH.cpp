@@ -211,10 +211,10 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 
 #if defined DEBUG || _DEBUG
 		cout << "$ Bucket for variable " << *itV << endl;
-#endif
 		if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
 			fprintf(m_options->_fpLogFile, "\nBucket for variable %d(domainsize=%d)", (int)*itV, (int)m_problem->getDomainSize(v));
 			}
+#endif
 
 		// collect relevant functions in funs
 		/*		set<int> & jointHScope = _BucketHFnScopes[v] ;
@@ -255,6 +255,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 			cout << ' ' << (**itF);
 		cout << endl;
 #endif
+#if defined DEBUG || _DEBUG
 		size_t tablesize = 1;
 		if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
 			for (const int scope_var : jointScope) {
@@ -264,6 +265,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 				}
 			fprintf(m_options->_fpLogFile, " Width=%d PseudoWidth=%d OUTtablesize=%lld", (int)stats_Width, (int)stats_PseudoWidth, (int64)tablesize);
 			}
+#endif
 
 		// compute global upper bound for root (dummy) bucket
 		if (v == elimOrder[0]) {  // variable is dummy root variable
@@ -343,8 +345,10 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 		if (nMBs > 1) 
 			(_Stats._NumBucketsWithMoreThan1MB)++ ;
 
+#if defined DEBUG || _DEBUG
 		if (NULL != m_options ? NULL != m_options->_fpLogFile : false) 
 			fprintf(m_options->_fpLogFile, " nMBs=%d", (int)minibuckets.size());
+#endif 
 
 		// minibuckets for current bucket are now ready, process each and place resulting function
 		uint32 bucket_idx = 0;
@@ -771,8 +775,10 @@ void MiniBucketElimLH::getLocalError(int parent, int var, vector<val_t>& assignm
 }
 
 
-int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sample_table_if_not_computed, double TableMemoryLimitAsNumElementsLog, double &TableSizeLog, double &avgError, double &avgExact, Function *&errorFn) 
+int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sample_table_if_not_computed, double TableMemoryLimitAsNumElementsLog, double &TableSizeLog, double &avgError, double &avgExact, Function *&errorFn, int64 & nEntriesGenerated) 
 {
+	nEntriesGenerated = 0 ;
+
 	// assumption : each minibucket has its output fn computed
 	// algorithm : for each entry in the output table (over 'jointscope'-var)
 	// compute the max-product/sum of MB_output_FNs and max-product/sum of all fns
@@ -793,9 +799,11 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	set<int> &jointScope = _BucketScopes[var];
 
 	if (minibuckets.size() <= 1) {
+#if defined DEBUG || _DEBUG
 		if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
 			fprintf(m_options->_fpLogFile,"\n   Computing localError for var=%d, nMBs = 1, avg error = 0",(int)var);
 			}
+#endif 
 		_BucketErrorQuality[var] = 0;
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
@@ -898,10 +906,12 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	size_t nBadErrorValues = 0;
 #endif
 
+#if defined DEBUG || _DEBUG
 	if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
 		fprintf(m_options->_fpLogFile,"\n   MiniBucketElimLH::computeLocalErrorTable var=%d tablesize=%lld",(int)var, (int64)TableSize);
 		}
 	printf("\n   MiniBucketElimLH::computeLocalErrorTable var=%d tablesize=%lld", (int)var, (int64)TableSize);
+#endif 
 
 	int64 nEntries_both_inf = 0, nEntries_B_inf = 0, nEntries_none_inf = 0 ;
 	double avgExact_none_inf = 0.0, avgError_none_inf = 0.0 ;
@@ -913,10 +923,9 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	if (nEntriesRequested < 1024) 
 		nEntriesRequested = 1024 ; // enumarate small tables completely
 	double sample_coverage = 0.0 ;
-	int64 nEntriesGenerated = 0 ;
 	bool enumerate_table = build_table || nEntriesRequested >= TableSize ;
 	if (enumerate_table) {
-printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
+//printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
 		for (int64 j = 0; j < TableSize; j++) {
 			++nEntriesGenerated ;
 			// find next combination
@@ -968,7 +977,7 @@ printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
 			}
 		}
 	else if (nEntriesRequested > 0) {
-printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
+//printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
 		for (int64 j = 0; j < nEntriesRequested ; j++) {
 			++nEntriesGenerated ;
 			// generate random tuple
@@ -1031,9 +1040,12 @@ printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
 	else if (build_table)
 		build_table = false;
 
-	if (! enumerate_table && nEntriesGenerated > 0) 
+	if (! enumerate_table && nEntriesGenerated > 0) {
 		// we have no data
+    // assume we should do lookahead?
+    _BucketErrorQuality[var] = 2;
 		return 0 ;
+  }
 
 	double threshold = DBL_MIN ;
 	if (NULL != m_options) 
@@ -1070,14 +1082,16 @@ printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
 			}
 		}
 
+#if defined DEBUG || _DEBUG
 	if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
-		double rel_error = fabs(avgExact_none_inf) > 0.0 ? fabs(100.0 * avgError_none_inf / avgExact_none_inf) : DBL_MAX;
+//		double rel_error = fabs(avgExact_none_inf) > 0.0 ? fabs(100.0 * avgError_none_inf / avgExact_none_inf) : DBL_MAX;
 		fprintf(m_options->_fpLogFile, 
 			"\n   Computing localError for var=%d (depth=%d), nMBs = %d, avg error = %g(%g), avg exact = %g(%g), tablesize = %lld entries; nSpecialCases=%lld/%lld/%lld",
 			(int)var, (int) _Depth[var], (int)minibuckets.size(), (double)avgError, (double)avgError_none_inf,(double)avgExact, (double)avgExact_none_inf, (int64)TableSize, (int64) nEntries_both_inf, (int64) nEntries_B_inf, (int64) nEntries_none_inf);
 		if (rel_error < 1.0e+100)
 			fprintf(m_options->_fpLogFile, ", rel avg error = %g%c", (double)rel_error, '%');
 		}
+#endif 
 
 	_Stats._LEMemorySizeMB += TableSize * sizeof(double) / (1024.0 * 1024);
 
@@ -1094,10 +1108,10 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 	findDfsOrder(elimOrder);  // computes dfs ordering of relevant subtree
 
 	if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
-		fprintf(m_options->_fpLogFile,"\n\nWILL COMPUTE LOCAL ERROR for each bucket ... error=(B value - (combine_all_MB : MB value))");
+		fprintf(m_options->_fpLogFile,"\n\nWILL COMPUTE LOCAL ERROR for each bucket ... error=(MB value - B value); TotalMemory=%g, TableMemory=%g", TotalMemoryLimitAsNumElementsLog, TableMemoryLimitAsNumElementsLog);
 		fflush(m_options->_fpLogFile);
 		}
-	printf("\n\nWILL COMPUTE LOCAL ERROR for each bucket ... error=(B value - (combine_all_MB : MB value))");
+	printf("\n\nWILL COMPUTE LOCAL ERROR for each bucket ... error=(MB value - B value); TotalMemory=%g, TableMemory=%g", TotalMemoryLimitAsNumElementsLog, TableMemoryLimitAsNumElementsLog);
 
 	deleteLocalErrorFNs();
 	_BucketErrorFunctions.resize(m_problem->getN());
@@ -1130,6 +1144,7 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		fprintf(m_options->_fpLogFile,"\n   BuckerErrorFnTableSizes total = %g, total_memory_limit = %g, total_memory_limit = %g", (double)_BuckerErrorFnTableSizes_Total, (double)TotalMemoryLimitAsNumElementsLog, (double)TableMemoryLimitAsNumElementsLog);
 	printf("\n   BuckerErrorFnTableSizes total = %g, total_memory_limit = %g, total_memory_limit = %g", (double)_BuckerErrorFnTableSizes_Total, (double)TotalMemoryLimitAsNumElementsLog, (double)TableMemoryLimitAsNumElementsLog) ;
 
+	int64 nTotalEntriesGenerated = 0 ;
 	for (vector<int>::reverse_iterator itV = elimOrder.rbegin();itV != elimOrder.rend(); ++itV) {
 		int v = *itV;  // this is the variable being eliminated
 		_BucketErrorQuality[v] = -1;
@@ -1143,14 +1158,16 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		double tableSize = -1.0;
 		bool do_sample = true ;
 		bool build_table = build_tables ;
+		int64 nEntriesGenerated = 0 ;
 		if (table_size_actual_limit <= 0 && do_sample) 
 			{ build_table = false ; table_size_actual_limit = TableMemoryLimitAsNumElementsLog ; }
 #ifdef NO_LH_PREPROCESSING
 		build_table = do_sample = false ; table_size_actual_limit = -DBL_MIN ;
 #endif // 
-		computeLocalErrorTable(v, build_table, do_sample, table_size_actual_limit, tableSize, avgError, E, errorFn);
+		computeLocalErrorTable(v, build_table, do_sample, table_size_actual_limit, tableSize, avgError, E, errorFn, nEntriesGenerated);
+		nTotalEntriesGenerated += nEntriesGenerated ;
 		_BucketErrorFunctions[v] = errorFn;
-		if (_BucketErrorQuality[v] > 0) 
+		if (_BucketErrorQuality[v] > 1) 
 			_nBucketsWithNonZeroBuckerError++;
 		if (NULL != errorFn ? NULL != errorFn->getTable() : false) {
 			//			if (NULL != m_options->_fpLogFile)
@@ -1178,8 +1195,10 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 #endif
 			double variance = sum / ts;
 			stdDev = sqrt(variance);
+#if defined DEBUG || _DEBUG
 			if (NULL != m_options ? NULL != m_options->_fpLogFile : false)
-			fprintf(m_options->_fpLogFile, ", stdDev = %g", (double)stdDev);
+				fprintf(m_options->_fpLogFile, ", stdDev = %g", (double)stdDev);
+#endif 
 			}
 		else if (tableSize > 0) {
 			//			_BuckerErrorFnTableSizes_Ignored += tableSize ;
@@ -1193,19 +1212,21 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		}
 
 	if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
-		fprintf(m_options->_fpLogFile, "\n   BuckerErrorFnTableSizes (precomputed/ignored/total) = %g/%g/%g entries",
+		fprintf(m_options->_fpLogFile, "\n   BuckerErrorFnTableSizes (precomputed/ignored/total) = %g/%g/%g entries; nTotalEntriesGenerated=%lld",
 		(double)_BuckerErrorFnTableSizes_Precomputed,
 		(double)_BuckerErrorFnTableSizes_Ignored,
-		(double)_BuckerErrorFnTableSizes_Total);
+		(double)_BuckerErrorFnTableSizes_Total, 
+		(int64) nTotalEntriesGenerated);
 		fprintf(m_options->_fpLogFile,"\n   nBucketsWithNonZeroBuckerError (nMB>1/total) = %lld (%lld/%lld)",
 			(int64)_nBucketsWithNonZeroBuckerError, (int64)_nBucketsWithMoreThan1MB,
 			(int64)m_problem->getN());
 		fprintf(m_options->_fpLogFile, "\n");
 		}
-	printf("\n   BuckerErrorFnTableSizes (precomputed/ignored/total) = %g/%g/%g entries",
+	printf("\n   BuckerErrorFnTableSizes (precomputed/ignored/total) = %g/%g/%g entries; nTotalEntriesGenerated=%lld",
 		(double)_BuckerErrorFnTableSizes_Precomputed,
 		(double)_BuckerErrorFnTableSizes_Ignored,
-		(double)_BuckerErrorFnTableSizes_Total);
+		(double)_BuckerErrorFnTableSizes_Total, 
+		(int64) nTotalEntriesGenerated);
 	printf("\n   nBucketsWithNonZeroBuckerError (nMB>1/total) = %lld (%lld/%lld)",
 		(int64)_nBucketsWithNonZeroBuckerError,
 		(int64)_nBucketsWithMoreThan1MB, (int64)m_problem->getN());
