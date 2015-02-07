@@ -809,6 +809,13 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
 		}
+	// as a special case, when table building is not requested and sample size is set to 0, just mark this bucket having actual error, so that
+	if (! build_table && TableMemoryLimitAsNumElementsLog <= 0) {
+		_BucketErrorQuality[var] = 99;
+		avgError = 0.0;
+		TableSizeLog = OUR_OWN_nInfinity;
+		return 0;
+		}
 
 	// make scope of bucket output fn
 	set<int> scope = jointScope;
@@ -1027,6 +1034,11 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
 		}
 
+	if (nEntriesGenerated <= 0) {
+		// we have no data; leave _BucketErrorQuality[] as is (-1 most likely).
+		return 0 ;
+		}
+
 	// avgExact_none_inf/avgError_none_inf are avg in case when neither MB/B value is -infinity.
 	if (nEntries_none_inf > 0) 
 		{ avgExact_none_inf /= nEntries_none_inf ; avgError_none_inf /= nEntries_none_inf ; }
@@ -1039,13 +1051,6 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		}
 	else if (build_table)
 		build_table = false;
-
-	if (! enumerate_table && nEntriesGenerated > 0) {
-		// we have no data
-    // assume we should do lookahead?
-    _BucketErrorQuality[var] = 2;
-		return 0 ;
-  }
 
 	double threshold = DBL_MIN ;
 	if (NULL != m_options) 
@@ -1093,7 +1098,8 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		}
 #endif 
 
-	_Stats._LEMemorySizeMB += TableSize * sizeof(double) / (1024.0 * 1024);
+//	_Stats._LEMemorySizeMB += TableSize * sizeof(double) / (1024.0 * 1024);
+	_Stats._LEMemorySizeMB += nEntriesGenerated * sizeof(double) / (1024.0 * 1024);
 
 	if (NULL != newTable) delete[] newTable;
 	if (NULL != tuple) delete[] tuple;

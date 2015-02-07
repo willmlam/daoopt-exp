@@ -94,7 +94,7 @@ class MiniBucketElimLH : public MiniBucketElim
 	std::vector<std::vector<Function *>> _BucketFunctions ;
 
 	std::vector<Function*> _BucketErrorFunctions ;
-	std::vector<signed char> _BucketErrorQuality ; // for each var, whether the bucketerror[var]=0; -1 means unknown. 0=bucket error is 0, 1=bucket error is >0 (but perhaps trivial), 2+=bucket error is >0 and non-trivial.
+	std::vector<signed char> _BucketErrorQuality ; // for each var, whether the bucketerror[var]=0; -1 means unknown. 0=bucket error is 0, 1=bucket error is >0 (but perhaps trivial), 2+=bucket error is >0 and non-trivial, 99 means marked by default.
 	double _BuckerErrorFnTableSizes_Total ; // log
 	double _BuckerErrorFnTableSizes_Precomputed ; // log
 	double _BuckerErrorFnTableSizes_Ignored ; // log
