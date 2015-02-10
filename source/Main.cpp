@@ -442,8 +442,10 @@ bool Main::initDataStructs() {
   m_space.reset( new SearchSpaceMaster(m_pseudotree.get(), m_options.get()) );
 #else
   m_space.reset( new SearchSpace(m_pseudotree.get(), m_options.get()) );
-  m_space->stats.numORVar.resize(m_pseudotree->getN());
-  m_space->stats.numANDVar.resize(m_pseudotree->getN());
+  m_space->stats.numORVar.resize(m_pseudotree->getN(), 0);
+  m_space->stats.numANDVar.resize(m_pseudotree->getN(), 0);
+  m_space->stats.numProcORVar.resize(m_pseudotree->getN(), 0);
+  m_space->stats.numProcANDVar.resize(m_pseudotree->getN(), 0);
 #endif
 
   // Heuristic is initialized here, built later in compileHeuristic()
@@ -847,6 +849,7 @@ bool Main::outputStats() const {
   cout << "Deadend nodes: " << m_space->stats.numDead << endl;
 
 
+
 #ifdef PARALLEL_STATIC
   if (m_options->par_preOnly && m_solved) {
     ofstream slvd("SOLVED");
@@ -867,7 +870,19 @@ bool Main::outputStats() const {
 
 
   cout << endl;
+
+  cout << "or exp";
+  for (size_t num_var_or_exp : m_space->stats.numORVar) {
+    cout << " " << num_var_or_exp;
+  }
+  cout << endl;
+  cout << "or proc";
+  for (size_t num_var_or_proc : m_space->stats.numProcORVar) {
+    cout << " " << num_var_or_proc;
+  }
+  cout << endl;
   m_heuristic->printExtraStats();
+  cout << endl;
 
 #ifdef PARALLEL_STATIC
   if (!m_options->par_preOnly || m_solved) { // parallel static: only output if solved

@@ -125,6 +125,7 @@ void MiniBucketElimLH::reset(void)
 	_BucketFunctions.clear() ;
 
 	_Stats.reset();
+  _Stats._NumNodesLookahead.resize(m_problem->getN(), 0);
 
 	MiniBucketElim::reset();
 }
@@ -531,6 +532,7 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 		return h ;
 
 	double DH = _LookaheadHelper[var].Error(assignment) ;
+  _Stats._NumNodesLookahead[var] += 1;
 	return h - DH ;
 
   /*

@@ -46,6 +46,7 @@ public :
   double _LEMemorySizeMB;
 	int _MaxNumMBs ;
 	int _NumBucketsWithMoreThan1MB ;
+  vector<size_t> _NumNodesLookahead; // actual number of lookahead nodes during search by variable.
 public :
 	void reset(void)
 	{
@@ -172,6 +173,7 @@ public:
 public :
 
 	MiniBucketElimLH(Problem *p, Pseudotree *pt, ProgramOptions *po, int ib) ;
+  void printExtraStats() const;
 	virtual ~MiniBucketElimLH(void) ;
 } ;
 
@@ -183,6 +185,23 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOpt
 	_nBucketsWithNonZeroBuckerError(-1), 
 	_nBucketsWithMoreThan1MB(-1) 
 {
+}
+
+inline void MiniBucketElimLH::printExtraStats() const {
+  cout << "Lookahead node counts: " << endl;
+
+  size_t total_lookahead = 0;
+  size_t count_var_lookahead = 0;
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    size_t adjusted_count =
+      _Stats._NumNodesLookahead[i] / m_problem->getDomainSize(i);
+    cout << " " << adjusted_count;
+    total_lookahead += adjusted_count;
+    if (adjusted_count > 0) count_var_lookahead += 1;
+  }
+  cout << endl;
+  cout << "OR nodes w/ lookahead: " << total_lookahead << endl;
+  cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
 }
 
 inline MiniBucketElimLH::~MiniBucketElimLH(void)

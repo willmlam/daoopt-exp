@@ -81,6 +81,7 @@ bool Search::doProcess(SearchNode* node) {
   assert(node);
   if (node->getType() == NODE_AND) {
     m_space->stats.numProcAND += 1;
+    m_space->stats.numProcANDVar[node->getVar()] += 1;
     // 0-labeled nodes should not get generated in the first place
     assert(node->getLabel() != ELEM_ZERO);  // if this fires, something is wrong!
     DIAG( ostringstream ss; ss << *node << " (l=" << node->getLabel() << ")\n"; myprint(ss.str()) );
@@ -89,6 +90,7 @@ bool Search::doProcess(SearchNode* node) {
     m_assignment[var] = val; // record assignment
   } else { // NODE_OR
     m_space->stats.numProcOR += 1;
+    m_space->stats.numProcORVar[node->getVar()] += 1;
     DIAG( ostringstream ss; ss << *node << "\n"; myprint(ss.str()) );
   }
   return false; // default
