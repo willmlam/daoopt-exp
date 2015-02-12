@@ -28,6 +28,8 @@
 
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
 
+#define USE_FULL_LOOKAHEAD_SUBTREE
+
 namespace daoopt {
 
 class MiniBucketElimLH;
@@ -440,7 +442,9 @@ public :
 			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
+#ifndef USE_FULL_LOOKAHEAD_SUBTREE
 				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
+#endif // USE_FULL_LOOKAHEAD_SUBTREE
 				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_idxWRTparent = idxChild ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
 				try { _DescendantNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
