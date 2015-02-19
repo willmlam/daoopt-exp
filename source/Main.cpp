@@ -632,6 +632,8 @@ bool Main::runLDS() {
     scoped_ptr<SearchSpace> spaceLDS(new SearchSpace(m_pseudotree.get(), m_options.get()));
     spaceLDS->stats.numORVar.resize(m_pseudotree->getN());
     spaceLDS->stats.numANDVar.resize(m_pseudotree->getN());
+    spaceLDS->stats.numProcORVar.resize(m_pseudotree->getN(), 0);
+    spaceLDS->stats.numProcANDVar.resize(m_pseudotree->getN(), 0);
     LimitedDiscrepancy lds(m_problem.get(), m_pseudotree.get(), spaceLDS.get(),
                            m_heuristic.get(), m_options.get(), m_options->lds);
     if (!m_options->in_subproblemFile.empty()) {
