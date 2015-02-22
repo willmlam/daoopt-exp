@@ -870,18 +870,6 @@ bool Main::outputStats() const {
   cout << "Search:        " << time_passed << " seconds" << endl;
   cout << "-------------------------------" << endl;
 
-
-  cout << endl;
-
-  cout << "or exp";
-  for (size_t num_var_or_exp : m_space->stats.numORVar) {
-    cout << " " << num_var_or_exp;
-  }
-  cout << endl;
-  cout << "or proc";
-  for (size_t num_var_or_proc : m_space->stats.numProcORVar) {
-    cout << " " << num_var_or_proc;
-  }
   cout << endl;
   m_heuristic->printExtraStats();
   cout << endl;

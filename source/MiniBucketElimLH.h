@@ -26,6 +26,8 @@
 
 #include "MiniBucketElim.h"
 
+#undef DEBUG
+
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
 
 #define USE_FULL_LOOKAHEAD_SUBTREE
@@ -190,6 +192,17 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOpt
 }
 
 inline void MiniBucketElimLH::printExtraStats() const {
+  cout << "Heuristic call counts (OR nodes attempted to be generated): " 
+       << endl;
+  size_t total_calls = 0;
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    size_t adjusted_count =
+        var_heur_calls_[i] / m_problem->getDomainSize(i);
+    cout << " " << adjusted_count;
+    total_calls += adjusted_count;
+  }
+  cout << endl;
+
   cout << "Lookahead node counts: " << endl;
 
   size_t total_lookahead = 0;
@@ -202,7 +215,10 @@ inline void MiniBucketElimLH::printExtraStats() const {
     if (adjusted_count > 0) count_var_lookahead += 1;
   }
   cout << endl;
-  cout << "OR nodes w/ lookahead: " << total_lookahead << endl;
+  cout << "Heuristic calls (OR): " << total_calls << endl;
+  cout << "Lookahead calls (OR): " << total_lookahead << endl;
+  cout << "Lookahead ratio (OR): " << double(total_lookahead) / total_calls 
+       << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
 }
 
@@ -271,7 +287,15 @@ public :
 		vector<Function*>::const_iterator itF_end = _RelevantBucketFunctions.end() ;
 		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _Children.end() ;
 		double valueMax = ELEM_ZERO ;
+#ifdef DEBUG
+    bool assign_is_none = false;
+#endif
 		for (int i = 0 ; i < _k ; ++i) {
+#ifdef DEBUG
+      if (assignment[_v] == NONE) {
+        assign_is_none = true;
+      }
+#endif
 			assignment[_v] = i ;
 			double value = ELEM_ONE ;
 			for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF) 
@@ -280,6 +304,11 @@ public :
 				value OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
 			valueMax = max(valueMax, value) ;
 			}
+#ifdef DEBUG
+    if (assign_is_none) {
+      assignment[_v] = NONE;
+    }
+#endif
 		return valueMax ;
 	}
 	inline double Error(vector<val_t> & assignment) const

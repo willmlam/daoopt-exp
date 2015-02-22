@@ -50,6 +50,7 @@ namespace daoopt {
 double MiniBucketElim::getHeur(int var, vector<val_t>& assignment, SearchNode* n)
 {
 	assert( var >= 0 && var < m_problem->getN());
+  ++var_heur_calls_[var];
 	double h = ELEM_ONE;
 
 	// go over augmented and intermediate lists and combine all values

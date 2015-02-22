@@ -84,14 +84,14 @@ bool Search::doProcess(SearchNode* node) {
     m_space->stats.numProcANDVar[node->getVar()] += 1;
     // 0-labeled nodes should not get generated in the first place
     assert(node->getLabel() != ELEM_ZERO);  // if this fires, something is wrong!
-    DIAG( ostringstream ss; ss << *node << " (l=" << node->getLabel() << ")\n"; myprint(ss.str()) );
+    DIAG( ostringstream ss; ss << "[" << m_space->stats.numProcAND << "] " << *node << " (l=" << node->getLabel() << ")\n"; myprint(ss.str()) );
     int var = node->getVar();
     int val = node->getVal();
     m_assignment[var] = val; // record assignment
   } else { // NODE_OR
     m_space->stats.numProcOR += 1;
     m_space->stats.numProcORVar[node->getVar()] += 1;
-    DIAG( ostringstream ss; ss << *node << "\n"; myprint(ss.str()) );
+    DIAG( ostringstream ss; ss << "[" << m_space->stats.numProcOR << "] " << *node << "\n"; myprint(ss.str()) );
   }
   return false; // default
 }
@@ -471,6 +471,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 #ifdef DEBUG
 // =================
     for (int i = 0;i < chi.size(); ++i) {
+        cout << setprecision(20);
         cout << *chi[i] << " " << chi[i]->getHeur() << " " << chi[i]->getLabel() << endl;
     }
 // =================
@@ -553,6 +554,22 @@ double Search::assignCostsOR(SearchNode* n)
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   }
 #endif
+
+  /*
+  map<int,val_t> temp_assign_map;
+  for (uint32 i = 0; i < m_assignment.size(); ++i) {
+    if (m_assignment[i] != NONE) {
+      temp_assign_map[i] = m_assignment[i];
+    }
+  }
+
+  cout << "Assignment[" << temp_assign_map.size() << "] " << temp_assign_map << endl;
+  cout << "H:" ;
+  for (int i = 0; i < m_problem->getDomainSize(v); ++i) {
+    cout << " " << dv[2*i]; 
+  }
+  cout << endl;
+  */
 
   n->setHeur(h);
   n->setHeurCache(dv);

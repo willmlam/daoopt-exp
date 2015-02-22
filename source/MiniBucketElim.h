@@ -69,8 +69,8 @@ class MiniBucketElim : public Heuristic {
   // Stores the root instance of FGLP if used
   FGLP* m_fglpRoot;
 
-  // Stores all number of times a variable is visited
-  vector<unsigned int> m_countVarVisited;
+  // Count the number of times getHeur is called on a varaible
+  vector<uint64> var_heur_calls_;
 
  protected:
   // Computes a dfs order of the pseudo tree, for building the bucket structure
@@ -122,10 +122,6 @@ class MiniBucketElim : public Heuristic {
 
   bool isAccurate();
 
-  const vector<unsigned int>& getVarTimesVisited() const {
-    return m_countVarVisited;
-  }
-
   // Preprocess problem using FGLP/JGLP
   bool DoFGLP();
   bool DoJGLP();
@@ -171,7 +167,9 @@ inline bool MiniBucketElim::isAccurate() {
 
 inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
                                       ProgramOptions* po, int ib)
-    : Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE) {}
+    : Heuristic(p, pt, po), m_ibound(ib), m_globalUB(ELEM_ONE) {
+  var_heur_calls_.resize(p->getN(), 0);
+}
 
 inline MiniBucketElim::~MiniBucketElim() { reset() ; }
 
