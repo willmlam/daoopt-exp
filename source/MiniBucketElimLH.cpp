@@ -23,6 +23,9 @@
 
 #include <cstddef>
 #include <fstream>
+#include <chrono>
+
+using namespace std::chrono;
 
 #include "MiniBucketElimLH.h"
 
@@ -45,6 +48,8 @@ extern int64 nd1GeneralCalls;
 #endif // OUR_OWN_pInfinity
 
 namespace daoopt {
+
+  high_resolution_clock::time_point _lh_time_start, _lh_time_stop;
 
 static int computeMBOutFnArgsVectorPtrMap(int elim_var, vector<Function *> &Functions, vector<int> &scope, int &n, val_t *&tuple, vector<vector<val_t *>> &idxMap)
 {
@@ -253,7 +258,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 			_Stats._PseudoWidth = jointScope.size();
 #if defined DEBUG || _DEBUG
 		for (vector<Function *>::iterator itF = funs.begin(); itF != funs.end(); ++itF)
-			cout << ' ' << (**itF);
+      cout << ' ' << (**itF);
 		cout << endl;
 #endif
 #if defined DEBUG || _DEBUG
@@ -447,6 +452,12 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 				}
 			}
 		}
+  
+  // We want to capture the amount of "work per variable".
+  // No lookahead does 1 unit of work, and lookahead does 1+the number of 
+  // descendants in that lookahead tree.
+  double LH_averageLookaheadTreeSize =
+      double(elimOrder.size() + LH_nTotalDescendants) / elimOrder.size();
 
   if (computeTables) {
     cout << "Pseudowidth: " <<  _Stats._PseudoWidth - 1 << endl;
@@ -455,6 +466,8 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
     cout << "Total Heuristic Memory (MB): " << minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
     cout << "LH nBucketsWithNonZeroBuckerError: " << _nBucketsWithNonZeroBuckerError << " nBucketsWithMoreThan1MB: " << _nBucketsWithMoreThan1MB << endl;
     cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants << " nTotalDescendants: " << LH_nTotalDescendants << " (BuckerErrorIgnoreThreshold=" << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
+    cout << "LH averageLookaheadTreeSize: " << LH_averageLookaheadTreeSize
+         << endl;
     cout << "LH minDepthOfNodeWithLookahead: " << LH_minDepthOfNodeWithLookahead << " maxDepthOfNodeWithLookahead: " << LH_maxDepthOfNodeWithLookahead << " (MaxDepth=" << _MaxDepth << ")" << endl;
   }
 	return mem_size;
@@ -531,7 +544,12 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 	if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) 
 		return h ;
 
+  _lh_time_start = high_resolution_clock::now();
 	double DH = _LookaheadHelper[var].Error(assignment) ;
+  _lh_time_stop = high_resolution_clock::now();
+  duration<double> time_span =
+      duration_cast<duration<double>>(_lh_time_stop - _lh_time_start);
+  _Stats._LookaheadTotalTime += time_span.count();
   _Stats._NumNodesLookahead[var] += 1;
 	return h - DH ;
 

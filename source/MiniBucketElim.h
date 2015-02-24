@@ -128,7 +128,7 @@ class MiniBucketElim : public Heuristic {
 
  public:
   MiniBucketElim(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib);
-  void printExtraStats() const {}
+  void printExtraStats() const;
   virtual ~MiniBucketElim();
 
  protected:
@@ -171,7 +171,22 @@ inline MiniBucketElim::MiniBucketElim(Problem* p, Pseudotree* pt,
   var_heur_calls_.resize(p->getN(), 0);
 }
 
+inline void MiniBucketElim::printExtraStats() const {
+  cout << "Heuristic call counts (OR nodes attempted to be generated): "
+       << endl;
+  uint64 total_calls = 0;
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    uint64 adjusted_count =
+        var_heur_calls_[i] / m_problem->getDomainSize(i);
+    cout << " " << adjusted_count;
+    total_calls += adjusted_count;
+  }
+  cout << endl;
+  cout << "Heuristic calls (OR): " << total_calls << endl;
+}
+
 inline MiniBucketElim::~MiniBucketElim() { reset() ; }
+
 
 inline bool scopeIsLarger(Function* p, Function* q) {
   assert(p && q);

@@ -51,6 +51,7 @@ public :
 	int _MaxNumMBs ;
 	int _NumBucketsWithMoreThan1MB ;
   vector<size_t> _NumNodesLookahead; // actual number of lookahead nodes during search by variable.
+  double _LookaheadTotalTime;
 public :
 	void reset(void)
 	{
@@ -194,9 +195,9 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOpt
 inline void MiniBucketElimLH::printExtraStats() const {
   cout << "Heuristic call counts (OR nodes attempted to be generated): " 
        << endl;
-  size_t total_calls = 0;
+  uint64 total_calls = 0;
   for (int i = 0; i < m_problem->getN(); ++i) {
-    size_t adjusted_count =
+    uint64 adjusted_count =
         var_heur_calls_[i] / m_problem->getDomainSize(i);
     cout << " " << adjusted_count;
     total_calls += adjusted_count;
@@ -205,10 +206,10 @@ inline void MiniBucketElimLH::printExtraStats() const {
 
   cout << "Lookahead node counts: " << endl;
 
-  size_t total_lookahead = 0;
-  size_t count_var_lookahead = 0;
+  uint64 total_lookahead = 0;
+  uint64 count_var_lookahead = 0;
   for (int i = 0; i < m_problem->getN(); ++i) {
-    size_t adjusted_count =
+    uint64 adjusted_count =
       _Stats._NumNodesLookahead[i] / m_problem->getDomainSize(i);
     cout << " " << adjusted_count;
     total_lookahead += adjusted_count;
@@ -220,6 +221,7 @@ inline void MiniBucketElimLH::printExtraStats() const {
   cout << "Lookahead ratio (OR): " << double(total_lookahead) / total_calls 
        << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
+  cout << "Lookahead total time: " << _Stats._LookaheadTotalTime << endl;
 }
 
 inline MiniBucketElimLH::~MiniBucketElimLH(void)

@@ -30,6 +30,9 @@
 
 #include "ARP/ARPall.hxx"
 
+#include <chrono>
+using namespace std::chrono;
+
 #define VERSIONINFO "1.1.2"
 
 namespace daoopt {
@@ -37,7 +40,7 @@ namespace daoopt {
 string UAI2012::filename = "";
 string out_bound_file = "";
 
-time_t _time_start, _time_pre;
+high_resolution_clock::time_point _time_start, _time_pre;
 
 bool Main::parseOptions(int argc, char** argv) {
   // Reprint command line
@@ -185,9 +188,9 @@ bool Main::findOrLoadOrdering() {
       m_options->order_iterations = max(1, m_options->order_iterations);
   }
 
-  time_t time_order_start, time_order_cur;
+  high_resolution_clock::time_point time_order_start, time_order_cur;
   double timediff = 0.0;
-  time(&time_order_start);
+  time_order_start = high_resolution_clock::now();
 
   /*
   scoped_ptr<ARE::Graph> cvoGraph;
@@ -283,13 +286,15 @@ bool Main::findOrLoadOrdering() {
     }
 
     // check termination conditions
-    time(&time_order_cur);
-    timediff = difftime(time_order_cur, time_order_start);
+    time_order_cur = high_resolution_clock::now();
+    timediff = duration_cast<duration<double>>(
+        time_order_cur - time_order_start).count();
     if (m_options->order_timelimit != NONE && timediff > m_options->order_timelimit)
       break;
   }
-  time(&time_order_cur);
-  timediff = difftime(time_order_cur, time_order_start);
+  time_order_cur = high_resolution_clock::now();
+  timediff = duration_cast<duration<double>>(
+      time_order_cur - time_order_start).count();
   cout << endl << "Ran " << iterCount << " iterations (" << int(timediff)
        << " seconds), lowest width/height found: "
        << w << '/' << m_pseudotree->getHeight() << '\n';
@@ -560,7 +565,7 @@ bool Main::compileHeuristic() {
     sz = m_heuristic->build(& m_search->getAssignment(), false); // false = just compute memory estimate
   }
   else {
-    time(&_time_pre);
+    _time_pre = high_resolution_clock::now();
     bool mbFromFile = false;
     if (!m_options->in_minibucketFile.empty()) {
       mbFromFile = m_heuristic->readFromFile(m_options->in_minibucketFile);
@@ -570,9 +575,9 @@ bool Main::compileHeuristic() {
       cout << "Computing mini bucket heuristic..." << endl;
       cout << "(Moment matching: " << (m_options->match ? "yes" : "no") << ")" << endl;
       sz = m_heuristic->build(& m_search->getAssignment(), true); // true =  actually compute heuristic
-      time_t cur_time;
-      time(&cur_time);
-      double time_passed = difftime(cur_time, _time_pre);
+      high_resolution_clock::time_point cur_time = high_resolution_clock::now();
+      double time_passed = duration_cast<duration<double>>(cur_time - _time_pre)
+          .count();
       cout << "\tMini bucket finished in " << time_passed << " seconds" << endl;
     }
     if (!mbFromFile && !m_options->in_minibucketFile.empty()) {
@@ -698,8 +703,9 @@ bool Main::finishPreproc() {
 #endif
 
   // Record time after preprocessing
-  time(&_time_pre);
-  double time_passed = difftime(_time_pre, _time_start);
+  _time_pre = high_resolution_clock::now();
+  double time_passed =
+      duration_cast<duration<double>>(_time_pre - _time_start).count();
   cout << "Preprocessing complete: " << time_passed << " seconds" << endl;
 
   return true;
@@ -860,13 +866,16 @@ bool Main::outputStats() const {
   }
 #endif
 
-  time_t time_end;
-  time(&time_end);
-  double time_passed = difftime(time_end, _time_start);
+  high_resolution_clock::time_point time_end =
+      high_resolution_clock::now();
+  double time_passed =
+      duration_cast<duration<double>>(time_end - _time_start).count(); 
   cout << "Time elapsed:  " << time_passed << " seconds" << endl;
-  time_passed = difftime(_time_pre, _time_start);
+  time_passed =
+      duration_cast<duration<double>>(_time_pre - _time_start).count(); 
   cout << "Preprocessing: " << time_passed << " seconds" << endl;
-  time_passed = difftime(time_end, _time_pre);
+  time_passed =
+      duration_cast<duration<double>>(time_end - _time_pre).count(); 
   cout << "Search:        " << time_passed << " seconds" << endl;
   cout << "-------------------------------" << endl;
 
@@ -926,11 +935,12 @@ int Main::outputStatsToFile() const {
 	fprintf(fp, "\nPruned nodes:  %lld", (int64) m_space->stats.numPruned) ;
 	fprintf(fp, "\nDeadend nodes: %lld", (int64) m_space->stats.numDead) ;
 
-	time_t time_end;
-	time(&time_end);
-	double time_passed = difftime(time_end, _time_start);
+  high_resolution_clock::time_point time_end = high_resolution_clock::now();
+	double time_passed =
+      duration_cast<duration<double>>(time_end - _time_start).count();
 	fprintf(fp, "\nTime elapsed:  %g seconds", time_passed) ;
-	time_passed = difftime(_time_pre, _time_start);
+	time_passed =
+      duration_cast<duration<double>>(_time_pre - _time_start).count();
 	fprintf(fp, "\nPreprocessing: %g seconds", time_passed) ;
 	fprintf(fp, "\n-------------------------------") ;
 
@@ -942,7 +952,7 @@ int Main::outputStatsToFile() const {
 
 bool Main::start() const {
 
-  time(&_time_start);
+  _time_start = high_resolution_clock::now();
 
   // compile version string
   string version = "DAOOPT ";

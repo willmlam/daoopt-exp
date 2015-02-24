@@ -23,13 +23,16 @@
 
 #include "utils.h"
 
+#include <chrono>
+using namespace std::chrono;
+
 namespace daoopt {
 
-extern time_t _time_start;  // from Main.cpp
+extern high_resolution_clock::time_point _time_start;  // from Main.cpp
 
 void myprint(std::string s) {
-  time_t now; time(&now);
-  double T = difftime(now, _time_start);
+  high_resolution_clock::time_point now = high_resolution_clock::now();
+  double T = duration_cast<duration<double>>(now - _time_start).count();
   {
     GETLOCK(mtx_io, lk);
     std::cout << '[' << (int)T << "] " << s << std::flush;
@@ -37,8 +40,8 @@ void myprint(std::string s) {
 }
 
 void myerror(std::string s) {
-  time_t now; time(&now);
-  double T = difftime(now, _time_start);
+  high_resolution_clock::time_point now = high_resolution_clock::now();
+  double T = duration_cast<duration<double>>(now - _time_start).count();
   {
     GETLOCK(mtx_io, lk);
     std::cerr << '[' << T << "] " << s << std::flush;
