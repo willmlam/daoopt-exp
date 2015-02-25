@@ -190,37 +190,6 @@ void FGLPMBEHybrid::getLabelAll(int var, const vector<val_t> &assignment,
   }
 }
 
-bool FGLPMBEHybrid::calculatePruning(int var, SearchNode *node,
-                                     double curPSTVal) {
-  if (curPSTVal == ELEM_ZERO) return true;
-
-  SearchNode *curOR = (node->getType() == NODE_OR) ? node : node->getParent();
-
-  if (curPSTVal <= curOR->getValue()) return true;
-
-  SearchNode *curAND = NULL;
-
-  while (curOR->getParent()) {
-    curAND = curOR->getParent();
-    curPSTVal OP_TIMESEQ curAND->getLabel();
-    curPSTVal OP_TIMESEQ curAND->getSubSolved();
-
-    NodeP *children = curAND->getChildren();
-    for (size_t i = 0; i < curAND->getChildCountFull(); ++i) {
-      if (!children[i] || children[i] == curOR)
-        continue;
-      else
-        curPSTVal OP_TIMESEQ children[i]->getHeur();
-    }
-    curOR = curAND->getParent();
-
-    if (curPSTVal <= curOR->getValue()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Copy DaoOpt Function class into mex::Factor class structures
 mex::vector<mex::Factor> FGLPMBEHybrid::copyFactors(void) {
   mex::vector<mex::Factor> fs(m_problem->getC());

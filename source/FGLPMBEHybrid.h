@@ -62,8 +62,6 @@ public:
     double getLabel(int var, const std::vector<val_t> &assignment, SearchNode *node);
     void getLabelAll(int var, const std::vector<val_t> &assignment, SearchNode *node, std::vector<double> &out);
 
-    bool calculatePruning(int var, SearchNode *node, double curPSTVal);
-
     mex::vector<mex::Factor> copyFactors();
     void rewriteFactors( const vector<mex::Factor> &factors);
 

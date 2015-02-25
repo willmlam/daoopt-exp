@@ -36,7 +36,6 @@ namespace daoopt {
 class ProgramOptions;
 class Problem;
 class Pseudotree;
-class SearchNode;
 
 /*
  * Base class for all heuristic implementations.
@@ -126,14 +125,47 @@ public:
   virtual double getHeurCompTime() const { return m_heurCompTime; }
   virtual double getHeurRootCompTime() const { return m_heurRootCompTime; }
 
+
   virtual void printExtraStats() const = 0;
 
 protected:
   Heuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) :
       m_problem(p), m_pseudotree(pt), m_options(po), m_heurCompTime(0) { /* nothing */ }
+  virtual bool calculatePruning(int var, SearchNode* node, double curPSTVal);
 public:
   virtual ~Heuristic() { /* nothing */ }
 };
+
+inline bool Heuristic::calculatePruning(int var, SearchNode* node,
+    double curPSTVal) {
+  if (curPSTVal == ELEM_ZERO) return true;
+
+  SearchNode *curOR = (node->getType() == NODE_OR) ? node : node->getParent();
+
+  if (curPSTVal <= curOR->getValue()) return true;
+
+  SearchNode *curAND = NULL;
+
+  while (curOR->getParent()) {
+    curAND = curOR->getParent();
+    curPSTVal OP_TIMESEQ curAND->getLabel();
+    curPSTVal OP_TIMESEQ curAND->getSubSolved();
+
+    NodeP *children = curAND->getChildren();
+    for (size_t i = 0; i < curAND->getChildCountFull(); ++i) {
+      if (!children[i] || children[i] == curOR)
+        continue;
+      else
+        curPSTVal OP_TIMESEQ children[i]->getHeur();
+    }
+    curOR = curAND->getParent();
+
+    if (curPSTVal <= curOR->getValue()) {
+      return true;
+    }
+  }
+  return false;
+}
 
 
 /* "Empty" heuristic, for testing and debugging */

@@ -30,7 +30,7 @@
 
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
 
-#define USE_FULL_LOOKAHEAD_SUBTREE
+//#define USE_FULL_LOOKAHEAD_SUBTREE
 
 namespace daoopt {
 
@@ -193,33 +193,41 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOpt
 }
 
 inline void MiniBucketElimLH::printExtraStats() const {
-  cout << "Heuristic call counts (OR nodes attempted to be generated): " 
+  cout << "Heuristic call counts: " 
        << endl;
-  uint64 total_calls = 0;
+  uint64 total_calls_or = 0;
+  uint64 total_calls_and = 0;
   for (int i = 0; i < m_problem->getN(); ++i) {
+    total_calls_and += var_heur_calls_[i];
     uint64 adjusted_count =
         var_heur_calls_[i] / m_problem->getDomainSize(i);
     cout << " " << adjusted_count;
-    total_calls += adjusted_count;
+    total_calls_or += adjusted_count;
   }
   cout << endl;
 
   cout << "Lookahead node counts: " << endl;
 
-  uint64 total_lookahead = 0;
+  uint64 total_lookahead_or = 0;
+  uint64 total_lookahead_and = 0;
   uint64 count_var_lookahead = 0;
   for (int i = 0; i < m_problem->getN(); ++i) {
+    total_lookahead_and += _Stats._NumNodesLookahead[i];
     uint64 adjusted_count =
       _Stats._NumNodesLookahead[i] / m_problem->getDomainSize(i);
     cout << " " << adjusted_count;
-    total_lookahead += adjusted_count;
+    total_lookahead_or += adjusted_count;
     if (adjusted_count > 0) count_var_lookahead += 1;
   }
   cout << endl;
-  cout << "Heuristic calls (OR): " << total_calls << endl;
-  cout << "Lookahead calls (OR): " << total_lookahead << endl;
-  cout << "Lookahead ratio (OR): " << double(total_lookahead) / total_calls 
-       << endl;
+  cout << "Heuristic calls (OR): " << total_calls_or << endl;
+  cout << "Heuristic calls (AND): " << total_calls_and << endl;
+  cout << "Lookahead calls (OR): " << total_lookahead_or << endl;
+  cout << "Lookahead calls (AND): " << total_lookahead_and << endl;
+  cout << "Lookahead ratio (OR): " 
+       << double(total_lookahead_or) / total_calls_or << endl;
+  cout << "Lookahead ratio (AND): " 
+       << double(total_lookahead_and) / total_calls_and << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
   cout << "Lookahead total time: " << _Stats._LookaheadTotalTime << endl;
 }
