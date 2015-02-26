@@ -544,12 +544,12 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 	if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) 
 		return h ;
 
-  _lh_time_start = high_resolution_clock::now();
+//  _lh_time_start = high_resolution_clock::now();
 	double DH = _LookaheadHelper[var].Error(assignment) ;
-  _lh_time_stop = high_resolution_clock::now();
-  duration<double> time_span =
-      duration_cast<duration<double>>(_lh_time_stop - _lh_time_start);
-  _Stats._LookaheadTotalTime += time_span.count();
+//  _lh_time_stop = high_resolution_clock::now();
+//  duration<double> time_span =
+//      duration_cast<duration<double>>(_lh_time_stop - _lh_time_start);
+//  _Stats._LookaheadTotalTime += time_span.count();
   _Stats._NumNodesLookahead[var] += 1;
 	return h - DH ;
 
