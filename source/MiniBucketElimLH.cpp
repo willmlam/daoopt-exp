@@ -47,6 +47,8 @@ extern int64 nd1GeneralCalls;
 #define OUR_OWN_pInfinity (std::numeric_limits<double>::infinity())
 #endif // OUR_OWN_pInfinity
 
+//#define USE_H_RESIDUAL
+
 namespace daoopt {
 
   high_resolution_clock::time_point _lh_time_start, _lh_time_stop;
@@ -118,8 +120,10 @@ static int computeMBOutFnArgsVectorPtrMap(int elim_var, vector<Function *> &Func
 
 void MiniBucketElimLH::reset(void)
 {
-	for (MiniBucketElimLHError & be_error : _LookaheadHelper) 
+	for (MiniBucketElimLHError & be_error : _LookaheadResiduals) 
 		be_error.Delete();
+	for (MiniBucketElimLHheuristic & be_lh : _Lookahead) 
+		be_lh.Delete();
 	deleteLocalErrorFNs();
 
 	for (set<int> & scope : _BucketScopes) 
@@ -194,7 +198,8 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	_BucketFunctions.resize(m_problem->getN());
 	//	_BucketHFnScopes.resize(m_problem->getN()) ;
 	_MiniBuckets.resize(m_problem->getN());
-	_LookaheadHelper.resize(m_problem->getN());
+	_LookaheadResiduals.resize(m_problem->getN());
+	_Lookahead.resize(m_problem->getN());
 	_BucketErrorQuality.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _BucketErrorQuality[i] = -1;
 	_distToClosestDescendantWithMBs.resize(m_problem->getN());
@@ -202,6 +207,8 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	_distToClosestDescendantWithLE.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _distToClosestDescendantWithLE[i] = INT_MAX;
 	deleteLocalErrorFNs();
+	for (int i = m_problem->getN() - 1; i >= 0; i--) 
+		{ _LookaheadResiduals[i].Delete() ; _Lookahead[i].Delete() ; }
 
 	// ITERATES OVER BUCKETS, FROM LEAVES TO ROOT
 	for (vector<int>::reverse_iterator itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
@@ -441,14 +448,17 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 			}
     
 		// for each bucket, compute closest distance to descendant with >0 bucket error
-		for (auto itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
-			int v = *itV;
-			_LookaheadHelper[v].Initialize(*this, v, m_options->lookaheadDepth);
-			if (_LookaheadHelper[v]._DescendantNodes.size() > 0) {
-				++LH_nNodesWithDescendants ; LH_nTotalDescendants += (int) _LookaheadHelper[v]._DescendantNodes.size() ;
-				int depth = _Depth[v] ;
-				if (LH_minDepthOfNodeWithLookahead > depth) LH_minDepthOfNodeWithLookahead = depth ;
-				if (LH_maxDepthOfNodeWithLookahead < depth) LH_maxDepthOfNodeWithLookahead = depth ;
+		if (m_options->lookaheadDepth > 0) {
+			for (auto itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
+				int v = *itV;
+				_LookaheadResiduals[v].Initialize(*this, v, m_options->lookaheadDepth);
+				_Lookahead[v].Initialize(*this, v, m_options->lookaheadDepth);
+				if (_LookaheadResiduals[v]._SubtreeNodes.size() > 0) {
+					++LH_nNodesWithDescendants ; LH_nTotalDescendants += (int) _LookaheadResiduals[v]._SubtreeNodes.size() ;
+					int depth = _Depth[v] ;
+					if (LH_minDepthOfNodeWithLookahead > depth) LH_minDepthOfNodeWithLookahead = depth ;
+					if (LH_maxDepthOfNodeWithLookahead < depth) LH_maxDepthOfNodeWithLookahead = depth ;
+					}
 				}
 			}
 		}
@@ -525,7 +535,7 @@ for (const MiniBucket& mb : minibuckets) {
 	// i.e. we would process bucket[var].
 	// however, for us here, we would have to look at one level below that in the bucket tree.
 
-	double DH = _LookaheadHelper[var].ErrorPerIndSubproblem(assignment, current_gap, subprobH) ;
+	double DH = _LookaheadResiduals[var].ErrorPerIndSubproblem(assignment, current_gap, subprobH) ;
 	return h - DH ;
 }
 
@@ -538,6 +548,8 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 		}
 #endif
 
+#ifdef USE_H_RESIDUAL
+
 	double h = MiniBucketElim::getHeur(var, assignment, search_node);
 	if (m_options->lookaheadDepth <= 0) 
 		return h ;
@@ -545,13 +557,29 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> & assignment, Searc
 		return h ;
 
 //  _lh_time_start = high_resolution_clock::now();
-	double DH = _LookaheadHelper[var].Error(assignment) ;
+	double DH = _LookaheadResiduals[var].Error(assignment) ;
 //  _lh_time_stop = high_resolution_clock::now();
 //  duration<double> time_span =
 //      duration_cast<duration<double>>(_lh_time_stop - _lh_time_start);
 //  _Stats._LookaheadTotalTime += time_span.count();
-  _Stats._NumNodesLookahead[var] += 1;
-	return h - DH ;
+	_Stats._NumNodesLookahead[var] += 1 ;
+	double h_fixed = h - DH ;
+/*double LH = _Lookahead[var].GetHeuristic(assignment) ;
+double dTest = fabs(LH - h_fixed) ;
+if (dTest > 1.0e-6) {
+	int bug = 1 ;
+	}*/
+	return h_fixed ;
+
+#else
+
+	MiniBucketElimLHheuristic & lhHelper = _Lookahead[var] ;
+	if (0 == lhHelper._SubtreeNodes.size()) 
+		return MiniBucketElim::getHeur(var, assignment, search_node);
+	_Stats._NumNodesLookahead[var] += 1 ;
+	return lhHelper.GetHeuristic(assignment) ;
+
+#endif // USE_H_RESIDUAL
 
   /*
 	const int local_lookaheadDepth = m_options->lookaheadDepth - 1;
@@ -630,7 +658,7 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment, SearchNode
 		}
 //  ++nd1GeneralCalls;
 
-	MiniBucketElimLHError & eh = _LookaheadHelper[var] ;
+	MiniBucketElimLHError & eh = _LookaheadResiduals[var] ;
 #ifdef GET_LH_VALUE_BULK
 	eh.Error(assignment, out) ;
 #else
@@ -829,7 +857,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
 		}
-	// as a special case, when table building is not requested and sample size is set to 0, just mark this bucket having actual error, so that
+	// as a special case, when table building is not requested and sample size is set to 0, just mark this bucket having actual error, so that LH will use it
 	if (! build_table && TableMemoryLimitAsNumElementsLog <= 0) {
 		_BucketErrorQuality[var] = 99;
 		avgError = 0.0;
@@ -863,9 +891,12 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		return 0;
 		}
 	if (TableSizeLog > TableMemoryLimitAsNumElementsLog) {  // table would be too large; will not fit in memory.
-		// leave _BucketErrorQuality[var] as -1 (or whatever it is).
-		if (! sample_table_if_not_computed) 
+		if (! sample_table_if_not_computed) {
+			// just mark this bucket having actual error, so that LH will use it
+			_BucketErrorQuality[var] = 99;
+			avgError = 0.0;
 			return 1 ;
+			}
 		build_table = false ;
 		}
 
@@ -1182,11 +1213,13 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		Function *errorFn = NULL;
 		double avgError, E;
 		double tableSize = -1.0;
-		bool do_sample = true ;
+		bool do_sample = false ;
 		bool build_table = build_tables ;
 		int64 nEntriesGenerated = 0 ;
-		if (table_size_actual_limit <= 0 && do_sample) 
-			{ build_table = false ; table_size_actual_limit = TableMemoryLimitAsNumElementsLog ; }
+		if (table_size_actual_limit <= 0) {
+			build_table = false ;
+			table_size_actual_limit = TableMemoryLimitAsNumElementsLog ;
+			}
 #ifdef NO_LH_PREPROCESSING
 		build_table = do_sample = false ; table_size_actual_limit = -DBL_MIN ;
 #endif // 

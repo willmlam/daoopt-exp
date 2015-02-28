@@ -29,9 +29,12 @@
 
 //#define DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 
+#include <chrono>
+using namespace std::chrono;
+
 namespace daoopt {
 
-extern time_t _time_start; // from Main.cpp
+extern high_resolution_clock::time_point _time_start; // from Main.cpp
 
 Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, ProgramOptions *po) :
     m_problem(prob), m_pseudotree(pt), m_space(s), m_heuristic(h),
@@ -205,8 +208,8 @@ SearchNode* Search::nextLeaf() {
     if (doExpand(node)) // node expansion
       { return node; }
     node = this->nextNode();
-    time_t now; time(&now);
-    double time_elapsed = difftime(now, _time_start);
+	high_resolution_clock::time_point time_now = high_resolution_clock::now();
+	double time_elapsed = duration_cast<duration<double>>(time_now - _time_start).count(); 
     if (time_elapsed > m_options->maxTime) {
         cout << "Timed out at " << time_elapsed << " seconds." << endl;
         cout << "Stats at timeout: " << endl;

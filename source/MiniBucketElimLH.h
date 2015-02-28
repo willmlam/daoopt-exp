@@ -37,6 +37,8 @@ namespace daoopt {
 class MiniBucketElimLH;
 class MiniBucketElimLHErrorNode;
 class MiniBucketElimLHError;
+class MiniBucketElimLHheuristicNode;
+class MiniBucketElimLHheuristic;
 
 class MiniBucketElimLHStatistics
 {
@@ -85,6 +87,8 @@ class MiniBucketElimLH : public MiniBucketElim
 {
 	friend class MiniBucketElimLHError ;
 	friend class MiniBucketElimLHErrorNode ;
+	friend class MiniBucketElimLHheuristic ;
+	friend class MiniBucketElimLHheuristicNode ;
 
  protected:
 
@@ -112,7 +116,8 @@ class MiniBucketElimLH : public MiniBucketElim
 	std::vector<int> _distToClosestDescendantWithMBs ;
 	std::vector<int> _distToClosestDescendantWithLE ;
 
-	std::vector<MiniBucketElimLHError> _LookaheadHelper ;
+	std::vector<MiniBucketElimLHError> _LookaheadResiduals ;
+	std::vector<MiniBucketElimLHheuristic> _Lookahead ;
 
 public:
 
@@ -229,7 +234,7 @@ inline void MiniBucketElimLH::printExtraStats() const {
   cout << "Lookahead ratio (AND): " 
        << double(total_lookahead_and) / total_calls_and << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
-  cout << "Lookahead total time: " << _Stats._LookaheadTotalTime << endl;
+//  cout << "Lookahead total time: " << _Stats._LookaheadTotalTime << endl;
 }
 
 inline MiniBucketElimLH::~MiniBucketElimLH(void)
@@ -390,19 +395,32 @@ public :
 	int _v ; // variable of this node.
 	int _depth ;
 	MiniBucketElimLHErrorNode _RootNode ;
-	std::vector<MiniBucketElimLHErrorNode *> _DescendantNodes ;
+	std::vector<MiniBucketElimLHErrorNode *> _SubtreeNodes ;
 public :
-	bool IsRelevant(int v)
+	bool IsSubtreeVariable(int v)
 	{
-		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _DescendantNodes.begin(); itRB!=_DescendantNodes.end(); ++itRB) {
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
 			if (v == (*itRB)->_v) 
 				return true ;
 			}
 		return false ;
 	}
+	bool IsSubtreeMBEfunction(Function & f)
+	{
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
+			MiniBucketElimLHErrorNode *n = *itRB ;
+			int u = n->_v ;
+			vector<MiniBucket> & minibuckets = _H->_MiniBuckets[u] ;
+			for (vector<MiniBucket>::iterator itMB = minibuckets.begin() ; itMB != minibuckets.end() ; ++itMB) {
+				Function *fnMB = itMB->output_fn() ;
+				if (&f == fnMB) return true ;
+				}
+			}
+		return false ;
+	}
 	inline double Error(vector<val_t> & assignment) const
 	{
-		if (0 == _DescendantNodes.size()) 
+		if (0 == _SubtreeNodes.size()) 
 			return 0.0 ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
 		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity, 
 		// whereas in reality, some children have 0-error, some non-0-error.
@@ -414,7 +432,7 @@ public :
 	}
 	inline double ErrorPerIndSubproblem(vector<val_t> & assignment, double current_pruning_gap, std::vector<double> & subprobH) const
 	{
-		if (0 == _DescendantNodes.size()) 
+		if (0 == _SubtreeNodes.size()) 
 			return 0.0 ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
 		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity, 
 		// whereas in reality, some children have 0-error, some non-0-error.
@@ -435,7 +453,7 @@ public :
 	// e.g. typically 'out' is passed in as h/f of 'Parent'.
 	inline void Error(vector<val_t> & assignment, vector<double> & out) const
 	{
-		if (0 == _DescendantNodes.size()) 
+		if (0 == _SubtreeNodes.size()) 
 			return ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
 #if defined DEBUG || _DEBUG
 		vector<double> out_(out) ;
@@ -467,7 +485,7 @@ public :
 			return 0 ;
 		// build tree of nodes
 		int memory = depth*5 ; if (memory > H.m_problem->getN()) memory = H.m_problem->getN() ; // assume avg branching factor of 5
-		_DescendantNodes.reserve(memory) ; // try to allocate some memory to make it faster
+		_SubtreeNodes.reserve(memory) ; // try to allocate some memory to make it faster
 //		std::deque<MiniBucketElimLHErrorNode *> nodes2process ;
 		std::stack<MiniBucketElimLHErrorNode *> nodes2process ; // using stack will turn it into a DFS processing of the tree
 		try { nodes2process.push(&_RootNode) ; } catch (...) { return 1 ; }
@@ -478,16 +496,18 @@ public :
 			if (rootchilddepth == N->_depth2go) currentrootchild = N ;
 			const PseudotreeNode *N_ = H.m_pseudotree->getNode(N->_v) ;
 			const vector<PseudotreeNode *> & children = N_->getChildren() ;
+			N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
 			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
 #ifndef USE_FULL_LOOKAHEAD_SUBTREE
 				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
 #endif // USE_FULL_LOOKAHEAD_SUBTREE
-				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_idxWRTparent = idxChild ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
-				try { _DescendantNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
+				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
+				try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				if (depth2go > 0) { try { nodes2process.push(n) ; } catch (...) { delete n ; return 1 ; }}
+				n->_idxWRTparent = N->_Children.size() - 1 ;
 				// add all MB output functions of [child] bucket that are in [v] bucket to currentrootchild
 				MiniBucketElimLHErrorNode *currentrootchild_ = (NULL == currentrootchild) ? n : currentrootchild ; 
 				vector<MiniBucket> & minibuckets = H._MiniBuckets[child] ;
@@ -502,7 +522,7 @@ public :
 				}
 			}
 		// fill in _RelevantBucketFunctions for each relevant bucket
-		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _DescendantNodes.begin(); itRB!=_DescendantNodes.end(); ++itRB) {
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
 			MiniBucketElimLHErrorNode *n = *itRB ;
 			int u = n->_v ;
 //			int d = n->_depth2go ;
@@ -510,18 +530,19 @@ public :
 			// add OF_n
 			const vector<Function *> & OFlist = H.m_pseudotree->getFunctions(u) ;
 			funs.insert(funs.end(), OFlist.begin(), OFlist.end()) ;
-			// add AF_n^{>d}; i.e. those functions in AF_n that did not come from a relevant bucket
+			// add AF_n^{>d}; i.e. those functions in AF_n that did not come from a subtree bucket
 			vector<Function *> & AFlist = H.m_augmented[u] ;
 			for (vector<Function*>::iterator itF = AFlist.begin() ; itF != AFlist.end() ; ++itF) {
 				Function *fn = *itF ;
-				int vOriginating = abs(fn->getId()) ;
-				if (! IsRelevant(vOriginating)) 
+//				int vOriginating = abs(fn->getId()) ;
+//				if (! IsSubtreeVariable(vOriginating)) 
+				if (! IsSubtreeMBEfunction(*fn)) 
 					funs.push_back(fn) ;
 				}
 			}
 /*		// fill in a list of relevant functions of the node[v] = all IF/AF in [v] that came from relevant descendant buckets
 this code has bug; for all MB output FNs we should check if it is in [v] bucket first
-		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _DescendantNodes.begin(); itRB!=_DescendantNodes.end(); ++itRB) {
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
 			MiniBucketElimLHErrorNode *n = *itRB ;
 			int u = n->_v ;
 			vector<MiniBucket> & minibuckets = H._MiniBuckets[u] ;
@@ -536,13 +557,227 @@ this code has bug; for all MB output FNs we should check if it is in [v] bucket 
 	int Delete(void) 
 	{
 		_RootNode.Delete() ;
-		_DescendantNodes.clear() ;
+		_SubtreeNodes.clear() ;
 		return 0 ;
 	}
 	MiniBucketElimLHError(void) : _H(NULL), _v(-1), _depth(-1)
 	{
 	}
 	~MiniBucketElimLHError(void)
+	{
+	}
+} ;
+
+class MiniBucketElimLHheuristicNode
+{
+public :
+	MiniBucketElimLH *_H ;
+public :
+	int _v ; // variable of this node.
+	int _idxWRTparent ; // idx of this node as child of its parent; this is wrt the childlen list of the parent.
+	int _k ; // domain size of this variable.
+	int _depth2go ; // depth still to go from this node; as number of edges.
+	std::vector<Function *> _RelevantBucketFunctions ; // OF + AF (in this bucket) that came from outside of the LH-subteee
+	std::vector<MiniBucketElimLHheuristicNode *> _Children ; // children of this node in the bucket tree, that have non-0 bucket error within LH-subteee rooted at this node.
+public :
+	int Delete(void) 
+	{
+		for (vector<MiniBucketElimLHheuristicNode *>::iterator it = _Children.begin(); it!=_Children.end(); ++it) 
+			delete *it ;
+		_Children.clear() ;
+		_RelevantBucketFunctions.clear() ;
+		return 0 ;
+	}
+	inline double ExactBucketValue(vector<val_t> & assignment) const
+	{
+		vector<Function*>::const_iterator itF_end = _RelevantBucketFunctions.end() ;
+		vector<MiniBucketElimLHheuristicNode *>::const_iterator itC_end = _Children.end() ;
+		double valueMax = ELEM_ZERO ;
+#ifdef DEBUG
+    bool assign_is_none = false;
+#endif
+		for (int i = 0 ; i < _k ; ++i) {
+#ifdef DEBUG
+      if (assignment[_v] == NONE) {
+        assign_is_none = true;
+      }
+#endif
+			assignment[_v] = i ;
+			double value = ELEM_ONE ;
+			for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF) 
+				value OP_TIMESEQ (*itF)->getValue(assignment) ;
+			for (vector<MiniBucketElimLHheuristicNode *>::const_iterator itC = _Children.begin() ; itC != itC_end ; ++itC) {
+				value OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
+				if (OUR_OWN_nInfinity == value) 
+					goto done_this_iteration ; // no point in continuing with the computation
+				}
+			valueMax = max(valueMax, value) ;
+done_this_iteration : 
+			continue ;
+			}
+#ifdef DEBUG
+    if (assign_is_none) {
+      assignment[_v] = NONE;
+    }
+#endif
+		return valueMax ;
+	}
+	MiniBucketElimLHheuristicNode(void) : _H(NULL), _v(-1), _idxWRTparent(-1), _k(-1), _depth2go(-1)
+	{
+	}
+	~MiniBucketElimLHheuristicNode(void)
+	{
+		Delete() ;
+	}
+} ;
+
+class MiniBucketElimLHheuristic
+{
+public :
+	MiniBucketElimLH *_H ; // MBE heuristic
+public :
+	int _v ; // variable of this node.
+	int _depth ; // depth of the subtree
+	std::vector<MiniBucketElimLHErrorNode *> _SubtreeNodes ; // variables/buckets in the (minimal) subtree
+	MiniBucketElimLHErrorNode _RootNode ; // node corresponding to _v
+	std::vector<Function *> _IntermediateSubtreeFunctions ; // IF/AF (in bucket of _v) that came from outside of the LH-subteee
+public :
+	bool IsSubtreeVariable(int v)
+	{
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
+			if (v == (*itRB)->_v) 
+				return true ;
+			}
+		return false ;
+	}
+	bool IsSubtreeMBEfunction(Function & f)
+	{
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
+			MiniBucketElimLHErrorNode *n = *itRB ;
+			int u = n->_v ;
+			vector<MiniBucket> & minibuckets = _H->_MiniBuckets[u] ;
+			for (vector<MiniBucket>::iterator itMB = minibuckets.begin() ; itMB != minibuckets.end() ; ++itMB) {
+				Function *fnMB = itMB->output_fn() ;
+				if (&f == fnMB) return true ;
+				}
+			}
+		return false ;
+	}
+	inline double GetHeuristic(vector<val_t> & assignment) const
+	{
+		if (0 == _SubtreeNodes.size()) 
+			return _H->MiniBucketElim::getHeur(_v, assignment, NULL) ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
+
+		// add up all lambda functions of _v that came from outside the LH subtree; these functions are fully instantiated
+		double h = ELEM_ONE ;
+		vector<Function*>::const_iterator itF_end = _IntermediateSubtreeFunctions.end() ;
+		for (vector<Function*>::const_iterator itF = _IntermediateSubtreeFunctions.begin() ; itF != itF_end ; ++itF) {
+			h OP_TIMESEQ (*itF)->getValue(assignment) ;
+			if (OUR_OWN_nInfinity == h) 
+				return OUR_OWN_nInfinity ; // no point in continuing with the computation
+			}
+
+		// add up all children LH values
+		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
+		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC) {
+			h OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
+			if (OUR_OWN_nInfinity == h) 
+				return OUR_OWN_nInfinity ; // no point in continuing with the computation
+			}
+
+		return h ;
+	}
+public :
+	int Initialize(MiniBucketElimLH & H, int v, int depth)
+	{
+		Delete() ;
+		_H = &H ; _v = v ; _depth = depth ;
+		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ;
+		// always check if there is any point in computing error
+		if (H._distToClosestDescendantWithLE[v] > depth) 
+			return 0 ;
+		// build tree of nodes
+		int memory = depth*5 ; if (memory > H.m_problem->getN()) memory = H.m_problem->getN() ; // assume avg branching factor of 5
+		_SubtreeNodes.reserve(memory) ; // try to allocate some memory to make it faster
+//		std::deque<MiniBucketElimLHErrorNode *> nodes2process ;
+		std::stack<MiniBucketElimLHErrorNode *> nodes2process ; // using stack will turn it into a DFS processing of the tree
+		try { nodes2process.push(&_RootNode) ; } catch (...) { return 1 ; }
+		while (nodes2process.size() > 0) {
+			MiniBucketElimLHErrorNode *N = nodes2process.top() ; nodes2process.pop() ;
+			const PseudotreeNode *N_ = H.m_pseudotree->getNode(N->_v) ;
+			const vector<PseudotreeNode *> & children = N_->getChildren() ;
+			N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
+			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
+			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
+				int child = (*itC)->getVar() ;
+#ifndef USE_FULL_LOOKAHEAD_SUBTREE
+				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
+#endif // USE_FULL_LOOKAHEAD_SUBTREE
+				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
+				try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
+				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
+				if (depth2go > 0) { try { nodes2process.push(n) ; } catch (...) { delete n ; return 1 ; }}
+				n->_idxWRTparent = N->_Children.size() - 1 ;
+				}
+			}
+		// fill in _RelevantBucketFunctions for each relevant bucket
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
+			MiniBucketElimLHErrorNode *n = *itRB ;
+			int u = n->_v ;
+//			int d = n->_depth2go ;
+			std::vector<Function *> & funs = n->_RelevantBucketFunctions ;
+			// add OF_n
+			const vector<Function *> & OFlist = H.m_pseudotree->getFunctions(u) ;
+			funs.insert(funs.end(), OFlist.begin(), OFlist.end()) ;
+			// add AF_n^{>d}; i.e. those functions in AF_n that did not come from a subtree bucket
+			vector<Function *> & AFlist = H.m_augmented[u] ;
+			for (vector<Function*>::iterator itF = AFlist.begin() ; itF != AFlist.end() ; ++itF) {
+				Function *fn = *itF ;
+//				int vOriginating = abs(fn->getId()) ;
+//				if (! IsSubtreeVariable(vOriginating)) 
+				if (! IsSubtreeMBEfunction(*fn)) 
+					funs.push_back(fn) ;
+				}
+			}
+		// fill in _IntermediateSubtreeFunctions - IF/AF (in bucket of _v) that came from outside of the LH-subteee
+		vector<Function *> & vAFlist = H.m_augmented[v] ;
+		for (vector<Function*>::iterator itF = vAFlist.begin() ; itF != vAFlist.end() ; ++itF) {
+			Function *fn = *itF ;
+			if (! IsSubtreeMBEfunction(*fn)) 
+				_IntermediateSubtreeFunctions.push_back(fn) ;
+			}
+		vector<Function *> & vIFlist = H.m_intermediate[v] ;
+		for (vector<Function*>::iterator itF = vIFlist.begin() ; itF != vIFlist.end() ; ++itF) {
+			Function *fn = *itF ;
+			if (! IsSubtreeMBEfunction(*fn)) 
+				_IntermediateSubtreeFunctions.push_back(fn) ;
+			}
+
+/*		// fill in a list of relevant functions of the node[v] = all IF/AF in [v] that came from relevant descendant buckets
+this code has bug; for all MB output FNs we should check if it is in [v] bucket first
+		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
+			MiniBucketElimLHErrorNode *n = *itRB ;
+			int u = n->_v ;
+			vector<MiniBucket> & minibuckets = H._MiniBuckets[u] ;
+			for (vector<MiniBucket>::iterator itMB = minibuckets.begin() ; itMB != minibuckets.end() ; ++itMB) {
+				Function *fnMB = itMB->outputFn() ;
+				if (NULL == fnMB) continue ;
+				_RootNode._RelevantBucketFunctions.push_back(fnMB) ;
+				}
+			}*/
+		return 0 ;
+	}
+	int Delete(void) 
+	{
+		_RootNode.Delete() ;
+		_SubtreeNodes.clear() ;
+		_IntermediateSubtreeFunctions.clear() ;
+		return 0 ;
+	}
+	MiniBucketElimLHheuristic(void) : _H(NULL), _v(-1), _depth(-1)
+	{
+	}
+	~MiniBucketElimLHheuristic(void)
 	{
 	}
 } ;
