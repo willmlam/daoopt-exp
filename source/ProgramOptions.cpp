@@ -127,6 +127,8 @@ DEFINE_double(lookahead_local_error_all_tables_total_limit, 8.0,
               "tables (in log10)");
 DEFINE_double(lookahead_local_error_ignore_threshold, -DBL_MIN, 
               "lookahead: ignore threshold");
+DEFINE_bool(lookahead_use_full_subtree, false,
+            "lookahead: do not perform pruning on lookahead subtree");
 
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 
@@ -194,6 +196,8 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
         FLAGS_lookahead_local_error_all_tables_total_limit;
     opt->lookahead_LE_IgnoreThreshold = 
         FLAGS_lookahead_local_error_ignore_threshold;
+    opt->lookahead_use_full_subtree =
+        FLAGS_lookahead_use_full_subtree;
 
     opt->order_iterations = FLAGS_order_iterations;
     opt->order_timelimit = FLAGS_order_time;

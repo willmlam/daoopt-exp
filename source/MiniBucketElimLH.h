@@ -483,7 +483,7 @@ public :
 		_H = &H ; _v = v ; _depth = depth ; _actual_depth = 0 ;
 		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ; _RootNode._depth = 0 ;
 		// always check if there is any point in computing error
-		if (H._distToClosestDescendantWithLE[v] > depth) 
+		if (!H.m_options->lookahead_use_full_subtree && H._distToClosestDescendantWithLE[v] > depth) 
 			return 0 ;
 		// build tree of nodes
 		int memory = depth*5 ; if (memory > H.m_problem->getN()) memory = H.m_problem->getN() ; // assume avg branching factor of 5
@@ -504,7 +504,7 @@ public :
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
 #ifndef USE_FULL_LOOKAHEAD_SUBTREE
-				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
+				if (!H.m_options->lookahead_use_full_subtree && H._BucketErrorQuality[child] <= 1 && H._distToClosestDescendantWithLE[child] > depth2go) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
 #endif // USE_FULL_LOOKAHEAD_SUBTREE
 				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ; n->_depth = node_depth ;
 				try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
@@ -701,7 +701,7 @@ public :
 		_H = &H ; _v = v ; _depth = depth ; _actual_depth = 0 ; _leaf_count = 0 ;
 		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ; _RootNode._depth = 0 ;
 		// always check if there is any point in computing error
-		if (H._distToClosestDescendantWithLE[v] > depth) {
+		if (!H.m_options->lookahead_use_full_subtree && H._distToClosestDescendantWithLE[v] > depth) {
       _leaf_count = 1; // single value to enumerate -- the value itself.
 			return 0 ;
     }
@@ -718,19 +718,32 @@ public :
 			N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
 			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
       int node_depth = N->_depth + 1 ;
+      
+      if (H.m_options->lookahead_use_full_subtree && children.size() == 0) {
+        // Leaf node: compute enumerations.
+        PseudotreeNode* pst_node = H.m_pseudotree->getNode(N->_v);
+        int n_leaves = pst_node->getDomain();
+        while (pst_node->getVar() != _RootNode._v) {
+          pst_node = pst_node->getParent();
+          n_leaves *= pst_node->getDomain();
+        }
+        _leaf_count += n_leaves;
+      }
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
 #ifndef USE_FULL_LOOKAHEAD_SUBTREE
-				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) {
+				if (!H.m_options->lookahead_use_full_subtree &&
+            H._BucketErrorQuality[child] <= 1 &&
+            H._distToClosestDescendantWithLE[child] > depth2go) {
 
-          // This is a leaf node compute the number of enumerations by climbing
+          // This is a leaf node: compute the number of enumerations by climbing
           // up to the root of the subtree
           PseudotreeNode* pst_node = *itC;
           int n_leaves = pst_node->getDomain();
-          do {
+          while (pst_node->getVar() != _RootNode._v) {
             pst_node = pst_node->getParent();
             n_leaves *= pst_node->getDomain();
-          } while (pst_node->getVar() != _RootNode._v);
+          }
           _leaf_count += n_leaves;
           continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
         }
@@ -744,10 +757,10 @@ public :
           // up to the root of the subtree
           PseudotreeNode* pst_node = *itC;
           int n_leaves = pst_node->getDomain();
-          do {
+          while (pst_node->getVar() != _RootNode._v) {
             pst_node = pst_node->getParent();
             n_leaves *= pst_node->getDomain();
-          } while (pst_node->getVar() != _RootNode._v);
+          } 
           _leaf_count += n_leaves;
         }
 				n->_idxWRTparent = N->_Children.size() - 1 ;

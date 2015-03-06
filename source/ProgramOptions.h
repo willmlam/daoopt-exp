@@ -100,6 +100,7 @@ public:
   double lookahead_LE_SingleTableLimit; // as number of entries; log10.
   double lookahead_LE_AllTablesTotalLimit; // as number of entries; log10.
   double lookahead_LE_IgnoreThreshold ; // if bucket error is larger than this, it will be ignored for by lookahead. default is DBL_MIN.
+  bool lookahead_use_full_subtree; // perform no pruning for lookahead subtrees
 
   /* MISC OPTIONS */
   bool collapse; // collapse functions with identical scopes onto each other
