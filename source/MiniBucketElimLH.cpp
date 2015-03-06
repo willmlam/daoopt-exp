@@ -447,6 +447,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 				_distToClosestDescendantWithLE[parent_v] = d2parent_v ;
 			}
     
+
 		// for each bucket, compute closest distance to descendant with >0 bucket error
 		if (m_options->lookaheadDepth > 0) {
 			for (auto itV = elimOrder.rbegin(); itV != elimOrder.rend(); ++itV) {
@@ -454,7 +455,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 				_LookaheadResiduals[v].Initialize(*this, v, m_options->lookaheadDepth);
 				_Lookahead[v].Initialize(*this, v, m_options->lookaheadDepth);
 				if (_LookaheadResiduals[v]._SubtreeNodes.size() > 0) {
-					++LH_nNodesWithDescendants ; LH_nTotalDescendants += (int) _LookaheadResiduals[v]._SubtreeNodes.size() ;
+					++LH_nNodesWithDescendants ;
+          LH_nTotalDescendants +=
+            int(_LookaheadResiduals[v]._SubtreeNodes.size());
 					int depth = _Depth[v] ;
 					if (LH_minDepthOfNodeWithLookahead > depth) LH_minDepthOfNodeWithLookahead = depth ;
 					if (LH_maxDepthOfNodeWithLookahead < depth) LH_maxDepthOfNodeWithLookahead = depth ;
@@ -466,9 +469,6 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
   // We want to capture the amount of "work per variable".
   // No lookahead does 1 unit of work, and lookahead does 1+the number of 
   // descendants in that lookahead tree.
-  double LH_averageLookaheadTreeSize =
-      double(elimOrder.size() + LH_nTotalDescendants) / elimOrder.size();
-
   if (computeTables) {
     cout << "Pseudowidth: " <<  _Stats._PseudoWidth - 1 << endl;
     cout << "Minibucket Memory (MB): " << minibucket_mem_mb << endl;
@@ -476,9 +476,61 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
     cout << "Total Heuristic Memory (MB): " << minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
     cout << "LH nBucketsWithNonZeroBuckerError: " << _nBucketsWithNonZeroBuckerError << " nBucketsWithMoreThan1MB: " << _nBucketsWithMoreThan1MB << endl;
     cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants << " nTotalDescendants: " << LH_nTotalDescendants << " (BuckerErrorIgnoreThreshold=" << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
-    cout << "LH averageLookaheadTreeSize: " << LH_averageLookaheadTreeSize
-         << endl;
     cout << "LH minDepthOfNodeWithLookahead: " << LH_minDepthOfNodeWithLookahead << " maxDepthOfNodeWithLookahead: " << LH_maxDepthOfNodeWithLookahead << " (MaxDepth=" << _MaxDepth << ")" << endl;
+
+    uint32 total_subtree_size = 0;
+    cout << "LH nSubtreeSizeByVar: " << endl;
+    for (int i = 0; i < elimOrder.size(); ++i) {
+      uint32 subtree_size = _LookaheadResiduals[i]._SubtreeNodes.size();
+      total_subtree_size += subtree_size;
+      cout << " " << subtree_size;
+    }
+    cout << endl;
+    cout << "Average subtree size: " 
+      << double(total_subtree_size) / m_problem->getN() << endl;
+    cout << "Average subtree size (non-zero): " 
+      << double(total_subtree_size) / LH_nNodesWithDescendants << endl;
+    cout << endl;
+    uint32 total_subtree_depth = 0;
+    cout << "LH nSubtreeDepthByVar: " << endl;
+    for (int i = 0; i < elimOrder.size(); ++i) {
+      uint32 subtree_depth = _Lookahead[i]._actual_depth;
+      total_subtree_depth += subtree_depth;
+      cout << " " << subtree_depth;
+    }
+    cout << endl;
+    cout << "Average subtree depth: "
+      << double(total_subtree_depth) / m_problem->getN() << endl;
+    cout << "Average subtree depth (non-zero): "
+      << double(total_subtree_depth) / LH_nNodesWithDescendants << endl;
+    cout << endl;
+    uint32 total_subtree_size_space = 0;
+    cout << "LH nSubtreeSizeByVar (search space): " << endl;
+    for (int i = 0; i < elimOrder.size(); ++i) {
+      uint32 subtree_size_space = _Lookahead[i]._leaf_count;
+      total_subtree_size_space += subtree_size_space;
+      cout << " " << subtree_size_space;
+    }
+    cout << endl;
+    cout << "Average subtree size (search space): "
+      << double(total_subtree_size_space) / m_problem->getN() << endl;
+    cout << "Average subtree size (search space) (non-zero): "
+      << double(total_subtree_size_space) / LH_nNodesWithDescendants << endl;
+    cout << endl;
+    uint32 total_work = 0;
+    cout << "Work per OR node: " << endl;
+    for (int i = 0; i < elimOrder.size(); ++i) {
+      uint32 subtree_work =
+        _Lookahead[i]._leaf_count * m_problem->getDomainSize(i);
+      total_work += subtree_work;
+      cout << " " << subtree_work;
+    }
+    cout << endl;
+    cout << "Average heuristic work: "
+      << double(total_work) / m_problem->getN() << endl;
+    cout << "Average heuristic work: (non-zero): "
+      << double(total_work) / LH_nNodesWithDescendants << endl;
+    cout << endl;
   }
 	return mem_size;
 }

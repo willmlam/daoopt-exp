@@ -264,6 +264,7 @@ public :
 	int _idxWRTparent ; // idx of this node as child of its parent; this is wrt the childlen list of the parent.
 	int _k ; // domain size of this variable.
 	int _depth2go ; // depth still to go from this node; as number of edges.
+  int _depth ; // depth of this node in the LH subtree
 	std::vector<Function *> _RelevantMiniBucketFunctions ; // IF/AF that came from within of the LH-subteee rooted at this node
 	std::vector<Function *> _RelevantBucketFunctions ; // OF + AF that came from outside of the LH-subteee rooted at this node
 	std::vector<MiniBucketElimLHErrorNode *> _Children ; // children of this node in the bucket tree, that have non-0 bucket error within LH-subteee rooted at this node.
@@ -378,7 +379,7 @@ public :
 			out[k] OP_DIVIDEEQ (MBVals[k] - tableentryB) ;
 			}
 	}
-	MiniBucketElimLHErrorNode(void) : _H(NULL), _v(-1), _idxWRTparent(-1), _k(-1), _depth2go(-1)
+	MiniBucketElimLHErrorNode(void) : _H(NULL), _v(-1), _idxWRTparent(-1), _k(-1), _depth2go(-1), _depth(-1)
 	{
 	}
 	~MiniBucketElimLHErrorNode(void)
@@ -394,6 +395,7 @@ public :
 public :
 	int _v ; // variable of this node.
 	int _depth ;
+  int _actual_depth ;
 	MiniBucketElimLHErrorNode _RootNode ;
 	std::vector<MiniBucketElimLHErrorNode *> _SubtreeNodes ;
 public :
@@ -478,8 +480,8 @@ public :
 	int Initialize(MiniBucketElimLH & H, int v, int depth)
 	{
 		Delete() ;
-		_H = &H ; _v = v ; _depth = depth ;
-		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ;
+		_H = &H ; _v = v ; _depth = depth ; _actual_depth = 0 ;
+		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ; _RootNode._depth = 0 ;
 		// always check if there is any point in computing error
 		if (H._distToClosestDescendantWithLE[v] > depth) 
 			return 0 ;
@@ -498,16 +500,18 @@ public :
 			const vector<PseudotreeNode *> & children = N_->getChildren() ;
 			N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
 			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
+      int node_depth = N->_depth + 1 ;
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
 #ifndef USE_FULL_LOOKAHEAD_SUBTREE
 				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
 #endif // USE_FULL_LOOKAHEAD_SUBTREE
-				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
+				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ; n->_depth = node_depth ;
 				try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				if (depth2go > 0) { try { nodes2process.push(n) ; } catch (...) { delete n ; return 1 ; }}
 				n->_idxWRTparent = N->_Children.size() - 1 ;
+        if (node_depth > _actual_depth) _actual_depth = node_depth;
 				// add all MB output functions of [child] bucket that are in [v] bucket to currentrootchild
 				MiniBucketElimLHErrorNode *currentrootchild_ = (NULL == currentrootchild) ? n : currentrootchild ; 
 				vector<MiniBucket> & minibuckets = H._MiniBuckets[child] ;
@@ -577,6 +581,7 @@ public :
 	int _idxWRTparent ; // idx of this node as child of its parent; this is wrt the childlen list of the parent.
 	int _k ; // domain size of this variable.
 	int _depth2go ; // depth still to go from this node; as number of edges.
+  int _depth ; // depth of this node in the LH subtree
 	std::vector<Function *> _RelevantBucketFunctions ; // OF + AF (in this bucket) that came from outside of the LH-subteee
 	std::vector<MiniBucketElimLHheuristicNode *> _Children ; // children of this node in the bucket tree, that have non-0 bucket error within LH-subteee rooted at this node.
 public :
@@ -622,7 +627,7 @@ done_this_iteration :
 #endif
 		return valueMax ;
 	}
-	MiniBucketElimLHheuristicNode(void) : _H(NULL), _v(-1), _idxWRTparent(-1), _k(-1), _depth2go(-1)
+	MiniBucketElimLHheuristicNode(void) : _H(NULL), _v(-1), _idxWRTparent(-1), _k(-1), _depth2go(-1), _depth(-1)
 	{
 	}
 	~MiniBucketElimLHheuristicNode(void)
@@ -638,6 +643,8 @@ public :
 public :
 	int _v ; // variable of this node.
 	int _depth ; // depth of the subtree
+  int _actual_depth ; // actual depth of the pruned subtree
+  int _leaf_count ; // number of leaves of the pruned subtree in terms of the *search space*
 	std::vector<MiniBucketElimLHErrorNode *> _SubtreeNodes ; // variables/buckets in the (minimal) subtree
 	MiniBucketElimLHErrorNode _RootNode ; // node corresponding to _v
 	std::vector<Function *> _IntermediateSubtreeFunctions ; // IF/AF (in bucket of _v) that came from outside of the LH-subteee
@@ -691,11 +698,13 @@ public :
 	int Initialize(MiniBucketElimLH & H, int v, int depth)
 	{
 		Delete() ;
-		_H = &H ; _v = v ; _depth = depth ;
-		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ;
+		_H = &H ; _v = v ; _depth = depth ; _actual_depth = 0 ; _leaf_count = 0 ;
+		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ; _RootNode._depth = 0 ;
 		// always check if there is any point in computing error
-		if (H._distToClosestDescendantWithLE[v] > depth) 
+		if (H._distToClosestDescendantWithLE[v] > depth) {
+      _leaf_count = 1; // single value to enumerate -- the value itself.
 			return 0 ;
+    }
 		// build tree of nodes
 		int memory = depth*5 ; if (memory > H.m_problem->getN()) memory = H.m_problem->getN() ; // assume avg branching factor of 5
 		_SubtreeNodes.reserve(memory) ; // try to allocate some memory to make it faster
@@ -708,16 +717,41 @@ public :
 			const vector<PseudotreeNode *> & children = N_->getChildren() ;
 			N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
 			int depth2go = N->_depth2go - 1 ; int idxChild = children.size() - 1 ;
+      int node_depth = N->_depth + 1 ;
 			for (vector<PseudotreeNode*>::const_reverse_iterator itC = children.rbegin() ; itC != children.rend(); ++itC, --idxChild) {
 				int child = (*itC)->getVar() ;
 #ifndef USE_FULL_LOOKAHEAD_SUBTREE
-				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
+				if (H._BucketErrorQuality[child] <= 1 ? H._distToClosestDescendantWithLE[child] > depth2go : false) {
+
+          // This is a leaf node compute the number of enumerations by climbing
+          // up to the root of the subtree
+          PseudotreeNode* pst_node = *itC;
+          int n_leaves = pst_node->getDomain();
+          do {
+            pst_node = pst_node->getParent();
+            n_leaves *= pst_node->getDomain();
+          } while (pst_node->getVar() != _RootNode._v);
+          _leaf_count += n_leaves;
+          continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
+        }
 #endif // USE_FULL_LOOKAHEAD_SUBTREE
-				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ;
+				MiniBucketElimLHErrorNode *n = NULL ; try { n = new MiniBucketElimLHErrorNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ; n->_H = &H ; n->_v = child ; n->_k = (H.m_problem)->getDomainSize(child) ; n->_depth2go = depth2go ; n->_depth = node_depth ;
 				try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
 				if (depth2go > 0) { try { nodes2process.push(n) ; } catch (...) { delete n ; return 1 ; }}
+        else {
+          // This is a leaf node compute the number of enumerations by climbing
+          // up to the root of the subtree
+          PseudotreeNode* pst_node = *itC;
+          int n_leaves = pst_node->getDomain();
+          do {
+            pst_node = pst_node->getParent();
+            n_leaves *= pst_node->getDomain();
+          } while (pst_node->getVar() != _RootNode._v);
+          _leaf_count += n_leaves;
+        }
 				n->_idxWRTparent = N->_Children.size() - 1 ;
+        if (node_depth > _actual_depth) _actual_depth = node_depth;
 				}
 			}
 		// fill in _RelevantBucketFunctions for each relevant bucket

@@ -36,6 +36,7 @@ namespace daoopt {
 struct ProgramOptions {
 public:
   bool nosearch; // abort before starting the actual search
+  bool force_compute_tables; // used with the above -- forces computation so the heuristic is built, then search is aborted.
   bool nocaching; // disable caching
   bool autoCutoff; // enable automatic cutoff
   bool autoIter; // enable adaptive ordering limit
@@ -170,6 +171,7 @@ inline ProgramOptions::ProgramOptions()
     lookahead_LE_AllTablesTotalLimit(-1.0),
 	lookahead_LE_IgnoreThreshold(DBL_MIN), 
     maxTime(kint32max),
+    force_compute_tables(false),
 
     _fpLogFile(nullptr) {
 }

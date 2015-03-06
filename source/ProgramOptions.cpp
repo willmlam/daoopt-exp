@@ -85,6 +85,10 @@ DEFINE_int32(seed, -1, "seed for random number generator, time() otherwise");
 DEFINE_bool(or_search, false, "use OR search (build pseudotree as a chain)");
 DEFINE_bool(no_caching, false, "disable context-based caching during search");
 DEFINE_bool(no_search, false, "perform preprocessing, output stats, and exit");
+DEFINE_bool(force_compute_tables, false,
+            "used with no_search -- forces computation of so the heuristic "
+            "is still built, then the search is aborted");
+
 DEFINE_bool(match, false, "use moment-matching during MBE");
 
 DEFINE_string(reduce_file, "",
@@ -213,6 +217,7 @@ ProgramOptions* parseCommandLine(int ac, char** av) {
 
     opt->orSearch = FLAGS_or_search;
     opt->nosearch = FLAGS_no_search;
+    opt->force_compute_tables = FLAGS_force_compute_tables;
     opt->nocaching = FLAGS_no_caching;
     opt->match = FLAGS_match;
 

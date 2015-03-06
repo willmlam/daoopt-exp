@@ -535,7 +535,7 @@ bool Main::preprocessHeuristic() {
     cout << "Enforcing memory limit resulted in i-bound " << m_options->ibound
          << " with " << sz << " MByte." << endl;
   }
-  if (m_options->nosearch) {
+  if (m_options->nosearch && !m_options->force_compute_tables) {
     cout << "Skipping heuristic preprocessing..." << endl;
     return false;
   }
@@ -560,7 +560,7 @@ bool Main::compileHeuristic() {
          << " with " << sz << " MByte." << endl;
   }
 
-  if (m_options->nosearch) {
+  if (m_options->nosearch && !m_options->force_compute_tables) {
     cout << "Simulating mini bucket heuristic..." << endl;
     sz = m_heuristic->build(& m_search->getAssignment(), false); // false = just compute memory estimate
   }
@@ -690,7 +690,7 @@ bool Main::finishPreproc() {
     cout << "Initial problem lower bound: " << m_search->curLowerBound() << endl;
 
 #ifndef NO_HEURISTIC
-  if (!m_options->nosearch)
+  if (!m_options->nosearch || m_options->force_compute_tables)
     m_search->finalizeHeuristic();
 #endif
 
