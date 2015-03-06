@@ -528,7 +528,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
     cout << endl;
     cout << "Average heuristic work: "
       << double(total_work) / m_problem->getN() << endl;
-    cout << "Average heuristic work: (non-zero): "
+    cout << "Average heuristic work (non-zero): "
       << double(total_work) / LH_nNodesWithDescendants << endl;
     cout << endl;
   }
