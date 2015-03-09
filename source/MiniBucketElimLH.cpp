@@ -478,58 +478,79 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
     cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants << " nTotalDescendants: " << LH_nTotalDescendants << " (BuckerErrorIgnoreThreshold=" << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
     cout << "LH minDepthOfNodeWithLookahead: " << LH_minDepthOfNodeWithLookahead << " maxDepthOfNodeWithLookahead: " << LH_maxDepthOfNodeWithLookahead << " (MaxDepth=" << _MaxDepth << ")" << endl;
 
+    // A subset of variables to include in averaging
+    // This includes variables with depth > i-bound and variables with 
+    // height >= look-ahead depth
+    unordered_set<int> variables_to_include;
+    for (int i = 0; i < elimOrder.size(); ++i) {
+      const PseudotreeNode* node = m_pseudotree->getNode(i);
+      if (node->getDepth() > m_ibound &&
+          node->getSubHeight() >= m_options->lookaheadDepth) {
+        variables_to_include.insert(i);
+      }
+    }
+
     uint32 total_subtree_size = 0;
+    uint32 total_subset_subtree_size = 0;
     cout << "LH nSubtreeSizeByVar: " << endl;
     for (int i = 0; i < elimOrder.size(); ++i) {
-      uint32 subtree_size = _LookaheadResiduals[i]._SubtreeNodes.size();
+      uint32 subtree_size = _LookaheadResiduals[i]._SubtreeNodes.size() + 1;
       total_subtree_size += subtree_size;
       cout << " " << subtree_size;
+      if (ContainsKey(variables_to_include, i)) {
+        total_subset_subtree_size += subtree_size;
+      }
     }
     cout << endl;
     cout << "Average subtree size: " 
       << double(total_subtree_size) / m_problem->getN() << endl;
     cout << "Average subtree size (non-zero): " 
-      << double(total_subtree_size) / LH_nNodesWithDescendants << endl;
+      << double(total_subtree_size - m_problem->getN() +
+                LH_nNodesWithDescendants) 
+      / LH_nNodesWithDescendants << endl;
+    cout << "Average subtree size (subset): " 
+      << double(total_subset_subtree_size) / variables_to_include.size() 
+      << endl;
     cout << endl;
     uint32 total_subtree_depth = 0;
+    uint32 total_subset_subtree_depth = 0;
     cout << "LH nSubtreeDepthByVar: " << endl;
     for (int i = 0; i < elimOrder.size(); ++i) {
       uint32 subtree_depth = _Lookahead[i]._actual_depth;
       total_subtree_depth += subtree_depth;
       cout << " " << subtree_depth;
+      if (ContainsKey(variables_to_include, i)) {
+        total_subset_subtree_depth += subtree_depth;
+      }
     }
     cout << endl;
     cout << "Average subtree depth: "
       << double(total_subtree_depth) / m_problem->getN() << endl;
     cout << "Average subtree depth (non-zero): "
       << double(total_subtree_depth) / LH_nNodesWithDescendants << endl;
+    cout << "Average subtree depth (subset): " 
+      << double(total_subset_subtree_depth) / variables_to_include.size() 
+      << endl;
     cout << endl;
-    uint32 total_subtree_size_space = 0;
+    uint32 total_subtree_space = 0;
+    uint32 total_subset_subtree_space = 0;
     cout << "LH nSubtreeSizeByVar (search space): " << endl;
     for (int i = 0; i < elimOrder.size(); ++i) {
-      uint32 subtree_size_space = _Lookahead[i]._leaf_count;
-      total_subtree_size_space += subtree_size_space;
-      cout << " " << subtree_size_space;
+      uint32 subtree_space = _Lookahead[i]._leaf_count;
+      total_subtree_space += subtree_space;
+      cout << " " << subtree_space;
+      if (ContainsKey(variables_to_include, i)) {
+        total_subset_subtree_space += subtree_space;
+      }
     }
     cout << endl;
-    cout << "Average subtree size (search space): "
-      << double(total_subtree_size_space) / m_problem->getN() << endl;
-    cout << "Average subtree size (search space) (non-zero): "
-      << double(total_subtree_size_space) / LH_nNodesWithDescendants << endl;
-    cout << endl;
-    uint32 total_work = 0;
-    cout << "Work per OR node: " << endl;
-    for (int i = 0; i < elimOrder.size(); ++i) {
-      uint32 subtree_work =
-        _Lookahead[i]._leaf_count * m_problem->getDomainSize(i);
-      total_work += subtree_work;
-      cout << " " << subtree_work;
-    }
-    cout << endl;
-    cout << "Average heuristic work: "
-      << double(total_work) / m_problem->getN() << endl;
-    cout << "Average heuristic work (non-zero): "
-      << double(total_work) / LH_nNodesWithDescendants << endl;
+    cout << "Average subtree space: "
+      << double(total_subtree_space) / m_problem->getN() << endl;
+    cout << "Average subtree space (non-zero): "
+      << double(total_subtree_space) / LH_nNodesWithDescendants << endl;
+    cout << "Average subtree space (subset): " 
+      << double(total_subset_subtree_space) / variables_to_include.size() 
+      << endl;
     cout << endl;
   }
 	return mem_size;
