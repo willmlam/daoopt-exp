@@ -814,6 +814,7 @@ bool Main::runSearchWorker(size_t nodeLimit) {
   size_t limit = nodeLimit > 0 ? nodeLimit : 0;
   SearchNode* n = m_search->nextLeaf();
   while (n && (nodeLimit == 0 || limit-- > 0)) {
+//    m_prop->propagateHeuristic(n, true); // true = report new global ub
     m_prop->propagate(n, true); // true = report solutions
     if (nodeLimit == 0 || limit > 0) {
       n = m_search->nextLeaf();

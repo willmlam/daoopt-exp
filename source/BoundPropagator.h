@@ -62,7 +62,7 @@ protected:
 public:
 
   /*
-   * propagates the value of the specified search node and removes unneeded nodes
+   * propagates the bounds of the specified search node and removes unneeded nodes
    * returns a pointer to the parent of the highest deleted node
    * @n: the search node to be propagated
    * @reportSolution: should root updates be reported to problem instance?

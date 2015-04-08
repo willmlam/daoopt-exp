@@ -24,6 +24,7 @@
 #undef DEBUG
 
 #include "BoundPropagator.h"
+#include <iomanip>
 
 namespace daoopt {
 
@@ -73,8 +74,10 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
         NodeP* children = cur->getChildren();
         for (size_t i = 0; i < cur->getChildCountFull(); ++i) {
           DIAG( ostringstream ss; ss << children[i] << endl; myprint(ss.str()); )
-          if (children[i])
+          if (children[i]) {
             d OP_TIMESEQ children[i]->getValue();
+//            cout << *children[i] << " : " << children[i]->getValue() << endl;
+          }
         }
 
         // store into value (thus includes cost of subSolved)
@@ -84,8 +87,8 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
         if ( ISNAN(d) ) {// || d == ELEM_ZERO ) { // not all OR children solved yet, propagation stops here
           prop = false;
 #ifndef NO_ASSIGNMENT
-//          if (n->getValue() > ELEM_ZERO)  // TODO required?
-            propagateTuple(n,cur); // save (partial) opt. subproblem solution at current AND node
+          //          if (n->getValue() > ELEM_ZERO)  // TODO required?
+          propagateTuple(n,cur); // save (partial) opt. subproblem solution at current AND node
 #endif
         }
 
@@ -139,6 +142,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
           subLeafD += subLeaves;
 #endif
           DIAG(myprint(" marking OR for deletion\n") );
+//          cout << highestDelete.second->getHeur() << endl;
         } else {
           del = false;
 #ifdef LIKELIHOOD
@@ -170,7 +174,9 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
             propagateTuple(n, cur);
           }
 #endif
+//          cout << d  << ": continue prop" << endl;
         } else {
+//          cout << d  << ": no more prop" << endl;
           prop = false; // no more value propagation upwards in this call
         }
 #endif /* LIKELIHOOD */
@@ -188,6 +194,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
           subLeafD += prev->getSubLeafD();
 #endif
           DIAG(myprint(" marking AND for deletion\n"));
+//          cout << highestDelete.second->getHeur() << endl;
         } else {
           del = false;
 #ifdef LIKELIHOOD
@@ -209,8 +216,8 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
           if (reportSolution)
             m_problem->updateSolution(cur->getValue(), & m_space->stats, true);
 #endif
-      }
-      break;
+        }
+        break;
       }
 
       // ===========================================================================
@@ -221,6 +228,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
       del = false;
 
     // move pointers up in search space
+//      cout << prop << " " << prop_heuristic << " " << del << endl;
     if (prop || del) {
       prev = cur;
       cur = cur->getParent();
@@ -231,7 +239,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
   } while (cur); // until cur==NULL, i.e. 'parent' of root
 
   // propagated up to root node, update tuple as well
-  if (prop && !cur) {
+  if (prop || !cur) {
 #ifndef NO_ASSIGNMENT
     propagateTuple(n,prev);
     if (reportSolution)

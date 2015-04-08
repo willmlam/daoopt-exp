@@ -60,6 +60,7 @@ protected:
   double m_globalConstant;        // Global constant modifier for objective function
 
   double m_curCost;               // Cost of current solution
+  double m_curUpperBound;            // Current upper bound
 
   string m_name;                  // Problem name
 
@@ -133,6 +134,9 @@ public:
   /* retrieve the current optimal solution */
   double getSolutionCost() const { return m_curCost; }
 
+  /* retreive the current global upper bound */
+  double getUpperBound() const { return m_curUpperBound; }
+
 #ifndef NO_ASSIGNMENT
   /* retrieve the current optimal assignment */
   const vector<val_t>& getSolutionAssg() const { return m_curSolution; }
@@ -148,6 +152,11 @@ public:
 #endif
       const SearchStats* nodestats = NULL,
       bool output = true);
+
+  /* report an updated upper bound */
+  void updateUpperBound(double bound, const SearchStats* nodestats = NULL,
+      bool output = true);
+
 
   /* resets current optimal solution cost and assignment */
   void resetSolution();
