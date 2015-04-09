@@ -208,8 +208,7 @@ SearchNode* Search::nextLeaf() {
     if (doExpand(node)) // node expansion
       { return node; }
 
-    bool do_prop = true;
-    if (do_prop) {
+    if (m_options->prop_heuristic) {
       double or_delta = ELEM_ONE;
       // Propagate heuristics here.
       SearchNode* cur = node;
@@ -298,7 +297,7 @@ SearchNode* Search::nextLeaf() {
               ss << setprecision(20);
               ss << *cur << " [OR] old_h: " << old_h << ", new_h: " << max_h << endl;
               myprint(ss.str()); )
-            assert(delta <= ELEM_ONE);
+          assert(delta <= ELEM_ONE || fabs(delta) < 1e-12);
           if (max_h < old_h) {
             cur->setHeur(max_h);
             or_delta = delta;

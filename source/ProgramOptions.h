@@ -106,6 +106,9 @@ public:
   bool collapse; // collapse functions with identical scopes onto each other
   double perturb; // sets zeros to this value in the functions
 
+  // Heuristic upper bound propagation
+  bool prop_heuristic; // do upper bound propagation.
+
   // Added to allow program to terminate itself.
   int maxTime; // timeout threshold (seconds)
 
