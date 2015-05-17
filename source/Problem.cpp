@@ -762,7 +762,8 @@ void Problem::updateSolution(double cost,
   if (cost != ELEM_ZERO && !m_subprobOnly) {
     costCheck = ELEM_ONE; double comp = ELEM_ONE;  // used across loop iterations
     double y, z;  // reset for each loop iteration
-    BOOST_FOREACH( Function* f, m_functions ) {
+    cout << "Start costCheck." << endl;
+    for (Function* f : m_functions) {
       z = f->getValue(sol);
 //      if (z == ELEM_ZERO) {
 //        oss ss; ss << "Warning: skipping zero-cost solution. Reported cost: " << cost;
@@ -770,9 +771,14 @@ void Problem::updateSolution(double cost,
 //        ss << endl; myprint(ss.str());
 //        return;
 //      }
+
+      if (std::isinf(z)) {
+        cout << "Function with -inf: " << *f << endl;
+      }
       y = z OP_DIVIDE comp;
       z = costCheck OP_TIMES y;
       comp = (z OP_DIVIDE costCheck) OP_DIVIDE y;
+
       costCheck = z;
     }
     if (1e-3 < abs(cost-costCheck)) {
@@ -790,6 +796,7 @@ void Problem::updateSolution(double cost,
     DIAG(ss << " " << sol.size() << " " << sol;)
 #endif
     ss << endl; myprint(ss.str());
+    cin.get();
     return;
   }
   m_curCost = costCheck;

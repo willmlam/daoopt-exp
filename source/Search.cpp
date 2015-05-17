@@ -28,6 +28,8 @@
 #include <iomanip>
 
 //#define DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+// Note: We will later refactor AOBB specific parts into BranchAndBound.
+// i.e. caching
 
 #include <chrono>
 using namespace std::chrono;

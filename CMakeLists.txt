@@ -112,7 +112,7 @@ endif()
 
 # Main daoopt source files
 set(FILES
-  ./source/BestFirst.cpp
+  #  ./source/BestFirst.cpp
   ./source/BoundPropagator.cpp
   ./source/BoundPropagatorMaster.cpp
   ./source/BranchAndBound.cpp

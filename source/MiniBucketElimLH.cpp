@@ -201,7 +201,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	_LookaheadResiduals.resize(m_problem->getN());
 	_Lookahead.resize(m_problem->getN());
 	_BucketErrorQuality.resize(m_problem->getN());
+  _AverageBucketError.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _BucketErrorQuality[i] = -1;
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _AverageBucketError[i] = 0;
 	_distToClosestDescendantWithMBs.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _distToClosestDescendantWithMBs[i] = INT_MAX;
 	_distToClosestDescendantWithLE.resize(m_problem->getN());
@@ -933,6 +935,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	// as a special case, when table building is not requested and sample size is set to 0, just mark this bucket having actual error, so that LH will use it
 	if (! build_table && TableMemoryLimitAsNumElementsLog <= 0) {
 		_BucketErrorQuality[var] = 99;
+    _AverageBucketError[var] = -1;
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
@@ -967,6 +970,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		if (! sample_table_if_not_computed) {
 			// just mark this bucket having actual error, so that LH will use it
 			_BucketErrorQuality[var] = 99;
+      _AverageBucketError[var] = -1;
 			avgError = 0.0;
 			return 1 ;
 			}
@@ -1185,6 +1189,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	// if avgError is 0, don't build table. note avgError could be infinity (in case of log space representation).
 	if (nEntries_B_inf > 0 || rel_error > threshold) {
 		// this table has substantial bucket error; we should be lookahead.
+    _AverageBucketError[var] = rel_error;
 		_BucketErrorQuality[var] = 2 ;
 		}
 	else if (avgError <= DBL_MIN && enumerate_table) {
@@ -1198,6 +1203,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		build_table = false;
 		}
 	else {
+    _AverageBucketError[var] = rel_error;
 		_BucketErrorQuality[var] = 1;
 		}
 
@@ -1363,6 +1369,18 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		(int64)_nBucketsWithNonZeroBuckerError,
 		(int64)_nBucketsWithMoreThan1MB, (int64)m_problem->getN());
 	printf("\n");
+  cout << "Average bucket errors: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _AverageBucketError[i];
+  }
+  cout << endl;
+  cout << "#mini-buckets: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _MiniBuckets[i].size();
+  }
+  cout << endl;
 
 	return 0;
 }

@@ -150,6 +150,9 @@ protected:
   /* initializes the search space, returns the first node to process */
   SearchNode* initSearch();
 
+  /* Solves the problem from the current state */
+//  virtual bool solve(size_t nodeLimit) = 0;
+
   /* returns the next search node for processing (top of stack/queue/etc.) */
   virtual SearchNode* nextNode() = 0;
 
