@@ -105,7 +105,10 @@ class MiniBucketElimLH : public MiniBucketElim
 
 	std::vector<Function*> _BucketErrorFunctions ;
 	std::vector<signed char> _BucketErrorQuality ; // for each var, whether the bucketerror[var]=0; -1 means unknown. 0=bucket error is 0, 1=bucket error is >0 (but perhaps trivial), 2+=bucket error is >0 and non-trivial, 99 means marked by default.
-  std::vector<double> _AverageBucketError; // for each var, store the average bucket error used to determine the _BucketErrorQuality value. -1 indicates that therror was not explicitly computed or sampled.
+  std::vector<double> _AverageBucketError; // for each var, store the average bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
+  std::vector<double> _MaxBucketError; // for each var, store the max  bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
+  std::vector<double> _AverageRelBucketError; // for each var, store the average bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
+  std::vector<double> _MaxRelBucketError; // for each var, store the max  bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
 	double _BuckerErrorFnTableSizes_Total ; // log
 	double _BuckerErrorFnTableSizes_Precomputed ; // log
 	double _BuckerErrorFnTableSizes_Ignored ; // log
