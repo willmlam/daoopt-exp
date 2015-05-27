@@ -202,13 +202,17 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	_Lookahead.resize(m_problem->getN());
 	_BucketErrorQuality.resize(m_problem->getN());
   _AverageBucketError.resize(m_problem->getN());
+  _VarianceBucketError.resize(m_problem->getN());
   _MaxBucketError.resize(m_problem->getN());
   _AverageRelBucketError.resize(m_problem->getN());
+  _VarianceRelBucketError.resize(m_problem->getN());
   _MaxRelBucketError.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _BucketErrorQuality[i] = -1;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _AverageBucketError[i] = -1;
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _VarianceBucketError[i] = 0;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _MaxBucketError[i] = -1;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _AverageRelBucketError[i] = -1;
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _VarianceRelBucketError[i] = 0;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _MaxRelBucketError[i] = -1;
 	_distToClosestDescendantWithMBs.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _distToClosestDescendantWithMBs[i] = INT_MAX;
@@ -1066,6 +1070,9 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	// enumerate all new fn scope combinations
 	double e, numErrorItems = 0.0 ;
 	avgError = avgExact = 0.0 ;
+  double var_error = 0.0;
+  double avg_rel_error = 0.0;
+  double var_rel_error = 0.0;
   double max_error = -1.0;
   double max_rel_error = -1.0;
 	int64 nEntriesRequested = pow(10.0, TableMemoryLimitAsNumElementsLog) ;
@@ -1098,12 +1105,18 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 			for (k = 0; k < int(funs_MB.size()); k++) 
 				tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
 
+      bool none_inf = false;
+
 			// compute numbers of special cases
 			if (OUR_OWN_nInfinity == tableentryB) {
 				if (OUR_OWN_nInfinity == tableentryMB) nEntries_both_inf++ ;
 				else nEntries_B_inf++ ;
 				}
-			else { avgExact_none_inf += tableentryB ; nEntries_none_inf++ ; }
+			else { 
+        avgExact_none_inf += tableentryB ;
+        none_inf = true;
+        nEntries_none_inf++ ; 
+      }
 
 			if (tableentryMB <= tableentryB) {  // '<' is an error, '=' is ok.
 				e = 0.0;
@@ -1117,12 +1130,32 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 			// at this point, it should be that e >= 0
 
 			numErrorItems += 1.0;
-			avgError += e;
-			avgExact += tableentryB;
-			if (e < 1.0e+32) {
-				avgError_none_inf += e ;
+      double deviation_error = e - avgError;
+      double deviation_exact = tableentryB - avgExact;
+//			avgError += e;
+      avgError += deviation_error / numErrorItems;
+//			avgExact += tableentryB;
+      avgExact += deviation_exact / numErrorItems;
+			if (none_inf) {
+        double deviation_error_none_inf = e - avgError_none_inf;
+				avgError_none_inf += deviation_error_none_inf / nEntries_none_inf;
+        /*
+        if (var == 83) {
+          cout << "DEBUG " << var << " "
+            << "mb=" << tableentryMB << ", "
+            << "b=" << tableentryB << ", "
+            << "e=" << e << " "
+            << nEntries_none_inf
+            << ", "<< avgError_none_inf << endl;
+        }
+        */
+        var_error += deviation_error * (e - avgError_none_inf);
         max_error = max(max_error, e);
-        max_rel_error = max(max_rel_error, fabs(100.0 * e / tableentryB));
+        double rel_error = fabs(100.0 * e / tableentryB);
+        double deviation_rel_error = rel_error - avg_rel_error;
+        avg_rel_error += deviation_rel_error / nEntries_none_inf;
+        var_rel_error += deviation_rel_error * (rel_error - avg_rel_error);
+        max_rel_error = max(max_rel_error, rel_error);
       }
 			if (NULL != newTable) 
 				newTable[j] = e;
@@ -1179,20 +1212,32 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
 		}
 
+  var_error /= numErrorItems - 1;
+  var_rel_error /= nEntries_none_inf - 1;
+
+  if (numErrorItems < 2) {
+    var_error = 0;
+  }
+  if (nEntries_none_inf < 2) {
+    var_rel_error = 0;
+  }
+
 	if (nEntriesGenerated <= 0) {
 		// we have no data; leave _BucketErrorQuality[] as is (-1 most likely).
 		return 0 ;
 		}
 
 	// avgExact_none_inf/avgError_none_inf are avg in case when neither MB/B value is -infinity.
+  /*
 	if (nEntries_none_inf > 0) 
 		{ avgExact_none_inf /= nEntries_none_inf ; avgError_none_inf /= nEntries_none_inf ; }
+    */
 	// rel_error is relative error in case when neither MB/B value is -infinity.
-	double rel_error = fabs(avgExact_none_inf) > 0.0 ? fabs(100.0 * avgError_none_inf / avgExact_none_inf) : -DBL_MAX ;
+//	double rel_error = fabs(avgExact_none_inf) > 0.0 ? fabs(100.0 * avgError_none_inf / avgExact_none_inf) : -DBL_MAX ;
 
 	if (numErrorItems > 0.0) {
-		avgError = avgError / numErrorItems;
-		avgExact = avgExact / numErrorItems;
+//		avgError = avgError / numErrorItems;
+//		avgExact = avgExact / numErrorItems;
 		}
 	else if (build_table)
 		build_table = false;
@@ -1204,8 +1249,11 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		threshold = DBL_MIN ;
 	// if there is substantial error, mark it as such.
 	// if avgError is 0, don't build table. note avgError could be infinity (in case of log space representation).
-  if (rel_error >= 0) {
-    _AverageRelBucketError[var] = rel_error;
+  if (avg_rel_error >= 0) {
+    _AverageRelBucketError[var] = avg_rel_error;
+  }
+  if (var_rel_error >= 0) {
+    _VarianceRelBucketError[var] = var_rel_error;
   }
   if (max_rel_error >= 0) {
     _MaxRelBucketError[var] = max_rel_error;
@@ -1213,10 +1261,13 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
   if (avgError_none_inf >= 0) {
     _AverageBucketError[var] = avgError_none_inf;
   }
+  if (var_error >= 0) {
+    _VarianceBucketError[var] = var_error;
+  }
   if (max_error >= 0) {
     _MaxBucketError[var] = max_error;
   }
-	if (nEntries_B_inf > 0 || rel_error > threshold) {
+	if (nEntries_B_inf > 0 || avg_rel_error > threshold) {
 		// this table has substantial bucket error; we should be lookahead.
 		_BucketErrorQuality[var] = 2 ;
 		}
@@ -1402,6 +1453,12 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
     cout << " " << _AverageBucketError[i];
   }
   cout << endl << endl;
+  cout << "Variance bucket errors: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _VarianceBucketError[i];
+  }
+  cout << endl << endl;
   cout << "Max bucket errors: " << endl;
   cout << m_problem->getN();
   for (int i = 0; i < m_problem->getN(); ++i) {
@@ -1412,6 +1469,12 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
   cout << m_problem->getN();
   for (int i = 0; i < m_problem->getN(); ++i) {
     cout << " " << _AverageRelBucketError[i];
+  }
+  cout << endl << endl;
+  cout << "Variance relative bucket errors: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _VarianceRelBucketError[i];
   }
   cout << endl << endl;
   cout << "Max relative bucket errors: " << endl;
