@@ -62,6 +62,7 @@ protected:
 
 protected:
   bool isDone() const;
+  bool doCompleteProcessing(SearchNode* n);
   bool doExpand(SearchNode* n);
   void reset(SearchNode* p);
   SearchNode* nextNode();
@@ -74,9 +75,11 @@ protected:
 
 public:
   void setStackLimit(size_t s) { m_stackLimit = s; }
+  bool solve(size_t nodeLimit);
 
 public:
-  BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions* po);
+  BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space,
+      Heuristic* heur, BoundPropagator* prop, ProgramOptions* po);
   virtual ~BranchAndBoundRotate() {}
 };
 

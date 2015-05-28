@@ -457,6 +457,9 @@ bool Main::initDataStructs() {
   m_heuristic.reset(newHeuristic(m_problem.get(), m_pseudotree.get(),
                     m_options.get()));
 
+  m_prop.reset(new BoundPropagator(m_problem.get(), m_space.get(),
+                                   !m_options->nocaching));
+
   // Main search engine
 #if defined PARALLEL_DYNAMIC
   m_search.reset(new BranchAndBoundMaster(m_problem.get(), m_pseudotree.get(),
@@ -468,15 +471,15 @@ bool Main::initDataStructs() {
   if (m_options->rotate) {
     m_search.reset(new BranchAndBoundRotate(
         m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
+        m_prop.get(),
         m_options.get()));
   } else {
     m_search.reset(new BranchAndBound(
         m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
+        m_prop.get(),
         m_options.get()));
   }
 #endif
-  m_prop.reset(new BoundPropagator(m_problem.get(), m_space.get(),
-                                   !m_options->nocaching));
 
   // Subproblem specified? If yes, restrict.
   if (!m_options->in_subproblemFile.empty()) {
@@ -639,8 +642,11 @@ bool Main::runLDS() {
     spaceLDS->stats.numANDVar.resize(m_pseudotree->getN());
     spaceLDS->stats.numProcORVar.resize(m_pseudotree->getN(), 0);
     spaceLDS->stats.numProcANDVar.resize(m_pseudotree->getN(), 0);
+    unique_ptr<BoundPropagator> propLDS(
+        new BoundPropagator(m_problem.get(), spaceLDS.get(), false));  // doCaching = false
     LimitedDiscrepancy lds(m_problem.get(), m_pseudotree.get(), spaceLDS.get(),
-                           m_heuristic.get(), m_options.get(), m_options->lds);
+                           m_heuristic.get(), propLDS.get(),
+                           m_options.get(), m_options->lds);
     if (!m_options->in_subproblemFile.empty()) {
       if (!lds.restrictSubproblem(m_options->in_subproblemFile)) {
         err_txt("Subproblem restriction for LDS failed.");
@@ -656,13 +662,15 @@ bool Main::runLDS() {
     ))
       cout << "LDS: Initial solution loaded." << endl;
 
-    BoundPropagator propLDS(m_problem.get(), spaceLDS.get(), false);  // doCaching = false
     lds.finalizeHeuristic();
+    /*
     SearchNode* n = lds.nextLeaf();
     while (n) {
       propLDS.propagate(n,true); // true = report solution
       n = lds.nextLeaf();
     }
+    */
+    lds.solve(0);
     cout << "LDS: explored " << spaceLDS->stats.numExpOR << '/' << spaceLDS->stats.numExpAND
          << " OR/AND nodes" << endl;
     cout << "LDS: solution cost " << lds.getCurOptValue() << endl;
@@ -811,10 +819,12 @@ bool Main::runSearchStatic() {
 
 /* sequential mode or worker mode for distributed execution */
 bool Main::runSearchWorker(size_t nodeLimit) {
+  m_solved = m_search->solve(nodeLimit);
+  return m_solved;
+  /*
   size_t limit = nodeLimit > 0 ? nodeLimit : 0;
   SearchNode* n = m_search->nextLeaf();
   while (n && (nodeLimit == 0 || limit-- > 0)) {
-//    m_prop->propagateHeuristic(n, true); // true = report new global ub
     m_prop->propagate(n, true); // true = report solutions
     if (nodeLimit == 0 || limit > 0) {
       n = m_search->nextLeaf();
@@ -826,6 +836,7 @@ bool Main::runSearchWorker(size_t nodeLimit) {
   } else {
     return false;
   }
+  */
 }
 
 

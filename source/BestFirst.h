@@ -15,11 +15,13 @@ namespace daoopt {
    public:
     BestFirst(Problem* p, Pseudotree* pt, SearchSpace* space,
         Heuristic* heur, ProgramOptions* po);
+    bool solve(size_t nodeLimit);
 
    protected:
     void reset(SearchNode* p);
     SearchNode* nextNode();
 
+    bool doCompleteProcessing(SearchNode* n);
     bool doExpand(SearchNode* n);
 
     // Stack of nodes representing the open list when search is in 

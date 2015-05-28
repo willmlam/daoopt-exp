@@ -24,6 +24,7 @@
 #ifndef SEARCH_H_
 #define SEARCH_H_
 
+#include "BoundPropagator.h"
 #include "SearchSpace.h"
 #include "SearchNode.h"
 #include "Heuristic.h"
@@ -50,6 +51,7 @@ protected:
   Pseudotree* m_pseudotree;     // Pseudo tree
   SearchSpace* m_space;         // Search space (incl. cache table)
   Heuristic* m_heuristic;       // Heuristic for search
+  BoundPropagator* m_prop;      // Bound (solution) propagator
   ProgramOptions * m_options;    // Program options instance
 #ifdef PARALLEL_DYNAMIC
   Subproblem* m_nextSubprob;    // Next subproblem for external solving
@@ -79,7 +81,8 @@ protected:
 
 public:
   /* returns the next leaf node, NULL if search done */
-  SearchNode* nextLeaf() ;
+  SearchNode* nextLeaf();
+
 
   /* returns true iff the search is complete */
   virtual bool isDone() const = 0;
@@ -134,6 +137,9 @@ public:
   /* resets the queue/stack/etc. to the given node */
   virtual void reset(SearchNode* = NULL) = 0;
 
+  /* Solves the problem from the current state */
+  virtual bool solve(size_t nodeLimit) = 0;
+
 #ifndef NO_HEURISTIC
   /* call right before actually starting to search (since heuristic is not
    * available during initSearch) */
@@ -150,11 +156,11 @@ protected:
   /* initializes the search space, returns the first node to process */
   SearchNode* initSearch();
 
-  /* Solves the problem from the current state */
-//  virtual bool solve(size_t nodeLimit) = 0;
-
   /* returns the next search node for processing (top of stack/queue/etc.) */
   virtual SearchNode* nextNode() = 0;
+
+  /* returns true if the processed node is a leaf */
+  virtual bool doCompleteProcessing(SearchNode*) = 0;
 
   /* expands the current node, returns true if no children were generated
    * (needs to be implemented in derived search classes) */
@@ -193,6 +199,10 @@ protected:
    * solution tree, in case of conditioned subproblems) */
   double lowerBound(const SearchNode*) const;
 
+  /* propagate the heuristic, returns true if search should stop due to 
+   * early termination: LB >= UB */
+  bool propHeuristic(SearchNode* node);
+
   /* the next two functions add context information to a search node. The difference
    * between the Cache and the Subprob version is that Cache might only be the partial
    * context (for adaptive caching) */
@@ -210,7 +220,8 @@ protected:
 
 protected:
   virtual bool isMaster() const = 0;
-  Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, ProgramOptions *po);
+  Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, 
+      BoundPropagator* prop, ProgramOptions* po);
 public:
   virtual ~Search() {}
 

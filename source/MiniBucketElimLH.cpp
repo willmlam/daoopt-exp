@@ -1139,18 +1139,9 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 			if (none_inf) {
         double deviation_error_none_inf = e - avgError_none_inf;
 				avgError_none_inf += deviation_error_none_inf / nEntries_none_inf;
-        /*
-        if (var == 83) {
-          cout << "DEBUG " << var << " "
-            << "mb=" << tableentryMB << ", "
-            << "b=" << tableentryB << ", "
-            << "e=" << e << " "
-            << nEntries_none_inf
-            << ", "<< avgError_none_inf << endl;
-        }
-        */
         var_error += deviation_error * (e - avgError_none_inf);
         max_error = max(max_error, e);
+
         double rel_error = fabs(100.0 * e / tableentryB);
         double deviation_rel_error = rel_error - avg_rel_error;
         avg_rel_error += deviation_rel_error / nEntries_none_inf;
@@ -1212,13 +1203,11 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
 		}
 
-  var_error /= numErrorItems - 1;
+  var_error /= nEntries_none_inf - 1;
   var_rel_error /= nEntries_none_inf - 1;
 
-  if (numErrorItems < 2) {
-    var_error = 0;
-  }
   if (nEntries_none_inf < 2) {
+    var_error = 0;
     var_rel_error = 0;
   }
 

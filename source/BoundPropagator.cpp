@@ -21,7 +21,7 @@
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
 
-//#undef DEBUG
+#undef DEBUG
 
 #include "BoundPropagator.h"
 #include <iomanip>
@@ -237,7 +237,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
     }
 
   } while (cur); // until cur==NULL, i.e. 'parent' of root
-  cout << "prop finished. " << endl;
+//  cout << "prop finished. " << endl;
 
   // propagated up to root node, update tuple as well
   if (prop || !cur) {
@@ -299,13 +299,15 @@ void BoundPropagator::propagateTuple(SearchNode* start, SearchNode* end) {
     curVar = cur->getVar();
 
     if (cur->getType() == NODE_AND) {
-      cout << "curVar: " << curVar << endl;
+//      cout << "curVar: " << curVar << endl;
       curVal = cur->getVal();
 //      cout << assig << endl;
       if (curVal!=UNKNOWN)
+        /*
         if (curVal != assig[endVarMap.at(curVar)]) {
           cout << assig[endVarMap.at(curVar)] << "->" << curVal << endl;
         }
+        */
         assig.at(endVarMap.at(curVar)) = curVal;
     }
 

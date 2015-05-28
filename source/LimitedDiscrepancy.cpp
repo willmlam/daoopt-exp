@@ -130,9 +130,33 @@ bool LimitedDiscrepancy::doExpand(SearchNode* node) {
 
 } // LimitedDiscrepancy::doExpand
 
+bool LimitedDiscrepancy::doCompleteProcessing(SearchNode* n) {
+  if (doProcess(n)) { // initial processing
+    return true;
+  }
+  if (doCaching(n)) { // caching?
+    return true;
+  }
+  if (doPruning(n)) { // pruning?
+    return true;
+  }
+  if (doExpand(n)) { // n expansion
+    return true;
+  }
+  return false;
+}
 
-LimitedDiscrepancy::LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po, size_t disc)
-  : Search(prob,pt,space,heur,po), m_maxDisc(disc)
+bool LimitedDiscrepancy::solve(size_t nodeLimit) {
+  SearchNode* n = this->nextLeaf();
+  while(n) {
+    m_prop->propagate(n, true); // true = report solution
+    n = this->nextLeaf();
+  }
+  return !n ? true : false;
+}
+
+LimitedDiscrepancy::LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, BoundPropagator* prop, ProgramOptions *po, size_t disc)
+  : Search(prob,pt,space,heur,prop,po), m_maxDisc(disc)
 {
 
   SearchNode* first = this->initSearch();

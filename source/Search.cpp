@@ -38,8 +38,10 @@ namespace daoopt {
 
 extern high_resolution_clock::time_point _time_start; // from Main.cpp
 
-Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, ProgramOptions *po) :
+Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h,
+    BoundPropagator* prop, ProgramOptions* po) :
     m_problem(prob), m_pseudotree(pt), m_space(s), m_heuristic(h),
+    m_prop(prop),
     m_options(po), m_foundFirstPartialSolution(false)
 #ifdef PARALLEL_DYNAMIC
   , m_nextSubprob(NULL)
@@ -201,148 +203,32 @@ SearchNode* Search::nextLeaf() {
 
   SearchNode* node = this->nextNode();
   while (node) {
-    if (doProcess(node)) // initial processing
-      { return node; }
-    if (doCaching(node)) // caching?
-      { return node; }
-    if (doPruning(node)) // pruning?
-      { return node; }
-    if (doExpand(node)) // node expansion
-      { return node; }
+    // dependant on derived class how nodes are processed
+    if (doCompleteProcessing(node)) {
+      return node;
+    }
 
-    if (m_options->prop_heuristic) {
-      double or_delta = ELEM_ONE;
-      // Propagate heuristics here.
-      SearchNode* cur = node;
-      SearchNode* prev;
-      bool prop = true;
-      uint32 prop_iteration = 0;
-      do {
-        //      cout << "Prop iteration: " << ++prop_iteration << endl;
-        if (cur->getType() == NODE_AND) {
-          // if this is where the propagation starts, we have freshly 
-          // generated OR nodes with new heuristics.
-          if (prop_iteration == 0) { 
-            double d = cur->getSubSolved();
-            assert(d == ELEM_ONE); // OR nodes are fresh!
-            DIAG( ostringstream ss; 
-                ss << "value stored (subsolved only): " << d << endl;
-                myprint(ss.str()); )
-              NodeP* children = cur->getChildren();
-            uint32 count_missing_children = 0;
-            for (uint32 i = 0; i < cur->getChildCountFull(); ++i) {
-              if (children[i]) {
-                d OP_TIMESEQ children[i]->getHeur();
-                //            cout << setprecision(20) << children[i]->getHeur() << endl;
-              } else {
-                ++count_missing_children;
-              }
-            }
-
-            d OP_TIMESEQ cur->getLabel();
-
-            double old_h = cur->getHeur();
-            DIAG( ostringstream ss;
-                ss << setprecision(20);
-                ss << *cur <<" [AND] old_h: " << old_h << ", new_h: " << d << endl;
-                myprint(ss.str()); )
-              if (d - old_h > 1e-16) {
-                if (d - old_h > 1e-12) {
-                  cout << "subsolved: " << cur->getSubSolved() << endl;
-                  cout << "missing children: " << count_missing_children << endl;
-                  cout << "warning: bad AND h would have been propagated. gap:  " 
-                    << fabs(d - old_h) << endl;
-                  { ostringstream ss;
-                    ss << setprecision(20);
-                    ss << *cur <<" [AND] old_h: " << old_h 
-                      << ", new_h: " << d 
-                      << ", this label: " << cur->getLabel()
-                      << endl;
-                    myprint(ss.str()); }
-                  //          cout << "gap: " << d - old_h << endl;
-                  //          cin.get();
-                }
-              } else {
-                cur->setHeur(d);
-              }
-          } else { // otherwise we only need to propagate the differences
-            double old_h = cur->getHeur();
-            if (or_delta < ELEM_ONE) {
-              double new_h = cur->getHeur() OP_TIMES or_delta;
-              DIAG( ostringstream ss;
-                  ss << setprecision(20);
-                  ss << *cur << " [AND] old_h: " << old_h 
-                  << ", new_h: " << new_h << endl; )
-
-                cur->setHeur(new_h);
-            } else {
-              prop = false;
-            }
-          }
-        } else { // OR node
-          double old_h = cur->getHeur();
-          double max_h = -std::numeric_limits<double>::infinity();
-          NodeP* children = cur->getChildren();
-          for (uint32 i = 0; i < cur->getChildCountFull(); ++i) {
-            if (children[i]) {
-              double new_h =
-//                children[i]->getLabel() OP_TIMES children[i]->getHeur();
-                children[i]->getHeur();
-              if (new_h > max_h) {
-                max_h = new_h;
-              }
-            }
-          }
-
-          double delta = max_h OP_DIVIDE old_h;
-          DIAG( ostringstream ss;
-              ss << setprecision(20);
-              ss << *cur << " [OR] old_h: " << old_h << ", new_h: " << max_h << endl;
-              myprint(ss.str()); )
-          assert(delta <= ELEM_ONE || fabs(delta) < 1e-12);
-          if (max_h < old_h) {
-            cur->setHeur(max_h);
-            or_delta = delta;
-          } else {
-            prop = false;
-          }
-
-        }
-        if (prop) {
-          prev = cur;
-          cur = cur->getParent();
-          prop_iteration++;
-        } else {
-          break;
-        }
-      } while (cur);
-
-      if (prop || !cur) {
-        m_problem->updateUpperBound(prev->getHeur(), &m_space->stats, true);
-      }
-
-      // Check if LB >= UB. Early termination.
-      if (m_problem->getSolutionCost() >= m_problem->getUpperBound()) {
-        return NULL;
-      }
+    if (m_options->prop_heuristic &&
+        propHeuristic(node)) { // early termination?
+      return nullptr;
     }
 
     // Then move to next node.
     node = this->nextNode();
-	high_resolution_clock::time_point time_now = high_resolution_clock::now();
-	double time_elapsed = duration_cast<duration<double>>(time_now - _time_start).count(); 
+    high_resolution_clock::time_point time_now = high_resolution_clock::now();
+    double time_elapsed = duration_cast<duration<double>>(time_now - _time_start).count(); 
     if (time_elapsed > m_options->maxTime) {
-        cout << "Timed out at " << time_elapsed << " seconds." << endl;
-        cout << "Stats at timeout: " << endl;
-        cout << "================= " << endl;
-        cout << "OR nodes:      " << m_space->stats.numExpOR << endl;
-        cout << "AND nodes:     " << m_space->stats.numExpAND << endl;
-        cout << "OR processed:  " << m_space->stats.numProcOR << endl;
-        cout << "AND processed: " << m_space->stats.numProcAND << endl;
-        cout << "Leaf nodes:    " << m_space->stats.numLeaf << endl;
-        cout << "Pruned nodes:  " << m_space->stats.numPruned << endl;
-        cout << "Deadend nodes: " << m_space->stats.numDead << endl;
-        exit(0);
+      cout << "Timed out at " << time_elapsed << " seconds." << endl;
+      cout << "Stats at timeout: " << endl;
+      cout << "================= " << endl;
+      cout << "OR nodes:      " << m_space->stats.numExpOR << endl;
+      cout << "AND nodes:     " << m_space->stats.numExpAND << endl;
+      cout << "OR processed:  " << m_space->stats.numProcOR << endl;
+      cout << "AND processed: " << m_space->stats.numProcAND << endl;
+      cout << "Leaf nodes:    " << m_space->stats.numLeaf << endl;
+      cout << "Pruned nodes:  " << m_space->stats.numPruned << endl;
+      cout << "Deadend nodes: " << m_space->stats.numDead << endl;
+      exit(0);
     }
   }
   return NULL;
@@ -1048,6 +934,124 @@ bool Search::restrictSubproblem(string file) {
   cout << "Restricted to subproblem with root node " << rootVar << " at depth " << depth  << endl;
 
   return true; // success
+}
+
+bool Search::propHeuristic(SearchNode* node) {
+  double or_delta = ELEM_ONE;
+  // Propagate heuristics here.
+  SearchNode* cur = node;
+  SearchNode* prev;
+  bool prop = true;
+  uint32 prop_iteration = 0;
+  do {
+    //      cout << "Prop iteration: " << ++prop_iteration << endl;
+    if (cur->getType() == NODE_AND) {
+      // if this is where the propagation starts, we have freshly 
+      // generated OR nodes with new heuristics.
+      if (prop_iteration == 0) { 
+        double d = cur->getSubSolved();
+        assert(d == ELEM_ONE); // OR nodes are fresh!
+        DIAG( ostringstream ss; 
+            ss << "value stored (subsolved only): " << d << endl;
+            myprint(ss.str()); )
+          NodeP* children = cur->getChildren();
+        uint32 count_missing_children = 0;
+        for (uint32 i = 0; i < cur->getChildCountFull(); ++i) {
+          if (children[i]) {
+            d OP_TIMESEQ children[i]->getHeur();
+            //            cout << setprecision(20) << children[i]->getHeur() << endl;
+          } else {
+            ++count_missing_children;
+          }
+        }
+
+        d OP_TIMESEQ cur->getLabel();
+
+        double old_h = cur->getHeur();
+        DIAG( ostringstream ss;
+            ss << setprecision(20);
+            ss << *cur <<" [AND] old_h: " << old_h << ", new_h: " << d << endl;
+            myprint(ss.str()); )
+          if (d - old_h > 1e-16) {
+            if (d - old_h > 1e-12) {
+              cout << "subsolved: " << cur->getSubSolved() << endl;
+              cout << "missing children: " << count_missing_children << endl;
+              cout << "warning: bad AND h would have been propagated. gap:  " 
+                << fabs(d - old_h) << endl;
+              { ostringstream ss;
+                ss << setprecision(20);
+                ss << *cur <<" [AND] old_h: " << old_h 
+                  << ", new_h: " << d 
+                  << ", this label: " << cur->getLabel()
+                  << endl;
+                myprint(ss.str()); }
+              //          cout << "gap: " << d - old_h << endl;
+              //          cin.get();
+            }
+          } else {
+            cur->setHeur(d);
+          }
+      } else { // otherwise we only need to propagate the differences
+        double old_h = cur->getHeur();
+        if (or_delta < ELEM_ONE) {
+          double new_h = cur->getHeur() OP_TIMES or_delta;
+          DIAG( ostringstream ss;
+              ss << setprecision(20);
+              ss << *cur << " [AND] old_h: " << old_h 
+              << ", new_h: " << new_h << endl; )
+
+            cur->setHeur(new_h);
+        } else {
+          prop = false;
+        }
+      }
+    } else { // OR node
+      double old_h = cur->getHeur();
+      double max_h = -std::numeric_limits<double>::infinity();
+      NodeP* children = cur->getChildren();
+      for (uint32 i = 0; i < cur->getChildCountFull(); ++i) {
+        if (children[i]) {
+          double new_h =
+            //                children[i]->getLabel() OP_TIMES children[i]->getHeur();
+            children[i]->getHeur();
+          if (new_h > max_h) {
+            max_h = new_h;
+          }
+        }
+      }
+
+      double delta = max_h OP_DIVIDE old_h;
+      DIAG( ostringstream ss;
+          ss << setprecision(20);
+          ss << *cur << " [OR] old_h: " << old_h << ", new_h: " << max_h << endl;
+          myprint(ss.str()); )
+        assert(delta <= ELEM_ONE || fabs(delta) < 1e-12);
+      if (max_h < old_h) {
+        cur->setHeur(max_h);
+        or_delta = delta;
+      } else {
+        prop = false;
+      }
+
+    }
+    if (prop) {
+      prev = cur;
+      cur = cur->getParent();
+      prop_iteration++;
+    } else {
+      break;
+    }
+  } while (cur);
+
+  if (prop || !cur) {
+    m_problem->updateUpperBound(prev->getHeur(), &m_space->stats, true);
+  }
+
+  // Check if LB >= UB. Early termination.
+  if (m_problem->getSolutionCost() >= m_problem->getUpperBound()) {
+    return true;
+  }
+  return false;
 }
 
 }  // namespace daoopt

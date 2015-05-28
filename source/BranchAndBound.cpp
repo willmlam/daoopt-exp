@@ -113,9 +113,39 @@ bool BranchAndBound::doExpand(SearchNode* n) {
   return false; // default false
 }
 
+bool BranchAndBound::doCompleteProcessing(SearchNode* n) {
+  if (doProcess(n)) { // initial processing
+    return true;
+  }
+  if (doCaching(n)) { // caching?
+    return true;
+  }
+  if (doPruning(n)) { // pruning?
+    return true;
+  }
+  if (doExpand(n)) { // n expansion
+    return true;
+  }
+  return false;
+}
 
-BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po) :
-   Search(prob,pt,space,heur,po) {
+bool BranchAndBound::solve(size_t nodeLimit) {
+  size_t limit = nodeLimit > 0 ? nodeLimit : 0;
+  SearchNode* n = this->nextLeaf();
+  while(n && (nodeLimit == 0 || limit-- > 0)) {
+    m_prop->propagate(n, true); // true = report solutions
+    if (nodeLimit == 0 || limit > 0) {
+      n = this->nextLeaf();
+    }
+  }
+  return !n ? true : false;
+}
+
+
+BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt, 
+    SearchSpace* space, Heuristic* heur, BoundPropagator* prop, 
+    ProgramOptions *po) :
+   Search(prob,pt,space,heur,prop,po) {
 #ifndef NO_CACHING
   // Init context cache table
   if (!m_space->cache)

@@ -44,13 +44,16 @@ protected:
 
 protected:
   bool isDone() const;
+  bool doCompleteProcessing(SearchNode*);
   bool doExpand(SearchNode*);
   SearchNode* nextNode();
   bool isMaster() const { return false; }
 
 public:
   void reset(SearchNode*);
-  LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po, size_t disc);
+  bool solve(size_t nodeLimit);
+  LimitedDiscrepancy(Problem* prob, Pseudotree* pt, SearchSpace* space,
+      Heuristic* heur, BoundPropagator* prop, ProgramOptions *po, size_t disc);
   virtual ~LimitedDiscrepancy() {}
 
   // to compare pair<double,size_t>

@@ -40,13 +40,16 @@ protected:
 
 protected:
   bool isDone() const;
+  bool doCompleteProcessing(SearchNode* n);
   bool doExpand(SearchNode* n);
   SearchNode* nextNode();
   bool isMaster() const { return false; }
 
 public:
   void reset(SearchNode* p = NULL);
-  BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po) ;
+  bool solve(size_t nodeLimit);
+  BranchAndBound(Problem* prob, Pseudotree* pt, SearchSpace* space,
+      Heuristic* heur, BoundPropagator* prop, ProgramOptions*po) ;
   virtual ~BranchAndBound() {}
 };
 

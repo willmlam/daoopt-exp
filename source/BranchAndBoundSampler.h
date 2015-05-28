@@ -32,15 +32,18 @@ class BranchAndBoundSampler : public BranchAndBound {
 protected:
   bool doExpand(SearchNode*);
 public:
-  BranchAndBoundSampler(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions *po);
+  BranchAndBoundSampler(Problem* prob, Pseudotree* pt, SearchSpace* space,
+      Heuristic* heur, BoundPropagator* prop, ProgramOptions *po);
   virtual ~BranchAndBoundSampler() {}
 };
 
 
 /* Inline definitions */
-inline BranchAndBoundSampler::BranchAndBoundSampler(Problem* prob, Pseudotree* pt, SearchSpace* space, Heuristic* heur, ProgramOptions* po) :
-    Search(prob, pt, space, heur, po),
-    BranchAndBound(prob, pt, space, heur, po) {
+inline BranchAndBoundSampler::BranchAndBoundSampler(Problem* prob,
+    Pseudotree* pt, SearchSpace* space, Heuristic* heur,
+    BoundPropagator* prop, ProgramOptions* po) :
+    Search(prob, pt, space, heur, prop, po),
+    BranchAndBound(prob, pt, space, heur, prop, po) {
   /* nothing here */
 }
 
