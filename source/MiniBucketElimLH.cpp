@@ -949,8 +949,10 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	// as a special case, when table building is not requested and sample size is set to 0, just mark this bucket having actual error, so that LH will use it
 	if (! build_table && TableMemoryLimitAsNumElementsLog <= 0) {
 		_BucketErrorQuality[var] = 99;
-//    _AverageRelBucketError[var] = -1;
-//    _MaxRelBucketError[var] = -1;
+    _AverageRelBucketError[var] = -1;
+    _MaxRelBucketError[var] = -1;
+    _AverageBucketError[var] = -1;
+    _MaxBucketError[var] = -1;
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
@@ -985,8 +987,10 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		if (! sample_table_if_not_computed) {
 			// just mark this bucket having actual error, so that LH will use it
 			_BucketErrorQuality[var] = 99;
-//      _AverageRelBucketError[var] = -1;
-//      _MaxRelBucketError[var] = -1;
+      _AverageRelBucketError[var] = -1;
+      _MaxRelBucketError[var] = -1;
+      _AverageBucketError[var] = -1;
+      _MaxBucketError[var] = -1;
 			avgError = 0.0;
 			return 1 ;
 			}
@@ -1080,77 +1084,88 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		nEntriesRequested = 1024 ; // enumarate small tables completely
 	double sample_coverage = 0.0 ;
 	bool enumerate_table = build_table || nEntriesRequested >= TableSize ;
-	if (enumerate_table) {
+//	if (enumerate_table) {
 //printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
-		for (int64 j = 0; j < TableSize; j++) {
-			++nEntriesGenerated ;
-			// find next combination
-			for (i = n - 1; i >= 0; i--) {
-				if (++tuple[i] < domains[i]) 
-					break;
-				tuple[i] = 0;
-				}
-
-			// enumerate over all bucket var values; combine all bucket FNs
-			double tableentryB = ELEM_ZERO, zB;
-			for (tuple[n] = 0; tuple[n] < int(bucket_var_domain_size); tuple[n]++) {
-				zB = ELEM_ONE;
-				for (k = 0; k < int(funs_B.size()); ++k)
-					zB OP_TIMESEQ funs_B[k]->getValuePtr(idxMapB[k]);
-				tableentryB = max(tableentryB, zB);
-				}
-
-			// combine MB output FNs
-			double tableentryMB = ELEM_ONE;
-			for (k = 0; k < int(funs_MB.size()); k++) 
-				tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
-
-      bool none_inf = false;
-
-			// compute numbers of special cases
-			if (OUR_OWN_nInfinity == tableentryB) {
-				if (OUR_OWN_nInfinity == tableentryMB) nEntries_both_inf++ ;
-				else nEntries_B_inf++ ;
-				}
-			else { 
-        avgExact_none_inf += tableentryB ;
-        none_inf = true;
-        nEntries_none_inf++ ; 
+  nEntriesRequested = min(nEntriesRequested, TableSize);
+  for (int64 j = 0; j < nEntriesRequested; ++j) {
+    ++nEntriesGenerated ;
+    // generate random tuple for sampling
+    if (nEntriesRequested < TableSize) {
+      for (i = n - 1; i >= 0; i--) {
+        int k = m_problem->getDomainSize(scopeB[i]) ;
+        tuple[i] = rand::next(k) ;
       }
+    } else {
+      for (i = n - 1; i >= 0; i--) {
+        if (++tuple[i] < domains[i]) {
+          break;
+        }
+        tuple[i] = 0;
+      }
+    }
 
-			if (tableentryMB <= tableentryB) {  // '<' is an error, '=' is ok.
-				e = 0.0;
+    // enumerate over all bucket var values; combine all bucket FNs
+    double tableentryB = ELEM_ZERO, zB;
+    for (tuple[n] = 0; tuple[n] < int(bucket_var_domain_size); tuple[n]++) {
+      zB = ELEM_ONE;
+      for (k = 0; k < int(funs_B.size()); ++k)
+        zB OP_TIMESEQ funs_B[k]->getValuePtr(idxMapB[k]);
+      tableentryB = max(tableentryB, zB);
+    }
+
+    // combine MB output FNs
+    double tableentryMB = ELEM_ONE;
+    for (k = 0; k < int(funs_MB.size()); k++) 
+      tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
+
+    bool none_inf = false;
+
+    // compute numbers of special cases
+    if (OUR_OWN_nInfinity == tableentryB) {
+      if (OUR_OWN_nInfinity == tableentryMB) nEntries_both_inf++ ;
+      else nEntries_B_inf++ ;
+    }
+    else { 
+      avgExact_none_inf += tableentryB ;
+      none_inf = true;
+      nEntries_none_inf++ ; 
+    }
+
+    if (tableentryMB <= tableentryB) {  // '<' is an error, '=' is ok.
+      e = 0.0;
 #if defined DEBUG || _DEBUG
-				if (tableentryMB < tableentryB) nBadErrorValues++;
+      if (tableentryMB < tableentryB) nBadErrorValues++;
 #endif
-				}
-			else  // note tableentryB may be -infinity.
-				e = tableentryMB - tableentryB;
+    }
+    else  // note tableentryB may be -infinity.
+      e = tableentryMB - tableentryB;
 
-			// at this point, it should be that e >= 0
+    // at this point, it should be that e >= 0
 
-			numErrorItems += 1.0;
-      double deviation_error = e - avgError;
-      double deviation_exact = tableentryB - avgExact;
-//			avgError += e;
-      avgError += deviation_error / numErrorItems;
-//			avgExact += tableentryB;
-      avgExact += deviation_exact / numErrorItems;
-			if (none_inf) {
-        double deviation_error_none_inf = e - avgError_none_inf;
-				avgError_none_inf += deviation_error_none_inf / nEntries_none_inf;
-        var_error += deviation_error * (e - avgError_none_inf);
-        max_error = max(max_error, e);
+    numErrorItems += 1.0;
+    double deviation_error = e - avgError;
+    double deviation_exact = tableentryB - avgExact;
+    //			avgError += e;
+    avgError += deviation_error / numErrorItems;
+    //			avgExact += tableentryB;
+    avgExact += deviation_exact / numErrorItems;
+    if (none_inf) {
+      double deviation_error_none_inf = e - avgError_none_inf;
+      avgError_none_inf += deviation_error_none_inf / nEntries_none_inf;
+      var_error += deviation_error_none_inf * (e - avgError_none_inf);
+      max_error = max(max_error, e);
 
-        double rel_error = fabs(100.0 * e / tableentryB);
-        double deviation_rel_error = rel_error - avg_rel_error;
-        avg_rel_error += deviation_rel_error / nEntries_none_inf;
-        var_rel_error += deviation_rel_error * (rel_error - avg_rel_error);
-        max_rel_error = max(max_rel_error, rel_error);
-      }
-			if (NULL != newTable) 
-				newTable[j] = e;
-			}
+      double rel_error = fabs(100.0 * e / tableentryB);
+      double deviation_rel_error = rel_error - avg_rel_error;
+      avg_rel_error += deviation_rel_error / nEntries_none_inf;
+      var_rel_error += deviation_rel_error * (rel_error - avg_rel_error);
+      max_rel_error = max(max_rel_error, rel_error);
+    }
+    if (NULL != newTable) 
+      newTable[j] = e;
+  }
+  sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
+  /*
 		}
 	else if (nEntriesRequested > 0) {
 //printf("\nBUCKET ERROR SAMPLE for var=%d", (int)var) ;
@@ -1200,8 +1215,8 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 			if (e < 1.0e+32) 
 				avgError_none_inf += e ;
 			}
-		sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
 		}
+    */
 
   var_error /= nEntries_none_inf - 1;
   var_rel_error /= nEntries_none_inf - 1;
@@ -1359,7 +1374,7 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 		Function *errorFn = NULL;
 		double avgError, E;
 		double tableSize = -1.0;
-		bool do_sample = false ;
+		bool do_sample = true; //false ;
 		bool build_table = build_tables ;
 		int64 nEntriesGenerated = 0 ;
 		if (table_size_actual_limit <= 0) {
