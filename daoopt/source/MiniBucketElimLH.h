@@ -119,6 +119,9 @@ class MiniBucketElimLH : public MiniBucketElim
   std::vector<double> _AverageRelBucketError; // for each var, store the average bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
   std::vector<double> _VarianceRelBucketError; // for each var, store the average bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
   std::vector<double> _MaxRelBucketError; // for each var, store the max  bucket error used to determine the _BucketErrorQuality value. -1 indicates that the error was not explicitly computed or sampled.
+  std::vector<int> _PseudoWidth; // for each var, store the pseudo width at that bucket
+  std::vector<double> _Sparsity; // for each var, store the percentage of zero entries
+  std::vector<double> _SampleCoverage; // for each var, store the percentage of  entries
 	double _BuckerErrorFnTableSizes_Total ; // log
 	double _BuckerErrorFnTableSizes_Precomputed ; // log
 	double _BuckerErrorFnTableSizes_Ignored ; // log

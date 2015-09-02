@@ -212,6 +212,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
   _AverageRelBucketError.resize(m_problem->getN());
   _VarianceRelBucketError.resize(m_problem->getN());
   _MaxRelBucketError.resize(m_problem->getN());
+  _PseudoWidth.resize(m_problem->getN());
+  _Sparsity.resize(m_problem->getN());
+  _SampleCoverage.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _BucketErrorQuality[i] = -1;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _AverageBucketError[i] = -1;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _VarianceBucketError[i] = 0;
@@ -219,6 +222,9 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _AverageRelBucketError[i] = -1;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _VarianceRelBucketError[i] = 0;
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _MaxRelBucketError[i] = -1;
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _PseudoWidth[i] = -1;
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _Sparsity[i] = -1;
+	for (int i = m_problem->getN() - 1; i >= 0; i--) _SampleCoverage[i] = -1;
 	_distToClosestDescendantWithMBs.resize(m_problem->getN());
 	for (int i = m_problem->getN() - 1; i >= 0; i--) _distToClosestDescendantWithMBs[i] = INT_MAX;
 	_distToClosestDescendantWithLE.resize(m_problem->getN());
@@ -280,6 +286,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 		double stats_PseudoWidth = jointScope.size();
 		if (_Stats._PseudoWidth < int(jointScope.size()))
 			_Stats._PseudoWidth = jointScope.size();
+    _PseudoWidth[v] = stats_PseudoWidth;
 #if defined DEBUG || _DEBUG
 		for (vector<Function *>::iterator itF = funs.begin(); itF != funs.end(); ++itF)
       cout << ' ' << (**itF);
@@ -1008,6 +1015,9 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
     _MaxRelBucketError[var] = 0.0;
     _AverageBucketError[var] = 0.0;
     _MaxBucketError[var] = 0.0;
+    // These are 1.0 because we know all entries are zero a priori.
+    _Sparsity[var] = 1.0;
+    _SampleCoverage[var] = 1.0;
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
@@ -1019,6 +1029,8 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
     _MaxRelBucketError[var] = -1;
     _AverageBucketError[var] = -1;
     _MaxBucketError[var] = -1;
+    _Sparsity[var] = -1;
+    _SampleCoverage[var] = 0.0;
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
@@ -1136,6 +1148,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 
 	int64 nEntries_both_inf = 0, nEntries_B_inf = 0, nEntries_none_inf = 0 ;
 	double avgExact_none_inf = 0.0, avgError_none_inf = 0.0 ;
+  int64 nEntries_zero = 0;
 
 	// enumerate all new fn scope combinations
 	double e, numErrorItems = 0.0 ;
@@ -1207,6 +1220,9 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
       e = tableentryMB - tableentryB;
 
     // at this point, it should be that e >= 0
+    if (e == 0) {
+      ++nEntries_zero;
+    }
 
     numErrorItems += 1.0;
     double deviation_error = e - avgError;
@@ -1231,6 +1247,8 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
       newTable[j] = e;
   }
   sample_coverage = 100.0*((double) nEntriesGenerated)/((double) TableSize) ;
+  _Sparsity[var] = double(nEntries_zero) / double(nEntriesGenerated);
+  _SampleCoverage[var] = sample_coverage / 100.0;
   /*
 		}
 	else if (nEntriesRequested > 0) {
@@ -1557,6 +1575,24 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
   cout << m_problem->getN();
   for (int i = 0; i < m_problem->getN(); ++i) {
     cout << " " << _MiniBuckets[i].size();
+  }
+  cout << endl << endl;
+  cout << "Pseudowidth: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _PseudoWidth[i];
+  }
+  cout << endl << endl;
+  cout << "Sparsity: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _Sparsity[i];
+  }
+  cout << endl << endl;
+  cout << "Sample coverage: " << endl;
+  cout << m_problem->getN();
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    cout << " " << _SampleCoverage[i];
   }
   cout << endl;
 

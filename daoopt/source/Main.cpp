@@ -596,7 +596,7 @@ bool Main::compileHeuristicBeforeBuild() {
 			<< " with " << sz << " MByte." << endl;
 	}
 
-	if (m_options->nosearch) {
+	if (m_options->nosearch && !m_options->force_compute_tables) {
 		cout << "Simulating mini bucket heuristic..." << endl;
 		sz = m_heuristic->build(&m_search->getAssignment(), false); // false = just compute memory estimate
 	}
