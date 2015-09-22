@@ -77,6 +77,7 @@ bool Main::setOptions(const ProgramOptions& options) {
   rand::seed(opt->seed);
 
   m_options.reset(opt);
+  out_bound_file = m_options->out_boundFile;
 
   return true;
 }
