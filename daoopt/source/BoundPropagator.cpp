@@ -87,7 +87,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
           prop = false;
 #ifndef NO_ASSIGNMENT
           //          if (n->getValue() > ELEM_ZERO)  // TODO required?
-          propagateTuple(n,cur); // save (partial) opt. subproblem solution at current AND node
+          propagateTuple(n, cur); // save (partial) opt. subproblem solution at current AND node
 #endif
         }
 
@@ -209,7 +209,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
         DIAG(myprint("PROP reached ROOT\n"));
         if (prop) {
 #ifndef NO_ASSIGNMENT
-          propagateTuple(n,cur);
+          propagateTuple(n, cur);
           if (reportSolution)
             m_problem->updateSolution(cur->getValue(), cur->getOptAssig(), & m_space->stats, true);
 #else

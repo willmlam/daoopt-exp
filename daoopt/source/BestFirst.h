@@ -1,8 +1,10 @@
 #ifndef BESTFIRST_H_
 #define BESTFIRST_H_
 
-#include "Search.h"
 #include "BFSearchSpace.h"
+#include "Search.h"
+
+#include <queue>
 
 namespace daoopt {
   class NodeComp {
@@ -24,9 +26,8 @@ namespace daoopt {
     bool doCompleteProcessing(SearchNode* n);
     bool doExpand(SearchNode* n);
 
-    // Stack of nodes representing the open list when search is in 
-    // depth-first mode
-    stack<SearchNode*> depth_first_open_list_;
+    // Use a priority queue for the tip nodes.
+    priority_queue<SearchNode*> tip_nodes_;
 
     bool best_first_limit_reached_;
       

@@ -19,7 +19,6 @@ bool BestFirst::solve(size_t nodeLimit) {
 
   // If the problem is not already solved, use AOBB the rest of the way
   // (would have returned earlier)
-  // We then need to put all the explicated nodes in depth_first_open_list_
 
 }
 

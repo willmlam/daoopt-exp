@@ -22,6 +22,8 @@
  */
 
 #include "Problem.h"
+
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -667,6 +669,7 @@ void Problem::outputAndSaveSolution(const string& file, const SearchStats* nodes
   }
 
   oss screen;
+  screen << std::setprecision(20);
   screen << "s " << SCALE_LOG(m_curCost);
 #ifndef NO_ASSIGNMENT
   int32_t assigSize = UNKNOWN;
@@ -767,7 +770,9 @@ void Problem::updateSolution(double cost,
   // check for complete assignment first
   for (size_t i = 0; i < sol.size(); ++i) {
     if (sol[i] == NONE) {
-      oss ss; ss << "Warning: skipping incomplete solution, reported " << cost;
+      oss ss;
+      ss << std::setprecision(20);
+      ss << "Warning: skipping incomplete solution, reported " << cost;
       DIAG(ss << " " << sol.size() << " " << sol;)
       ss << endl; myprint(ss.str());
       return;
@@ -785,32 +790,51 @@ void Problem::updateSolution(double cost,
   if (cost != ELEM_ZERO && !m_subprobOnly) {
     costCheck = ELEM_ONE; double comp = ELEM_ONE;  // used across loop iterations
     double y, z;  // reset for each loop iteration
+    cout << endl;
     for (Function* f : m_functions) {
       z = f->getValue(sol);
-//      if (z == ELEM_ZERO) {
-//        oss ss; ss << "Warning: skipping zero-cost solution. Reported cost: " << cost;
-//        DIAG(ss << " " << sol.size() << " " << sol;)
-//        ss << endl; myprint(ss.str());
-//        return;
-//      }
+      if (std::isnan(z) || std::isinf(z)) {
+        cout << z << endl;
+        cout << *f << endl;
+        for (int v : f->getScopeSet()) {
+          cout << " " << sol[v];
+        }
+        cout << endl;
+        for (int k = 0; k < f->getTableSize(); ++k) {
+          cout << f->getTable()[k] << endl;
+        }
+      }
       y = z OP_DIVIDE comp;
       z = costCheck OP_TIMES y;
       comp = (z OP_DIVIDE costCheck) OP_DIVIDE y;
       costCheck = z;
     }
     if (1e-3 < abs(cost-costCheck)) {
-      oss ss; ss << "Warning: solution cost " << costCheck << " differs significantly"
-		 << ", reported " << cost << endl;
+      oss ss;
+      ss << std::setprecision(20);
+      ss << "Warning: solution cost " << costCheck << " differs significantly"
+        << ", reported " << cost << endl;
       myprint(ss.str());
     }
   } else
 #endif
   costCheck = cost;
 
-  if (ISNAN(costCheck) || (!ISNAN(m_curCost) && costCheck <= m_curCost)) { // TODO costCheck =?= ELEM_ZERO )
-    oss ss; ss << "Warning: Discarding solution with cost " << costCheck << ", reported: " << cost;
+//  if (ISNAN(costCheck) || (!ISNAN(m_curCost) && costCheck <= m_curCost)) { // TODO costCheck =?= ELEM_ZERO )
+  if (ISNAN(costCheck) ||
+      (!ISNAN(m_curCost) && m_curCost - costCheck >= 1.11e-16)) {
+    oss ss;
+    ss << std::setprecision(20);
+    ss << "Warning: Discarding solution with cost " << costCheck
+      << ", reported: " << cost;
 #ifndef NO_ASSIGNMENT
     DIAG(ss << " " << sol.size() << " " << sol;)
+    vector<val_t> outputAssg;
+    assignmentForOutput(sol, outputAssg);
+    ss << ' ' << outputAssg.size();
+    BOOST_FOREACH( int v, outputAssg ) {
+      ss << ' ' << v;
+    }
 #endif
     ss << endl; myprint(ss.str());
     return;
@@ -818,6 +842,7 @@ void Problem::updateSolution(double cost,
   m_curCost = costCheck;
   if (costCheck == ELEM_ZERO) output = false;
   ostringstream ss;
+  ss << std::setprecision(20);
   if (output) {
     ss << "u ";
     if (nodestats)
