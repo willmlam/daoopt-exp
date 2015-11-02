@@ -35,7 +35,6 @@ add_library(daoopt OBJECT
   ./source/MiniBucketElim.cpp
   ./source/MiniBucketElimInc.cpp
   ./source/MiniBucketElimLH.cpp
-  ./source/MiniBucketElimLHobsolete.cpp
   ./source/MiniBucketElimLHsubtree.cpp
   ./source/ParallelManager.cpp
   ./source/PriorityFGLP.cpp

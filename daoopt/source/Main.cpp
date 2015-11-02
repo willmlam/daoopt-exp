@@ -458,7 +458,7 @@ Heuristic* Main::newHeuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) {
 		}
 	}
 
-	if (po->lookaheadDepth > 0) {
+	if (po->lookaheadDepth > 0 || po->lookaheadSubtreeSizeLimit > 0) {
 		return new MiniBucketElimLH(p, pt, po, po->ibound);
 		}
 	if (po->incrementalJG) // default value of the incrementalJG is false 
@@ -1015,8 +1015,6 @@ bool Main::outputStats() const {
   cout << "Leaf nodes:    " << m_space->stats.numLeaf << endl;
   cout << "Pruned nodes:  " << m_space->stats.numPruned << endl;
   cout << "Deadend nodes: " << m_space->stats.numDead << endl;
-
-
 
 #ifdef PARALLEL_STATIC
   if (m_options->par_preOnly && m_solved) {

@@ -27,13 +27,13 @@ class BFSearchNode : public SearchNode {
     return index_;
   }
   inline void set_index(int index) {
-    _index = index;
+    index_ = index;
   }
   inline void increment_index() {
-    ++_index;
+    ++index_;
   }
   inline void decrement_index() {
-    --_index;
+    --index_;
   }
 
   inline std::vector<BFSearchNode*>& get_parents() const {

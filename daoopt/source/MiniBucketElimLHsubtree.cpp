@@ -45,6 +45,7 @@ extern int64 nd1GeneralCalls;
 
 //#define DEBUG_BUCKET_ERROR
 //#define NO_LH_PREPROCESSING
+//#define USE_FULL_LOOKAHEAD_SUBTREE
 
 #ifndef OUR_OWN_nInfinity
 #define OUR_OWN_nInfinity (-std::numeric_limits<double>::infinity())
@@ -298,6 +299,7 @@ int daoopt::MBLHSubtree::Delete(void)
 	_RootNode.Delete() ;
 	_SubtreeNodes.clear() ;
 	_IsCopyOfEarlierSubtree = NULL ;
+	_nSubtreeNodesIndependentOfContext = 0 ;
 	return 0 ;
 }
 
@@ -367,38 +369,155 @@ int daoopt::MBLHSubtree::ComputeSubtree(void)
 	daoopt::PseudotreeNode *nRootVar = pseudotree->getNode(_RootVar) ;
 
 	// allocate memory for subtree nodes; assuming avg branching factor (e.g. 5) is problematic, since the memory would grow exponentially with d.
-	int memory = _depth*2 ; if (memory > problem->getN()) memory = problem->getN() ; // assume two nodes at each level
+	int memory = 2*(_depth > _sizelimit ? _depth : _sizelimit) ; if (memory > problem->getN()) memory = problem->getN() ; else if (memory <= 0) memory = 1 ; // assume two nodes at each level
 	_SubtreeNodes.clear() ;
 	_SubtreeNodes.reserve(memory) ; // try to allocate some memory to make it faster
 
 	// build LH subtree of nodes
-//	std::deque<MiniBucketElimLHobsoleteErrorNode *> bfsLHsubtreeTraversal ;
-	std::stack<MBLHSubtreeNode *> dfsLHsubtreeTraversal ; // using stack will turn it into a DFS processing of the tree
-	try { dfsLHsubtreeTraversal.push(&_RootNode) ; } catch (...) { return 1 ; }
-	while (dfsLHsubtreeTraversal.size() > 0) {
-		MBLHSubtreeNode *N = dfsLHsubtreeTraversal.top() ; dfsLHsubtreeTraversal.pop() ;
-		const PseudotreeNode *N_ = pseudotree->getNode(N->_v) ;
-		const vector<PseudotreeNode *> & children = N_->getChildren() ;
-		N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
-		int depth2go = N->_depth2go - 1 ; // remaining depth from each child
-		for (vector<PseudotreeNode*>::const_iterator itC = children.begin() ; itC != children.end(); ++itC) {
-			int child = (*itC)->getVar() ;
+	if (_depth > 0) {
+//		std::deque<MiniBucketElimLHobsoleteErrorNode *> bfsLHsubtreeTraversal ;
+		std::stack<MBLHSubtreeNode *> dfsLHsubtreeTraversal ; // using stack will turn it into a DFS processing of the tree
+		try { dfsLHsubtreeTraversal.push(&_RootNode) ; } catch (...) { return 1 ; }
+		while (dfsLHsubtreeTraversal.size() > 0) {
+			MBLHSubtreeNode *N = dfsLHsubtreeTraversal.top() ; dfsLHsubtreeTraversal.pop() ;
+			const PseudotreeNode *N_ = pseudotree->getNode(N->_v) ;
+			const vector<PseudotreeNode *> & children = N_->getChildren() ;
+			N->_Children.reserve(children.size()) ; // reserver space for all children (some will not be added as children) so that reallocation is not needed
+			int depth2go = N->_depth2go - 1 ; // remaining depth from each child
+			for (vector<PseudotreeNode*>::const_iterator itC = children.begin() ; itC != children.end(); ++itC) {
+				int child = (*itC)->getVar() ;
 #ifndef USE_FULL_LOOKAHEAD_SUBTREE
-			if (_H->_BucketErrorQuality[child] <= 1 ? _H->_distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
+				if (_H->_BucketErrorQuality[child] <= 1 ? _H->_distToClosestDescendantWithLE[child] > depth2go : false) continue ; // _BucketErrorQuality <= 1 means it is not proven that there is substantial bucket error
 #endif // USE_FULL_LOOKAHEAD_SUBTREE
+				MBLHSubtreeNode *n = NULL ; try { n = new MBLHSubtreeNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ;
+				n->_H = _H ; n->_RootVar = _RootVar ; n->_v = child ; n->_Parent = N ; n->_k = problem->getDomainSize(child) ; n->_depth2go = depth2go ;
+				try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
+				try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
+				if (depth2go > 0) { try { dfsLHsubtreeTraversal.push(n) ; } catch (...) { delete n ; return 1 ; }}
+				n->_idxWRTparent = N->_Children.size() - 1 ;
+/*				// scope of output function of n is scope of its parent + its parent's variable
+				MBLHSubtreeNode *p = n->_Parent ;
+				int vParent = NULL != p ? p->_v : -1 ;
+				if (vParent >= 0 && vParent != _RootVar) {
+					n->_OutputFunctionScope = p->_OutputFunctionScope ;
+					(n->_OutputFunctionScope).insert(vParent) ;
+					}*/
+				}
+			}
+		}
+	else {
+		// IDEA : we maintain 
+		// 1) a (BFS) frontier of nodes below RootNode, going 1 level lower each iteration.
+		// 2) a set of nodes already in LH subtree.
+		// I) we expand nodes in turn :
+		// I.a) remove this node from frontier
+		// I.b) if the node has BucketError, we will try to add all nodes on the part from this node to the RootNode to the LH subtree.
+		//      if the sizelimit is not exceeded, we will continue expanding this node.
+		//      if the sizelimit is exceedeed, we will scrap this node and go to I.
+		// I.c) If the dist_to_closest_descendant_with_BE is > current sizelimite, then scrap this node
+		// I.d) otherwise add its children to the frontier.
+		std::vector<int> frontier_1, frontier_2, *frontier = &frontier_2, *next_frontier = &frontier_1, temp_list ;
+		std::set<int> lh_subtree ;
+		int nToAdd = _sizelimit ;
+		// add all children of RootVar to the frontier
+		const PseudotreeNode *RootN = pseudotree->getNode(_RootVar) ;
+		const vector<PseudotreeNode *> & RootChildren = RootN->getChildren() ;
+		for (const PseudotreeNode *cn : RootChildren) 
+			next_frontier->push_back(cn->getVar()) ;
+		// process the frontier until sizelimit is filled
+		int level_below = 0 ;
+		while (nToAdd > 0) {
+			++level_below ;
+			if (&frontier_1 == frontier) { frontier = &frontier_2 ; next_frontier = &frontier_1 ; } else { frontier = &frontier_1 ; next_frontier = &frontier_2 ; } 
+			if (0 == frontier->size()) 
+				break ;
+			next_frontier->clear() ;
+			for (int i = frontier->size() - 1 ; i >= 0 ; i--) {
+				int v = frontier->at(i) ;
+				// if v has bucket error, try to add its ancestors to LH subtree
+				bool v_was_added = false ;
+				if (_H->_BucketErrorQuality[v] > 1) {
+					const PseudotreeNode *vN = pseudotree->getNode(v) ;
+					int nOnPath = 1 ;
+					temp_list.clear() ; temp_list.push_back(v) ;
+					for (const PseudotreeNode *N_ =  vN->getParent() ; NULL != N_ ? N_ != RootN : false ; N_ = N_->getParent()) {
+						int u = N_->getVar() ;
+						std::set<int>::iterator it = lh_subtree.find(u) ;
+						if (lh_subtree.end() != it) 
+							break ;
+						++nOnPath ;
+						temp_list.push_back(u) ;
+						}
+					if (nOnPath <= nToAdd) {
+						v_was_added = true ;
+						for (int u : temp_list) lh_subtree.insert(u) ;
+						nToAdd -= nOnPath ;
+						}
+					}
+				// expand v
+				const PseudotreeNode *N_ = pseudotree->getNode(v) ;
+				const vector<PseudotreeNode *> & children = N_->getChildren() ;
+				for (const PseudotreeNode *cn : children) {
+					int u = cn->getVar() ;
+					int d = _H->_BucketErrorQuality[u] > 1 ? 0 : _H->_distToClosestDescendantWithLE[u] ;
+					if (! v_was_added && d < INT_MAX) d++ ;
+					if (d <= nToAdd) 
+						next_frontier->push_back(u) ; // there is a chance that u could be added to LH subtree
+					}
+				}
+			}
+		if (0 == lh_subtree.size()) 
+			return 0 ;
+		// sort subtree nodes in the ascending order of distance from RootVar
+		std::vector<int64> lh_subtree_with_d ;
+		for (std::set<int>::const_iterator sit = lh_subtree.begin(); sit != lh_subtree.end() ; ++sit) {
+			int v = *sit ;
+			const PseudotreeNode *vN = pseudotree->getNode(v) ;
+			int n = 1 ;
+			for (const PseudotreeNode *N_ =  vN->getParent() ; NULL != N_ ? N_ != RootN : false ; N_ = N_->getParent(), n++) ;
+			int64 v_with_d = (((int64) n) << 32) + ((int64) v) ;
+			// build a 64-bit int, where first 4 bytes are distance and last 4 bytes the var index.
+			lh_subtree_with_d.push_back(v_with_d) ;
+			}
+		std::sort(lh_subtree_with_d.begin(), lh_subtree_with_d.end()) ;
+		// build _SubtreeNodes[]
+		std::map<int, MBLHSubtreeNode *> v2N_map ;
+		v2N_map[_RootVar] = &_RootNode ;
+		for (std::vector<int64>::const_iterator it = lh_subtree_with_d.begin() ; it != lh_subtree_with_d.end() ; ++it) {
+			int64 v_with_d = *it ;
+			int v = ((int) (v_with_d & 0xFFFFFFFF)) ;
+			PseudotreeNode *vN = pseudotree->getNode(v) ;
+			PseudotreeNode *pN =  vN->getParent() ;
+			int parent = NULL != pN ? pN->getVar() : -1 ;
+			std::map<int, MBLHSubtreeNode *>::iterator itM = v2N_map.find(parent) ;
+			if (v2N_map.end() == itM) 
+				return 1 ; // error
+			MBLHSubtreeNode *N = itM->second ;
 			MBLHSubtreeNode *n = NULL ; try { n = new MBLHSubtreeNode ; } catch (...) { return 1 ; } if (NULL == n) return 1 ;
-			n->_H = _H ; n->_RootVar = _RootVar ; n->_v = child ; n->_Parent = N ; n->_k = problem->getDomainSize(child) ; n->_depth2go = depth2go ;
+			n->_H = _H ; n->_RootVar = _RootVar ; n->_v = v ; n->_Parent = N ; n->_k = problem->getDomainSize(v) ; n->_depth2go = -1 ;
 			try { _SubtreeNodes.push_back(n) ; } catch (...) { delete n ; return 1 ; }
 			try { (N->_Children).push_back(n) ; } catch (...) { delete n ; return 1 ; }
-			if (depth2go > 0) { try { dfsLHsubtreeTraversal.push(n) ; } catch (...) { delete n ; return 1 ; }}
 			n->_idxWRTparent = N->_Children.size() - 1 ;
-/*			// scope of output function of n is scope of its parent + its parent's variable
-			MBLHSubtreeNode *p = n->_Parent ;
-			int vParent = NULL != p ? p->_v : -1 ;
-			if (vParent >= 0 && vParent != _RootVar) {
-				n->_OutputFunctionScope = p->_OutputFunctionScope ;
-				(n->_OutputFunctionScope).insert(vParent) ;
-				}*/
+			v2N_map[v] = n ;
+			}
+
+		// do some debug-level checking
+		if (_SubtreeNodes.size() > _sizelimit) 
+			return 1 ; // cannot have more than _sizelimit nodes
+		// check that for any node, if it is in subtree, its parent is before it
+		for (int i = _SubtreeNodes.size() - 1 ; i > 0 ; i--) {
+			MBLHSubtreeNode *n = _SubtreeNodes[i] ;
+			int v = n->_v ;
+			PseudotreeNode *vN = pseudotree->getNode(v) ;
+			PseudotreeNode *pN =  vN->getParent() ;
+			int parent = pN->getVar(), j ;
+			for (j = i-1 ; j >= 0 ; j--) {
+				MBLHSubtreeNode *m = _SubtreeNodes[j] ;
+				int u = m->_v ;
+				if (parent == u) break ;
+				}
+			if (j < 0 && parent != _RootVar) 
+				return 1 ; // did not find parent of v on the list before v
 			}
 		}
 
@@ -429,29 +548,29 @@ int daoopt::MBLHSubtree::ComputeSubtree(void)
 		p = p->getParent() ;
 		++dUp ;
 		}
-	if (NULL != _IsCopyOfEarlierSubtree) {
-    if (_H->m_options->_fpLogFile) {
-      fprintf(_H->m_options->_fpLogFile, "\nMATCH : subtree of rootvar %d is a subset of subtree of %d at distance=%d", _RootVar, _IsCopyOfEarlierSubtree->_RootVar, dUp) ;
-      fflush(_H->m_options->_fpLogFile) ;
-    }
-  }
+	if (_H->m_options->_fpLogFile && NULL != _IsCopyOfEarlierSubtree) {
+		fprintf(_H->m_options->_fpLogFile, "\nMATCH : subtree of rootvar %d is a subset of subtree of %d at distance=%d", _RootVar, _IsCopyOfEarlierSubtree->_RootVar, dUp) ;
+		fflush(_H->m_options->_fpLogFile) ;
+		}
 
 	return 0 ;
 }
 
-int daoopt::MBLHSubtree::Initialize(MiniBucketElimLH & H, int v, int depth)
+int daoopt::MBLHSubtree::Initialize(MiniBucketElimLH & H, int v, int depth, int sizelimit)
 {
 	Delete() ;
 
-	_H = &H ; _RootVar = v ; _depth = depth ; _RootNode._H = &H ; _RootNode._v = v ; _RootNode._k = (H.getProblem())->getDomainSize(v) ; _RootNode._depth2go = depth ;
+	_H = &H ; _RootVar = v ; _depth = depth ; _sizelimit = sizelimit ; _RootNode._H = &H ; _RootNode._v = v ; _RootNode._k = (H.getProblem())->getDomainSize(v) ; _RootNode._depth2go = depth ;
 
-	// always check if there is any point in computing error
-	if (H._distToClosestDescendantWithLE[v] > depth) 
-		return 0 ;
+//	// always check if there is any point in computing error
+//	if (H._distToClosestDescendantWithLE[v] > depth) 
+//		return 0 ;
 
 	// create subtree
 	if (0 != ComputeSubtree()) 
 		return 1 ;
+	if (0 == _SubtreeNodes.size()) 
+		return 0 ;
 
 	if (NULL == _IsCopyOfEarlierSubtree) {
 		// fill in _RelevantFunctions of each LHsubtreenode
@@ -525,12 +644,14 @@ double daoopt::MBLHSubtree::GetHeuristic(std::vector<val_t> & assignment)
 	return h ;
 }
 
-int daoopt::SetupLookaheadStructure(daoopt::MiniBucketElimLH & H, int Depth)
+int daoopt::SetupLookaheadStructure(daoopt::MiniBucketElimLH & H, int Depth, int SizeLimit)
 {
 	daoopt::Problem *problem = H.getProblem() ;
 	daoopt::Pseudotree *pseudotree = H.getPseudotree() ;
 	daoopt::ProgramOptions *options = H.getProgramOptions() ;
 	std::vector<MBLHSubtree> & lhArray = H.LH() ;
+
+	H.Compute_distToClosestDescendantWithLE() ;
 
 	// compute order of variables, so that a parent is before its children wrt the bucket tree; this can be used to traverse the bucket tree top-down or bottom-up.
 	std::vector<int> btOrder ;
@@ -552,7 +673,7 @@ int daoopt::SetupLookaheadStructure(daoopt::MiniBucketElimLH & H, int Depth)
 	for (auto itV = btOrder.begin(); itV != btOrder.end(); ++itV) {
 		int v = *itV;
 		int depth = Depth ;
-		int lhInitRes = lhArray[v].Initialize(H, v, Depth) ;
+		int lhInitRes = lhArray[v].Initialize(H, v, Depth, SizeLimit) ;
 		if (0 != lhInitRes) {
 			printf("\n\nERROR : lookahead init failed; v=%d", v) ;
       if (options->_fpLogFile) {
@@ -562,6 +683,121 @@ int daoopt::SetupLookaheadStructure(daoopt::MiniBucketElimLH & H, int Depth)
 			exit(1) ;
 			}
 		}
+
+	return 0 ;
+}
+
+int daoopt::SetupLookaheadStructure_FractionOfLargestAbsErrorNodesOnly(daoopt::MiniBucketElimLH & H, int Depth, int SizeLimit)
+{
+	daoopt::Problem *problem = H.getProblem() ;
+	daoopt::Pseudotree *pseudotree = H.getPseudotree() ;
+	daoopt::ProgramOptions *options = H.getProgramOptions() ;
+	std::vector<MBLHSubtree> & lhArray = H.LH() ;
+	int i ;
+
+	struct temp_sort_struct {
+		double _e ;
+		int _v ;
+		bool operator<(const struct temp_sort_struct & obj) const { return _e < obj._e ; }
+	} ;
+	std::vector<struct temp_sort_struct> abs_errors ; abs_errors.reserve(problem->getN()) ;
+
+	// sort buckets by bucket error; only include buckets with substantial bucket error.
+	struct temp_sort_struct temp_abs_error ;
+	for (i = problem->getN() - 1 ; i >= 0 ; i--) {
+		signed char eq = H.BucketErrorQuality(i) ;
+		if (eq <= 1 || eq >= 99) continue ;
+		temp_abs_error._e = OUR_OWN_pInfinity == H.BucketError_AbsMax(i) ? OUR_OWN_pInfinity : H.BucketError_AbsAvg(i) ;
+		temp_abs_error._v = i ;
+		abs_errors.push_back(temp_abs_error) ;
+		}
+	if (abs_errors.size() > 1) 
+		std::sort(abs_errors.begin(), abs_errors.end()) ;
+
+	// inlucde up to some % of buckets with largest error.
+/*	double percentageOfNToInclude = options->nBEabsErrorToInclude ;
+	if (percentageOfNToInclude < 0.0) percentageOfNToInclude = 0.0 ;
+	int nToInclude = (percentageOfNToInclude/100.0)*problem->getN() ;*/
+	int nToInclude = options->nBEabsErrorToInclude ;
+	if (nToInclude > abs_errors.size()) nToInclude = abs_errors.size() ;
+	int j = 0 ;
+	int nINFon = 0, nNonINFon = 0 ;
+	for (i = abs_errors.size() - 1 ; i >= 0 ; i--, j++) {
+		struct temp_sort_struct & data = abs_errors[i] ;
+		signed char eq = H.BucketErrorQuality(data._v) ;
+		if (OUR_OWN_pInfinity == data._e) {
+			// make sure this var is turned on
+			if (eq < 2) 
+				(H.BucketErrorQuality())[data._v] = 99 ;
+			nINFon++ ;
+			}
+		else if (j < nToInclude) {
+			// make sure this var is turned on
+			if (eq < 2) 
+				(H.BucketErrorQuality())[data._v] = 99 ;
+			nNonINFon++ ;
+			}
+		else {
+			// turn off this var
+			if (eq >= 2) 
+				(H.BucketErrorQuality())[data._v] = -99 ;
+			}
+		}
+	int nON = 0 ;
+	for (i = problem->getN() - 1 ; i >= 0 ; i--) {
+		signed char eq = H.BucketErrorQuality(i) ;
+		if (eq >= 2) 
+			nON++ ;
+		}
+  if (options->_fpLogFile) {
+    fprintf(options->_fpLogFile, "\n LH setup ; nINFon=%d nNonINFon=%d; check : nON=%d", nINFon, nNonINFon, nON) ;
+    fflush(options->_fpLogFile) ;
+  }
+	H.Compute_distToClosestDescendantWithLE() ;
+
+	// compute order of variables, so that a parent is before its children wrt the bucket tree; this can be used to traverse the bucket tree top-down or bottom-up.
+	std::vector<int> btOrder ;
+	btOrder.reserve(problem->getN()) ;
+	const PseudotreeNode *ptRoot = pseudotree->getRoot() ;
+	btOrder.push_back(ptRoot->getVar()) ;
+	i = 0 ; // how many nodes in btOrder have been processed
+	while (i < btOrder.size()) {
+		int v = btOrder[i++] ;
+		const PseudotreeNode *n = pseudotree->getNode(v) ;
+		const vector<PseudotreeNode *> & children = n->getChildren() ;
+		for (vector<PseudotreeNode*>::const_iterator itC = children.begin() ; itC != children.end(); ++itC) {
+			int child = (*itC)->getVar() ;
+			btOrder.push_back(child) ;
+			}
+		}
+
+	// create LH subtree for all nodes; process a parent before its children so that a child can use parents data.
+	for (auto itV = btOrder.begin(); itV != btOrder.end(); ++itV) {
+		int v = *itV ;
+		int lhInitRes = lhArray[v].Initialize(H, v, Depth, SizeLimit) ;
+		if (0 != lhInitRes) {
+			printf("\n\nERROR : lookahead init failed; v=%d", v) ;
+      if (options->_fpLogFile) {
+        fprintf(options->_fpLogFile, "\n\nERROR : lookahead init failed; v=%d", v) ;
+        fflush(options->_fpLogFile) ;
+      }
+			exit(1) ;
+			}
+		}
+	// print debug LH subtree info in log file
+  if (options->_fpLogFile) {
+    fprintf(options->_fpLogFile, "\n\nLH subtree stats : depth=%d sizelimit=%d", (int) Depth, (int) SizeLimit) ;
+    for (auto itV = btOrder.begin(); itV != btOrder.end(); ++itV) {
+      int v = *itV ;
+      const PseudotreeNode *n = pseudotree->getNode(v) ;
+      const PseudotreeNode *np = n->getParent() ;
+      int parent = NULL != np ? np->getVar() : -1 ;
+      daoopt::MBLHSubtree & lhsubtree = lhArray[v] ;
+      fprintf(options->_fpLogFile, "\n   v=%d parent=%d d2BEnode=%d LHsubtreesize=%d", (int) v, (int) parent, (int) H.distToClosestDescendantWithLE(v), (int) lhsubtree._SubtreeNodes.size()) ;
+    }
+    fprintf(options->_fpLogFile, "\n") ;
+    fflush(options->_fpLogFile) ;
+  }
 
 	return 0 ;
 }
