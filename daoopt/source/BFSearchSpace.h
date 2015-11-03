@@ -83,5 +83,13 @@ inline void BFSearchSpace::erase(const BFSearchState& state) {
   }
 }
 
+inline void BFSearchSpace::incNodesExpanded(int nodeType) {
+  if (nodeType == NODE_AND) {
+    ++stats.numExpAND;
+  } else {
+    ++stats.numExpOR;
+  }
+}
+
 }  // namespace daoopt
 #endif

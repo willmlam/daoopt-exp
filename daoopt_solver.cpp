@@ -127,18 +127,23 @@ DEFINE_double(dfglp_time, -1.0, "time for FGLP at every node");
 DEFINE_double(dfglp_tolerance, 1e-7, "convergence tolerance for dynamic FGLP");
 
 // Lookahead options
-DEFINE_int32(lookahead_depth, 0, "depth of lookahead when computing the h"
-             "(heuristic) function; 0=no lookahead");
+DEFINE_int32(lookahead_depth, -1, "depth of lookahead when computing the h"
+             "(heuristic) function");
 DEFINE_double(lookahead_local_error_single_table_limit, 7.0, 
               "lookahead: limit as number of entries for a single local error" 
               "table (in log10)");
-DEFINE_double(lookahead_local_error_all_tables_total_limit, 8.0, 
+DEFINE_double(lookahead_local_error_all_tables_total_limit, 0.0, 
               "lookahead: limit as number of entries for all local error" 
               "tables (in log10)");
 DEFINE_double(lookahead_local_error_ignore_threshold, -DBL_MIN, 
               "lookahead: ignore threshold");
 DEFINE_bool(lookahead_use_full_subtree, false,
             "lookahead: do not perform pruning on lookahead subtree");
+DEFINE_int32(lookahead_subtree_size_limit, -1,
+             "lookahead: limit on the LH subtree size");
+DEFINE_int32(lookahead_n_be_abs_error_to_include, INT_MAX,
+             "lookahead: number of largest avg abs bucket error variables"
+             "to include in LH");
 
 // Heuristic upper bound propagation
 DEFINE_bool(do_heuristic_prop, false,
@@ -146,6 +151,7 @@ DEFINE_bool(do_heuristic_prop, false,
             "bounds");
 
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
+DEFINE_string(supplemental_log_file, "", "path to supplmental log file");
 
 
 using namespace std;
@@ -216,6 +222,10 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
         FLAGS_lookahead_local_error_ignore_threshold;
     opt->lookahead_use_full_subtree =
         FLAGS_lookahead_use_full_subtree;
+    opt->lookaheadSubtreeSizeLimit =
+        FLAGS_lookahead_subtree_size_limit;
+    opt->nBEabsErrorToInclude =
+        FLAGS_lookahead_n_be_abs_error_to_include;
 
     opt->prop_heuristic = FLAGS_do_heuristic_prop;
 
@@ -258,6 +268,10 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
     opt->perturb = FLAGS_zero_perturb;
 
     opt->out_pstFile = FLAGS_pst_file;
+
+    if (FLAGS_supplemental_log_file != "") {
+      opt->_fpLogFile = fopen(FLAGS_supplemental_log_file.c_str(), "w");
+    }
 
 
     if (!FLAGS_subproblem_file.empty() && FLAGS_ordering_file.empty()) {
