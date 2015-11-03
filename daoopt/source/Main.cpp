@@ -118,7 +118,7 @@ bool Main::loadProblem() {
   }
   string problem_string;
   if (!m_options->problemSpec) {
-    problem_string = getFileContentsGz(m_options->in_problemFile.c_str());
+    problem_string = getFileContents(m_options->in_problemFile.c_str());
     m_options->problemSpec = &problem_string[0];
     m_options->problemSpec_len = problem_string.size();
   }
