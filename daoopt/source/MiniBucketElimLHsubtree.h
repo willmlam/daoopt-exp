@@ -129,8 +129,10 @@ public :
 	MiniBucketElimLH *_H ;
 	// root variable of the LH subtree
 	int _RootVar ;
-	// depth to go from root; used when depth-based LH is done; this is the depth of the LH.
+	// depth to go from root; used when depth-based LH is done; this is the depth of the LH. if -1 then depth-based LH is not used.
 	int _depth ;
+	// limit on the size of the LH subtree. if -1, then size-based LH is not used.
+	int _sizelimit ;
 public :
 	// node of the root variable
 	// RelevantFunctions of the root variable are all augmented/intermediate functions, of the root variable bucket, that came from below the subtree.
@@ -139,8 +141,9 @@ public :
 	// this LH subtree may be a copy of a subtree of a LH subtree computed earlier (i.e. at an ancestor) variable. 
 	MBLHSubtreeNode *_IsCopyOfEarlierSubtree ;
 	// variables/buckets in the (minimal) subtree. they are here for reference. each node belongs to its parent (and should be deleted by the parent).
-	// note that RootVar does not belong to the SubtreeNodes list.
+	// note that RootVar(Node) does not belong to the SubtreeNodes list.
 	// note : we assume that _SubtreeNodes entries are stored in DFS order.
+	// 2015-10-18 KK : actually, we assume that in _SubtreeNodes[], parent is before its children. not full DFS order; e.g. BFS order is fine too.
 	std::vector<MBLHSubtreeNode *> _SubtreeNodes ;
 	// number of subtree nodes that have no context variables.
 	int _nSubtreeNodesIndependentOfContext ;
@@ -185,10 +188,10 @@ public :
 	// compute the subtree, i.e. the array of subtree nodes.
 	int ComputeSubtree(void) ;
 	// set up a lookahead subtree for the given bucket tree variable.
-	int Initialize(MiniBucketElimLH & H, int v, int depth) ;
+	int Initialize(MiniBucketElimLH & H, int v, int depth, int sizelimit) ;
 public :
 	int Delete(void) ;
-	inline MBLHSubtree(void) : _H(NULL), _RootVar(-1), _depth(-1), _IsCopyOfEarlierSubtree(NULL), _nSubtreeNodesIndependentOfContext(-1)
+	inline MBLHSubtree(void) : _H(NULL), _RootVar(-1), _depth(-1), _sizelimit(-1), _IsCopyOfEarlierSubtree(NULL), _nSubtreeNodesIndependentOfContext(0)
 	{
 	}
 	inline ~MBLHSubtree(void)
@@ -197,7 +200,10 @@ public :
 	}
 } ;
 
-int SetupLookaheadStructure(MiniBucketElimLH & H, int Depth) ;
+int SetupLookaheadStructure(MiniBucketElimLH & H, int Depth, int SizeLimit) ;
+
+// here we mark (as buckets with error), after sorting buckets by BE, certain percentage of buckets with largest bucket error.
+int SetupLookaheadStructure_FractionOfLargestAbsErrorNodesOnly(MiniBucketElimLH & H, int Depth, int SizeLimit) ;
 
 }  // namespace daoopt
 

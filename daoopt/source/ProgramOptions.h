@@ -95,6 +95,8 @@ public:
 
   /* LOOKAHEAD HEURISTIC OPTIONS */
   int lookaheadDepth; // depth of lookahead when computing the h (heuristic) function; 0=no lookahead
+  int lookaheadSubtreeSizeLimit; // limit on the LH subtree size
+  int nBEabsErrorToInclude; // number of largest avg abs bucket error variables to include in LH; actual number of variables.
   double lookahead_LE_SingleTableLimit; // as number of entries; log10.
   double lookahead_LE_AllTablesTotalLimit; // as number of entries; log10.
   double lookahead_LE_IgnoreThreshold ; // if bucket error is larger than this, it will be ignored for by lookahead. default is DBL_MIN.
@@ -181,7 +183,7 @@ inline ProgramOptions::ProgramOptions()
     match(true),
     collapse(false),
     perturb(0),
-    lookaheadDepth(0), lookahead_LE_SingleTableLimit(-1.0),
+    lookaheadDepth(-1), lookaheadSubtreeSizeLimit(-1), nBEabsErrorToInclude(INT_MAX), lookahead_LE_SingleTableLimit(-1.0),
     lookahead_LE_AllTablesTotalLimit(-1.0),
     lookahead_LE_IgnoreThreshold(DBL_MIN), 
     maxTime(kint32max),

@@ -790,20 +790,8 @@ void Problem::updateSolution(double cost,
   if (cost != ELEM_ZERO && !m_subprobOnly) {
     costCheck = ELEM_ONE; double comp = ELEM_ONE;  // used across loop iterations
     double y, z;  // reset for each loop iteration
-    cout << endl;
     for (Function* f : m_functions) {
       z = f->getValue(sol);
-      if (std::isnan(z) || std::isinf(z)) {
-        cout << z << endl;
-        cout << *f << endl;
-        for (int v : f->getScopeSet()) {
-          cout << " " << sol[v];
-        }
-        cout << endl;
-        for (int k = 0; k < f->getTableSize(); ++k) {
-          cout << f->getTable()[k] << endl;
-        }
-      }
       y = z OP_DIVIDE comp;
       z = costCheck OP_TIMES y;
       comp = (z OP_DIVIDE costCheck) OP_DIVIDE y;
