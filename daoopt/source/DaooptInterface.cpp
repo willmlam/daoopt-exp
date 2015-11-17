@@ -218,6 +218,7 @@ bool DaooptInterface::solve(size_t nodeLimit) {
 
 double DaooptInterface::getSolution(vector<int>* assignment) const {
   double cost = m_main->getSolution();
+#ifndef NO_ASSIGNMENT
   if (assignment != NULL) {
 //    const vector<val_t>& assg = m_main->getSolutionAssg();
     vector<val_t> assg ;
@@ -227,6 +228,7 @@ double DaooptInterface::getSolution(vector<int>* assignment) const {
       assignment->push_back((int) *it);
     }
   }
+#endif
   return cost;
 }
 

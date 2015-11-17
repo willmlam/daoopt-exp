@@ -1192,6 +1192,7 @@ double Main::getSolution() const {
   return m_problem->getSolutionCost();
 }
 
+#ifndef NO_ASSIGNMENT
 const vector<val_t>& Main::getSolutionAssg() const {
   return m_problem->getSolutionAssg();
 }
@@ -1199,6 +1200,7 @@ const vector<val_t>& Main::getSolutionAssg() const {
 void Main::getSolutionAssgOrg(vector<val_t>& org_sol) const {
   m_problem->assignmentForOutput(m_problem->getSolutionAssg(), org_sol) ;
 }
+#endif
 
 double computeAvgDepth(const vector<count_t>& before, const vector<count_t>& after, int offset) {
   size_t leafCount = 0;
