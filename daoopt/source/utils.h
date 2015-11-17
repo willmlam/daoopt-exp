@@ -25,6 +25,7 @@
 #define UTILS_H_
 
 #include "_base.h"
+#include "gzstream.h"
 
 namespace daoopt {
 int memoryusage();
@@ -274,16 +275,13 @@ void print_hex(const _T* d) {
     printf("%X", ar[i]);
 }
 
-// Hack to read a file into a string.
+// Hack to read a file into a string
 static inline std::string getFileContents(const char* filename) {
-	std::ifstream in(filename, std::ios::in | std::ios::binary);
-	std::string contents;
-	in.seekg(0, std::ios::end);
-	contents.resize(in.tellg());
-	in.seekg(0, std::ios::beg);
-	in.read(&contents[0], contents.size());
+	igzstream in(filename, std::ios::in | std::ios::binary);
+	std::string contents((std::istreambuf_iterator<char>(in)),
+      std::istreambuf_iterator<char>());
 	in.close();
-	return(contents);
+	return contents;
 }
 
 }  // namespace daoopt
