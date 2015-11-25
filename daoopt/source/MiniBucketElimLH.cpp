@@ -984,7 +984,11 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 			fprintf(m_options->_fpLogFile,"\n   Computing localError for var=%d, nMBs = 1, avg error = 0",(int)var);
 			}
 #endif 
-		_BucketErrorQuality[var] = 0;
+    if (m_options->lookahead_use_full_subtree) {
+      _BucketErrorQuality[var] = 99;
+    } else {
+      _BucketErrorQuality[var] = 0;
+    }
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
 		return 0;
@@ -1379,6 +1383,9 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
 #ifdef NO_LH_PREPROCESSING
 		build_table = do_sample = false ; table_size_actual_limit = -DBL_MIN ;
 #endif // 
+    if (m_options->lookahead_use_full_subtree) {
+      do_sample = false;
+    }
 		computeLocalErrorTable(v, build_table, do_sample, table_size_actual_limit, tableSize, avgError, E, errorFn, nEntriesGenerated);
 		nTotalEntriesGenerated += nEntriesGenerated ;
 		_BucketErrorFunctions[v] = errorFn;
