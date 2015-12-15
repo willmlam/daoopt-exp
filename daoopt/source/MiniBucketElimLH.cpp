@@ -994,7 +994,8 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 		return 0;
 		}
 	// as a special case, when table building is not requested and sample size is set to 0, just mark this bucket having actual error, so that LH will use it
-	if (! build_table && TableMemoryLimitAsNumElementsLog <= 0) {
+	if (!m_options->force_compute_tables &&
+      !build_table && TableMemoryLimitAsNumElementsLog <= 0) {
 		_BucketErrorQuality[var] = 99;
 		avgError = 0.0;
 		TableSizeLog = OUR_OWN_nInfinity;
@@ -1237,7 +1238,7 @@ int MiniBucketElimLH::computeLocalErrorTable(int var, bool build_table, bool sam
 	if (nEntries_non_inf > 0) 
 		{ avgExact_non_inf /= nEntries_non_inf ; avgError_non_inf /= nEntries_non_inf ; }
 	// rel_error is relative error in case when neither MB/B value is -infinity.
-	double rel_error = fabs(avgExact_non_inf) > 0.0 ? fabs(100.0 * avgError_non_inf / avgExact_non_inf) : -DBL_MAX ;
+	double rel_error = fabs(avgExact_non_inf) > 0.0 ? fabs(100.0 * avgError_non_inf / avgExact_non_inf) : -1.0 ;
   _BucketError_Rel[var] = rel_error;
 
 	if (numErrorItems > 0.0) {

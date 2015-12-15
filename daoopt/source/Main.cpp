@@ -155,6 +155,14 @@ bool Main::loadProblem() {
   cout << "Max. domain size:\t" << (int) m_problem->getK() << endl;
   cout << "Max. function arity:\t" << m_problem->getR() << endl;
 
+  // Compute average tightness ratio
+  double sum_tightness = 0.0;
+  for (const Function* f : m_problem->getFunctions()) {
+    sum_tightness += f->getTightness() / f->getTableSize();
+  }
+  cout << "Average function tightness:\t" <<
+    sum_tightness / m_problem->getC() << endl;
+
   return true;
 }
 
