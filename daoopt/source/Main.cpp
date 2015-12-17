@@ -369,6 +369,8 @@ bool Main::findOrLoadOrdering() {
   // Output pseudo tree to file for plotting?
   if (!m_options->out_pstFile.empty()) {
     m_pseudotree->outputToFile(m_options->out_pstFile);
+    cout << "Saved pseudotree for plotting to file "
+      << m_options->out_pstFile << "." << endl;
   }
 
   if (m_options->maxWidthAbort != NONE &&
