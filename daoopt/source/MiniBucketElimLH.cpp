@@ -238,6 +238,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 	_BucketErrorQuality.resize(m_problem->getN());
 	_BucketError_AbsAvg.resize(m_problem->getN()); _BucketError_AbsMin.resize(m_problem->getN()); _BucketError_AbsMax.resize(m_problem->getN());
   _BucketError_Rel.resize(m_problem->getN(), 0);
+  _Pseudowidth.resize(m_problem->getN(), -1);
 	for (int i = m_problem->getN() - 1 ; i >= 0 ; i--) 
 		{ _BucketErrorQuality[i] = -1 ; _BucketError_AbsAvg[i] = _BucketError_AbsMin[i] = _BucketError_AbsMax[i] = OUR_OWN_nInfinity ; }
 	_distToClosestDescendantWithMBs.resize(m_problem->getN());
@@ -301,6 +302,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 		for (vector<Function *>::iterator itF = m_augmented[v].begin(); itF != m_augmented[v].end(); ++itF)
 			jointScope.insert((*itF)->getScopeVec().begin(), (*itF)->getScopeVec().end());
 		double stats_PseudoWidth = jointScope.size();
+    _Pseudowidth[v] = jointScope.size();
 		if (_Stats._PseudoWidth < int(jointScope.size()))
 			_Stats._PseudoWidth = jointScope.size();
 #if defined DEBUG || _DEBUG
@@ -1467,6 +1469,26 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
     }
     fprintf(m_options->_fpLogFile, "\n");
   }
+
+  cout << endl;
+  cout << "#mini-buckets:" << endl;
+  cout << _MiniBuckets.size();
+  for (const auto& mb : _MiniBuckets) {
+    cout << " " << mb.size();
+  }
+  cout << endl << endl;
+  cout << "Pseudowidth:" << endl;
+  cout << _Pseudowidth.size();
+  for (int pw : _Pseudowidth) {
+    cout << " " << pw;
+  }
+  cout << endl << endl;
+  cout << "Average relative bucket errors:" << endl;
+  cout << _BucketError_Rel.size();
+  for (double err : _BucketError_Rel) {
+    cout << " " << err;
+  }
+  cout << endl;
 
   int32 count_zero = 0;
   int32 count_lteps = 0;

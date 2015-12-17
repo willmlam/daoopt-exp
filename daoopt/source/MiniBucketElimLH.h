@@ -137,6 +137,8 @@ class MiniBucketElimLH : public MiniBucketElim
 	std::vector<double> _BucketError_AbsAvg, _BucketError_AbsMin, _BucketError_AbsMax ;
   std::vector<double> _BucketError_Rel;
 
+  std::vector<int> _Pseudowidth;
+
 	// for each var, distance to the closest descendant with more than 1 MB/BucketErrorQuality>0. INT_MAX means infinite (no descendants).
 	// this does not include the node itself; i.e. legal values are >0 & <= INT_MAX (meaning infinity = no such descendants).
 	// note that _distToClosestDescendantWithMBs[i] <= _distToClosestDescendantWithLE[i], since the only way a bucket error can occur 
