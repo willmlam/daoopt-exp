@@ -558,7 +558,7 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment, bool comput
 			nTotalSubtreeNodes += st._SubtreeNodes.size() ;
 			nSubtreeNodesIndependentOfContext += st._nSubtreeNodesIndependentOfContext ;
 			}
-    if (m_options->_fpLogFile) {
+    if (m_options->_fpLogFile && computeTables) {
       fprintf(m_options->_fpLogFile, "\nnNodesWithLH=%d nCopies=%d nTotalSubtreeNodes=%lld nSubtreeNodesIndependentOfContext=%lld nLHSubtreeNodesEvaluated=%lld", nNodesWithLH, nCopySubtrees, nTotalSubtreeNodes, nSubtreeNodesIndependentOfContext, nLHSubtreeNodesEvaluated) ;
       fflush(m_options->_fpLogFile) ;
     }
