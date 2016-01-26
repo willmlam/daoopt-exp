@@ -883,15 +883,18 @@ void Problem::updateUpperBound(double bound, const SearchStats* nodestats,
     bool output) {
   if (bound < m_curUpperBound) {
     m_curUpperBound = bound; 
-    oss ss;
-    ss << "h ";
-    if (nodestats)
-      ss << nodestats->numExpOR << ' ' <<  nodestats->numExpAND << ' ';
-    else
-      ss << "0 0 ";
-    ss << SCALE_LOG(m_curUpperBound);
-    ss << endl;
-    myprint(ss.str());
+    if (output) {
+      oss ss;
+      ss << std::setprecision(20);
+      ss << "h ";
+      if (nodestats)
+        ss << nodestats->numExpOR << ' ' <<  nodestats->numExpAND << ' ';
+      else
+        ss << "0 0 ";
+      ss << SCALE_LOG(m_curUpperBound);
+      ss << endl;
+      myprint(ss.str());
+    }
   }
 }
 

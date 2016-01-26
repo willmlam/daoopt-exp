@@ -485,7 +485,12 @@ bool Main::initDataStructs() {
 #ifdef PARALLEL_DYNAMIC
   m_space.reset( new SearchSpaceMaster(m_pseudotree.get(), m_options.get()) );
 #else
-  m_space.reset( new SearchSpace(m_pseudotree.get(), m_options.get()) );
+  if (m_options->algorithm == 0) {
+    m_space.reset( new SearchSpace(m_pseudotree.get(), m_options.get()) );
+  } else if (m_options->algorithm == 1) {
+    m_space.reset( new BFSearchSpace(m_pseudotree.get(), m_options.get(),
+                                     m_problem->getN()) );
+  }
   m_space->stats.numORVar.resize(m_pseudotree->getN(), 0);
   m_space->stats.numANDVar.resize(m_pseudotree->getN(), 0);
   m_space->stats.numProcORVar.resize(m_pseudotree->getN(), 0);
@@ -507,16 +512,25 @@ bool Main::initDataStructs() {
   m_search.reset(new ParallelManager(m_problem.get(), m_pseudotree.get(),
                                      m_space.get(), m_heuristic.get()));
 #else
-  if (m_options->rotate) {
-    m_search.reset(new BranchAndBoundRotate(
-        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
-        m_prop.get(),
-        m_options.get()));
+  if (m_options->algorithm == 0) {
+    if (m_options->rotate) {
+      m_search.reset(new BranchAndBoundRotate(
+          m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
+          m_prop.get(),
+          m_options.get()));
+    } else {
+      m_search.reset(new BranchAndBound(
+          m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
+          m_prop.get(),
+          m_options.get()));
+    }
+  } else if (m_options->algorithm == 1) {
+    m_search.reset(new BestFirst(m_problem.get(), m_pseudotree.get(),
+                                 m_space.get(), m_heuristic.get(),
+                                 m_prop.get(), m_options.get()));
   } else {
-    m_search.reset(new BranchAndBound(
-        m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
-        m_prop.get(),
-        m_options.get()));
+    cout << "Invalid algorithm option." << endl;
+    return false;
   }
 #endif
 
@@ -525,7 +539,7 @@ bool Main::initDataStructs() {
     if (m_options->in_orderingFile.empty()) {
       err_txt("Subproblem specified but no ordering given.");
       return false;
-    }else {
+    } else {
       m_problem->setSubprobOnly();
       m_options->order_iterations = 0;
       cout << "Reading subproblem from file " << m_options->in_subproblemFile << '.' << endl;
@@ -979,22 +993,6 @@ bool Main::runSearchStatic() {
 bool Main::runSearchWorker(size_t nodeLimit) {
   m_solved = m_search->solve(nodeLimit);
   return m_solved;
-  /*
-  size_t limit = nodeLimit > 0 ? nodeLimit : 0;
-  SearchNode* n = m_search->nextLeaf();
-  while (n && (nodeLimit == 0 || limit-- > 0)) {
-    m_prop->propagate(n, true); // true = report solutions
-    if (nodeLimit == 0 || limit > 0) {
-      n = m_search->nextLeaf();
-    }
-  }
-  if (!n) {
-    m_solved = true;
-    return true;
-  } else {
-    return false;
-  }
-  */
 }
 
 
@@ -1005,7 +1003,9 @@ bool Main::outputStats() const {
   }
 
   // Output cache statistics
-  m_space->cache->printStats();
+  if (m_space->cache) {
+    m_space->cache->printStats();
+  }
   // Output search stats
   m_search->printStats();
 
@@ -1056,6 +1056,7 @@ bool Main::outputStats() const {
 #endif
 
   double mpeCost = m_problem->getSolutionCost();
+  cout << setprecision(6);
   cout << SCALE_LOG(mpeCost) << " (" << SCALE_NORM(mpeCost) << ')' << endl;
 
   // Output node and leaf profiles per depth

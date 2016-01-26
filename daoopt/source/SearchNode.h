@@ -83,6 +83,7 @@ protected:
   vector<val_t> m_optAssignment;     // stores the optimal solution to the subproblem
 #endif
 
+  static context_t emptyCtxt;
   unique_ptr<ExtraNodeInfo> m_eInfo; // stores extra info specific to a heuristic
 
 public:
@@ -197,7 +198,6 @@ protected:
   val_t m_val;          // Node value, assignment to OR parent variable
   double m_nodeLabel;   // Label of arc <X_i,a>, i.e. instantiated function costs
   double m_subSolved;   // Saves solutions of optimally solved subproblems, so that their nodes can be deleted
-  static context_t emptyCtxt;
   static std::list<std::pair<double,double> > emptyPSTList;
 
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS

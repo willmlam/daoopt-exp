@@ -33,6 +33,7 @@ namespace daoopt {
 
 struct ProgramOptions {
 public:
+  int algorithm; // choice of algorithm (0: AOBB, 1: AOBF,...)
   bool nosearch; // abort before starting the actual search
   bool force_compute_tables; // used with the above -- forces computation so the heuristic is built, then search is aborted.
   bool nocaching; // disable caching
@@ -157,7 +158,8 @@ public:
 ProgramOptions* parseCommandLine(int argc, char** argv);
 
 inline ProgramOptions::ProgramOptions() 
-  : nosearch(false), nocaching(false), autoCutoff(false), autoIter(false),
+  : algorithm(0),
+    nosearch(false), nocaching(false), autoCutoff(false), autoIter(false),
     orSearch(false), par_solveLocal(false), par_preOnly(false),
     par_postOnly(false), rotate(false), 
     ibound(0), cbound(0), cbound_worker(0),

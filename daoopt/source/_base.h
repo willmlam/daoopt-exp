@@ -113,13 +113,17 @@ static boost::mutex mtx_io;
 #define OP_PLUS(X,Y) ( ( X > Y ) ? ( X + log10(1.0 + pow(10.0, Y-X ))) : ( Y + log10(1.0 +pow(10.0, X-Y ) )) )
 //#define OP_PLUS(X,Y) ( log10( pow(10.0, X ) + pow(10.0, Y ) ) )
 #define OP_MINUS(X,Y) ( ( X > Y ) ? ( X + log10(1.0 - pow(10.0, Y-X ))) : ( Y + log10(pow(10.0, X-Y ) - 1.0 )) )
+//#define OP_MINUS(X,Y) ( ( X > Y ) ? ( X + log(1.0 - exp( Y-X ))) : ( Y + log(exp( X-Y ) - 1.0 )) )
 
 
 #define ELEM_ENCODE(X) log10( X )
 #define ELEM_DECODE(X) pow(10.0, X )
+//#define ELEM_ENCODE(X) log( X )
+//#define ELEM_DECODE(X) exp( X )
 
 #define SCALE_LOG(X) ( X )
 #define SCALE_NORM(X) pow(10.0, X )
+//#define SCALE_NORM(X) exp( X )
 
 #else
 
@@ -161,6 +165,7 @@ static boost::mutex mtx_io;
 
 /* STL includes */
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <map>
 #include <list>

@@ -198,7 +198,11 @@ inline FunctionBayes::FunctionBayes(const int& id, Problem* p, const set<int>& s
 
 /* cout operator */
 inline ostream& operator << (ostream& os, const Function& f) {
-  os << 'f' << f.getId() << ':' << f.getScopeSet();
+  os << 'f' << f.getId() << ':' << f.getScopeSet() << "=( ";
+  for (size_t i = 0; i < f.getTableSize(); ++i) {
+    os << SCALE_NORM(f.getTable()[i]) << " ";
+  }
+  os << ")";
   return os;
 }
 

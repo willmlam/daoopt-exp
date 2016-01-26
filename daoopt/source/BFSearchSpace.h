@@ -6,6 +6,7 @@
 
 #include "SearchSpace.h"
 #include "BFSearchNode.h"
+#include "hash_murmur.h"
 
 #include <unordered_map>
 #include <functional>
@@ -20,7 +21,7 @@ struct BFSearchState {
   int type_;
   std::string context_;
   bool operator==(const BFSearchState& state) const {
-    return (type == state.type && context == a.context);
+    return (type_ == state.type_ && context_ == state.context_);
   }
   BFSearchState(int type, const string& context)
     : type_(type), context_(context) {}
@@ -28,65 +29,92 @@ struct BFSearchState {
 
 struct StateHasher {
   size_t operator()(const BFSearchState& state) const {
-    return hash<string>()(state.context_);
+    size_t hash = 0;
+    size_t seed = 0x9e3779b9;
+    int len = (int)state.context_.size();
+    register unsigned char* key = (unsigned char*)state.context_.c_str();
+    MurmurHash3_x64_64(key, len, seed, &hash);
+    return hash;
   }
 };
 
-using AOGraph = unordered_map<BFSearchState, BFSearchNode*, StateHasher>;
+using AOGraph = boost::unordered_map<BFSearchState, BFSearchNode*, StateHasher>;
 
-class BFSearchSpace : public SearchSpace {
+class BFSearchSpace : virtual public SearchSpace {
  public:
   void add_node(const BFSearchState& state, BFSearchNode* node);
-  bool find_node(const BFSearchState& state) const;
-  BFSearchNode* get_node(const BFSearchState& state) const;
-  void erase_node(const BFSearchState& state);
+  bool find_node(int var, const BFSearchState& state) const;
+  BFSearchNode* get_node(int var, const BFSearchState& state) const;
+  void erase_node(int var, const BFSearchState& state);
   void clear_all_nodes();
 
-  const AOGraph get_nodes() const { return nodes_; }
+  const std::vector<AOGraph>& get_nodes() const { return nodes_; }
+  std::vector<AOGraph>& get_nodes() { return nodes_; }
 
-  BFSearchSpace(Pseudotree* pt, ProgramOptions* opt);
+  void IncNodesExpanded(int node_type);
+
+  BFSearchSpace(Pseudotree* pt, ProgramOptions* opt, int size);
   virtual ~BFSearchSpace();
 
  protected:
   // Cache for nodes in explicated search space
-  AOGraph nodes_;
+  std::vector<AOGraph> nodes_;
 
  private:
   BFSearchSpace(const BFSearchSpace&);
 };
 
-inline BFSearchSpace::BFSearchSpace(Pseudotree* pt, ProgramOptions* opt) 
+inline BFSearchSpace::BFSearchSpace(Pseudotree* pt, ProgramOptions* opt,
+                                    int size) 
   : SearchSpace(pt, opt) {
+  nodes_.resize(size + 1);
+}
+
+inline BFSearchSpace::~BFSearchSpace() {
+  clear_all_nodes();
+  root = nullptr;
 }
 
 inline void BFSearchSpace::add_node(const BFSearchState& state,
     BFSearchNode* node) {
   assert(node);
-  nodes_.insert(make_pair(state, node));
+  nodes_[node->getVar()].insert(std::make_pair(state, node));
 }
 
-inline bool BFSearchSpace::find_node(const BFSearchState& state) const {
-  return ContainsKey(nodes_, state);
+inline bool BFSearchSpace::find_node(int var,
+                                     const BFSearchState& state) const {
+  return ContainsKey(nodes_[var], state);
 }
 
-inline BFSearchNode* BFSearchSpace::get_node(const BFSearchState& state) const {
-  AOGraph::iterator it = nodes_.find(state);
-  return it != nodes_.end() ? it->second : nullptr;
+inline BFSearchNode* BFSearchSpace::get_node(int var, const BFSearchState& state) const {
+  AOGraph::const_iterator it = nodes_[var].find(state);
+  return it != nodes_[var].end() ? it->second : nullptr;
 }
 
-inline void BFSearchSpace::erase(const BFSearchState& state) {
-  AOGraph::iterator it = nodes_.find(state);
-  if (it != nodes_.end()) {
+inline void BFSearchSpace::erase_node(int var, const BFSearchState& state) {
+  AOGraph::iterator it = nodes_[var].find(state);
+  if (it != nodes_[var].end()) {
     BFSearchNode* node = it->second;
-    nodes_.erase(it);
+    nodes_[var].erase(it);
     delete node;
   }
 }
 
-inline void BFSearchSpace::incNodesExpanded(int nodeType) {
-  if (nodeType == NODE_AND) {
+inline void BFSearchSpace::clear_all_nodes() {
+  for (auto& var_nodes : nodes_) {
+    for (auto& kv : var_nodes) {
+      if (kv.second) {
+        delete kv.second;
+      }
+    }
+  }
+  nodes_.clear();
+}
+
+inline void BFSearchSpace::IncNodesExpanded(int node_type) {
+  if (node_type == NODE_AND) {
     ++stats.numExpAND;
-  } else {
+  } else if (node_type == NODE_OR) {
     ++stats.numExpOR;
   }
 }

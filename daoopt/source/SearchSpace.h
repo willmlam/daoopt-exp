@@ -99,7 +99,8 @@ struct SearchStats {
 
 
 /* main search space structure for worker nodes */
-struct SearchSpace{
+class SearchSpace {
+ public:
 
   SearchNode* root;             // true root of the search space, always a dummy OR node
   SearchNode* subproblemLocal;  // pseudo root node when processing subproblem (NULL otherwise)
@@ -110,8 +111,10 @@ struct SearchSpace{
   SearchStats stats;        // keeps track of various node stats
 
   SearchNode* getTrueRoot() const;
+  SearchNode* getRoot() const { return root; }
+  void setRoot(SearchNode* node) { root = node; }
   SearchSpace(Pseudotree* pt, ProgramOptions* opt);
-  ~SearchSpace();
+  virtual ~SearchSpace();
 };
 
 

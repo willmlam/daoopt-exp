@@ -498,6 +498,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 double Search::assignCostsOR(SearchNode* n)
 {
   int v = n->getVar();
+  int old_value = m_assignment[v];
   const PseudotreeNode *node = m_pseudotree->getNode(v) ;
   int nChildren = node->getChildren().size() ;
   int vDomain = m_problem->getDomainSize(v);
@@ -558,32 +559,17 @@ double Search::assignCostsOR(SearchNode* n)
         h = dv[2*i]; // keep max. for OR node heuristic
 
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
-	// store h of each subproblem
-	int idxSubPH_End = idxSubPH_ + nChildren ; j = 0 ;
-	for (; idxSubPH_ < idxSubPH_End ; idxSubPH_++, j++) 
-		dv[idxSubPH_] = subprobH[j] ;
+    // store h of each subproblem
+    int idxSubPH_End = idxSubPH_ + nChildren ; j = 0 ;
+    for (; idxSubPH_ < idxSubPH_End ; idxSubPH_++, j++) 
+      dv[idxSubPH_] = subprobH[j] ;
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   }
 #endif
 
-  /*
-  map<int,val_t> temp_assign_map;
-  for (uint32 i = 0; i < m_assignment.size(); ++i) {
-    if (m_assignment[i] != NONE) {
-      temp_assign_map[i] = m_assignment[i];
-    }
-  }
-
-  cout << "Assignment[" << temp_assign_map.size() << "] " << temp_assign_map << endl;
-  cout << "H:" ;
-  for (int i = 0; i < m_problem->getDomainSize(v); ++i) {
-    cout << " " << dv[2*i]; 
-  }
-  cout << endl;
-  */
-
   n->setHeur(h);
   n->setHeurCache(dv);
+  m_assignment[v] = old_value;
 
   return h;
 

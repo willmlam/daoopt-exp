@@ -9,6 +9,9 @@ class BFSearchNode;
 
 class BFSearchNode : public SearchNode {
  public:
+  BFSearchNode(SearchNode* parent);
+  ~BFSearchNode();
+
   inline double get_heur_updated() const {
     return heur_updated_;
   }
@@ -36,7 +39,7 @@ class BFSearchNode : public SearchNode {
     --index_;
   }
 
-  inline std::vector<BFSearchNode*>& get_parents() const {
+  inline const std::list<BFSearchNode*>& get_parents() const {
     return parents_;
   }
   inline void add_parent(BFSearchNode* node) {
@@ -54,7 +57,7 @@ class BFSearchNode : public SearchNode {
     return false;
   }
 
-  inline std::vector<BFSearchNode*>& get_children() const {
+  inline const std::list<BFSearchNode*>& get_children() const {
     return children_;
   }
   inline void add_child(BFSearchNode* node) {
@@ -80,13 +83,6 @@ class BFSearchNode : public SearchNode {
   }
   inline void set_hash_key(size_t hash_key) {
     hash_key_ = hash_key;
-  }
-
-  inline bool is_fringe() const {
-    return is_fringe_;
-  }
-  inline void set_fringe(bool flag) {
-    is_fringe_ = flag;
   }
 
   inline bool is_fringe() const {
@@ -137,6 +133,14 @@ class BFSearchNode : public SearchNode {
   inline void set_deadend(bool flag) {
     is_deadend_ = flag;
   }
+
+  virtual void setWeight(int val, double w) = 0;
+  virtual double getWeight(int val) const = 0;
+
+  virtual int getVar() const { return var_; }
+  virtual int getDepth() const { return depth_; }
+
+  virtual std::string ToString() = 0;
  protected:
   // Various flags to indicate the status of the node.
   bool is_fringe_;
@@ -153,6 +157,10 @@ class BFSearchNode : public SearchNode {
   std::list<BFSearchNode*> parents_;
   std::list<BFSearchNode*> children_;
 
+  int var_;
+
+  int depth_;
+
   int index_;
   BFSearchNode* current_parent_;
 
@@ -161,34 +169,38 @@ class BFSearchNode : public SearchNode {
 
 class BFSearchNodeAND : public BFSearchNode {
  public:
-  BFSearchNodeAND(int var, int val, int depth);
+  BFSearchNodeAND(SearchNode* parent, int var, int val, int depth);
   ~BFSearchNodeAND();
 
   inline int getType() const {
     return NODE_AND;
   }
-  inline int getVar() const {
-    assert(current_parent_);
-    return current_parent_->getVar();
-  }
+
   inline val_t getVal() const {
     return val_;
   }
-  inline int getValue() const {
+  inline double getValue() const {
     return m_nodeValue;
   }
-  inline int setValue(double value) {
+  inline void setValue(double value) {
     m_nodeValue = value;
   }
 
-  inline int getDepth() const {
-    assert(current_parent_);
-    return current_parent_->getDepth();
-  }
+  std::string ToString();
 
   /* empty, but required implementations */
+  void setWeight(int val, double w) { assert(false); }
+  double getWeight(int val) const { assert(false); return 0; }
+  double getLabel() const { assert(false); return 0; } // no label for OR nodes!
+  void addSubSolved(double d) { assert(false); } // not applicable for OR nodes
+  double getSubSolved() const { assert(false); return 0; } // not applicable for OR nodes
+  void setInitialBound(double d) { assert(false); }
+  double getInitialBound() const { assert(false); return 0; }
+  void setComplexityEstimate(double d) { assert(false); }
+  double getComplexityEstimate() const { assert(false); return 0; }
+
   void setCacheContext(const context_t& c) { }
-  const context_t& getCacheContext() const { return empty_context_; }
+  const context_t& getCacheContext() const { return SearchNode::emptyCtxt; }
   void setCacheInst(size_t i) { }
   size_t getCacheInst() const { return 0; }
   void getPST(vector<double>& v) const { }
@@ -197,37 +209,53 @@ class BFSearchNodeAND : public BFSearchNode {
   void clearHeurCache() { }
 
   void set_best_child(BFSearchNode* node) { }
-  BFSearchNode* get_best_child(BFSearchNode* node) { }
+  BFSearchNode* get_best_child() { }
 
  protected:
   val_t val_;
-  static context_t empty_context_;
 };
 
 class BFSearchNodeOR : public BFSearchNode {
  public:
-  BFSearchNodeOR(int var, int depth);
+  BFSearchNodeOR(SearchNode* parent, int var, int depth);
   ~BFSearchNodeOR();
+
+  double getLabel() const { assert(false); return 0; } // no label for OR nodes!
+  void addSubSolved(double d) { assert(false); } // not applicable for OR nodes
+  double getSubSolved() const { assert(false); return 0; } // not applicable for OR nodes
+
+  void setCacheContext(const context_t& t) { assert(false); }
+  const context_t& getCacheContext() const {
+    assert(false); return emptyCtxt;
+  }
+  void setCacheInst(size_t i) { assert(false); }
+  size_t getCacheInst() const { assert(false); return 0; }
+  void setInitialBound(double d) { assert(false); }
+  double getInitialBound() const { assert(false); return 0; }
+  void setComplexityEstimate(double d) { assert(false); }
+  double getComplexityEstimate() const { assert(false); return 0; }
+  void getPST(vector<double>& pst) const { assert(false); }
+
   int getType() const {
     return NODE_OR;
   }
-  int getVar() const {
-    return var_;
-  }
+
   val_t getVal() const { return NONE; } // "empty" implementation
 
-  inline int getValue() const {
+  std::string ToString();
+
+  inline double getValue() const {
     return m_nodeValue;
   }
-  inline int setValue(double value) {
+  inline void setValue(double value) {
     m_nodeValue = value;
   }
 
-  inline double getLabel(int val) const {
+  inline double getWeight(int val) const {
     assert(heur_cache_);
     return heur_cache_[2*val+1];
   }
-  inline void setLabel(int val, double w) {
+  inline void setWeight(int val, double w) {
     assert(heur_cache_);
     heur_cache_[2*val+1] = w;
   }
@@ -235,7 +263,7 @@ class BFSearchNodeOR : public BFSearchNode {
   inline double* getHeurCache() const {
     return heur_cache_;
   }
-  inline void setHeurCache(double* heur_cache) const {
+  inline void setHeurCache(double* heur_cache) {
     heur_cache_ = heur_cache;
   }
   inline void clearHeurCache() {
@@ -249,26 +277,74 @@ class BFSearchNodeOR : public BFSearchNode {
     best_child_ = node;
   }
 
-  int getDepth() const {
-    return m_depth;
-  }
  protected:
-  int var_;
 
   double* heur_cache_;
   BFSearchNode* best_child_;
+
 };
 
-inline BFSearchNode::BFSearchNode() 
-  : m_flags(0),
-  m_depth(NONE),
-  m_nodeValue(ELEM_NAN),
-  m_heurValue(ELEM_NAN),
-  heur_updated_(ELEM_NAN),
-  var_(NONE),
-  index_(NONE),
-  current_parent_(nullptr),
-  hash_key_(0) {
+inline BFSearchNode::BFSearchNode(SearchNode* parent) 
+  : SearchNode(parent),
+    is_fringe_(false),
+    is_solved_(false),
+    is_lookahead_(false),
+    is_terminal_(false),
+    is_expanded_(false),
+    is_visited_(false),
+    is_deadend_(false),
+    heur_updated_(ELEM_NAN),
+    var_(NONE),
+    index_(0),
+    current_parent_(nullptr),
+    hash_key_(0) {
+}
+
+inline std::string BFSearchNodeAND::ToString() {
+  std::ostringstream oss;
+  oss << "AND node: (x" << getVar() << "," << getVal() << ")"
+      << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
+      << ", q = " << (getValue() == 0 ? 0 : -getValue())
+      << ", ub = inf" 
+      << ", depth = " << getDepth();
+  oss << ", children { ";
+  for (BFSearchNode* c : get_children()) {
+    int var = (int) c->getVar();
+    oss << var << ":" << (c->getHeur() == 0 ? 0 : -c->getHeur()) << " ";
+  }
+
+  oss << "}";
+  oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
+  oss << ", solved = " << (is_solved() ? "YES" : "NO");
+
+  return oss.str();
+}
+
+inline std::string BFSearchNodeOR::ToString() {
+  std::ostringstream oss;
+  oss << "OR node: (x" << getVar() << ")"
+      << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
+      << ", q = " << (getValue() == 0 ? 0 : -getValue())
+      << ", ub = inf" 
+      << ", depth = " << getDepth()
+      << ", weights { ";
+  for (BFSearchNode* c : get_children()) {
+    int val = (int) c->getVal();
+    oss << val << ":" << -getWeight(val) << " ";
+  }
+
+  oss << "}, children { ";
+  for (BFSearchNode* c : get_children()) {
+    int val = (int) c->getVal();
+    oss << val << ":" << (c->getHeur() == 0 ? 0 : -c->getHeur()) << " ";
+  }
+
+  oss << "}";
+  oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
+  oss << ", solved = " << (is_solved() ? "YES" : "NO");
+  oss << ", looked = " << (is_lookahead() ? "YES" : "NO");
+
+  return oss.str();
 }
 
 inline BFSearchNode::~BFSearchNode() {
@@ -276,15 +352,24 @@ inline BFSearchNode::~BFSearchNode() {
   children_.clear();
 }
 
-inline BFSearchNodeAND::BFSearchNodeAND(int var, int val)
-  : BFSearchNode(), var_(var), val_(val) {
+inline BFSearchNodeAND::BFSearchNodeAND(SearchNode* parent, int var, int val,
+                                        int depth)
+  : BFSearchNode(parent) {
+  var_ = var;
+  val_ = val;
+  depth_ = depth;
 }
 
 inline BFSearchNodeAND::~BFSearchNodeAND() {
 }
 
-inline BFSearchNodeOR::BFSearchNodeOR(int var, int depth)
-  : BFSearchNode(), var_(var), m_depth(depth) {
+
+inline BFSearchNodeOR::BFSearchNodeOR(SearchNode* parent, int var, int depth)
+  : BFSearchNode(parent) {
+  var_ = var;
+  depth_ = depth;
+  best_child_ = nullptr;
+  heur_cache_ = nullptr;
 }
 
 inline BFSearchNodeOR::~BFSearchNodeOR() {

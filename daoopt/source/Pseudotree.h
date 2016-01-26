@@ -216,6 +216,8 @@ protected:
   vector<Function*> m_functions; // The functions that will be fully instantiated at this point
   vector<PseudotreeNode*> m_children; // The node's children
 
+  double m_orderingHeuristic; // Used to order subproblems based on some metric
+
 public:
 
   void setParent(PseudotreeNode* p) { m_parent = p; }
@@ -257,6 +259,9 @@ public:
   const vector<int>& getSubprobVars() const { return m_subproblemVars; }
   const vector<int>& getSubprobVarMap() const { return m_subproblemVarMap; }
   void setSubprobVarMap(const vector<int>& map) { m_subproblemVarMap = map; }
+
+  void setOrderingHeuristic(double h) { m_orderingHeuristic = h; }
+  double getOrderingHeuristic() const { return m_orderingHeuristic; }
 
 public:
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
@@ -392,7 +397,9 @@ inline PseudotreeNode::PseudotreeNode(Pseudotree* t, int v, const set<int>& s) :
   m_domain(UNKNOWN), m_var(v), m_depth(UNKNOWN), m_subHeight(UNKNOWN), m_parent(NULL), m_tree(t),
   //m_complexity(NULL),
   m_subprobStats(NULL),
-  m_contextS(s), m_contextV(s.begin(), s.end())
+  m_contextS(s),
+  m_orderingHeuristic(0.0),
+  m_contextV(s.begin(), s.end())
 {
   m_subprobStats = new SubprobStats();
 }

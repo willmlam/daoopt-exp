@@ -1508,7 +1508,10 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
           count_zero, count_lteps, count_gteps);
   }
 
-
+  // Write bucket error as ordering heuristic
+  for (unsigned int i = 0; i < m_problem->getN(); ++i) {
+    m_pseudotree->getNode(i)->setOrderingHeuristic(_BucketError_Rel[i]);
+  }
 	return 0;
 }
 

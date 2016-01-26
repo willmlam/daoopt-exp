@@ -14,7 +14,7 @@ add_subdirectory(lib)
 
 # Main daoopt source files
 add_library(daoopt OBJECT
-  #  ./source/BestFirst.cpp
+  ./source/BestFirst.cpp
   ./source/BoundPropagator.cpp
   ./source/BoundPropagatorMaster.cpp
   ./source/BranchAndBound.cpp
@@ -28,6 +28,7 @@ add_library(daoopt OBJECT
   ./source/FGLPMBEHybrid.cpp
   ./source/Function.cpp
   ./source/Graph.cpp
+  ./source/hash_murmur.cpp
   ./source/LearningEngine.cpp
   ./source/LimitedDiscrepancy.cpp
   ./source/Main.cpp

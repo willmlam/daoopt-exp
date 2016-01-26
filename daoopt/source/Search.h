@@ -154,7 +154,7 @@ public:
 protected:
 
   /* initializes the search space, returns the first node to process */
-  SearchNode* initSearch();
+  virtual SearchNode* initSearch();
 
   /* returns the next search node for processing (top of stack/queue/etc.) */
   virtual SearchNode* nextNode() = 0;

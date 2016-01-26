@@ -55,12 +55,14 @@ double MiniBucketElim::getHeur(int var, vector<val_t>& assignment, SearchNode* n
 
 	// go over augmented and intermediate lists and combine all values
 	vector<Function*>::const_iterator itF = m_augmented[var].begin();
-	for (; itF!=m_augmented[var].end(); ++itF) 
+	for (; itF!=m_augmented[var].end(); ++itF) {
 		h OP_TIMESEQ (*itF)->getValue(assignment);
+  }
 
 	itF = m_intermediate[var].begin();
-	for (; itF!=m_intermediate[var].end(); ++itF) 
+	for (; itF!=m_intermediate[var].end(); ++itF) {
 		h OP_TIMESEQ (*itF)->getValue(assignment);
+  }
 
 	return h;
 }

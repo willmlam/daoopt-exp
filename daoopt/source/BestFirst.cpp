@@ -1,62 +1,67 @@
 #include "BestFirst.h"
 #include "BFSearchSpace.h"
 
+#undef DEBUG
+
 namespace daoopt {
+
 
 bool BestFirst::solve(size_t nodeLimit) {
   // for when BestFirst search runs out of memory
   // allocate 64K memory.
   char* emergency_memory = new char[65536]; 
 
+  bool solved = false;
+
   // Initial best-first search phase
   try {
-    m_solved = AOStar();
+    solved = AOStar();
   } catch (std::bad_alloc& ba_exception) {
     delete [] emergency_memory;
+    emergency_memory = nullptr;
     best_first_limit_reached_ = true;
-    m_solved = false;
+    solved = false;
   } catch (...) {
     std::cout << "Non bad alloc error?" << std::endl;
-    m_solved = false;
+    solved = false;
   }
 
-  // If the problem is not already solved, use AOBB the rest of the way
-  // (would have returned earlier)
+  // TODO(lamw): If the problem is not already solved, use AOBB the rest of
+  // the way (would have returned earlier)
 
   if (emergency_memory) delete[] emergency_memory;
 
-  return m_solved;
-
+  return solved;
 }
 
 bool BestFirst::AOStar() {
-  int var_root = m_pseudotree->getRoot()->getVar();
-  double h = ELEM_ENCODE(m_heuristic->getGlobalUB());
-  double w = 0.0;
+  BFSearchNode* root = dynamic_cast<BFSearchNode*>(search_space_->getRoot());
+  double h = m_heuristic->getGlobalUB();
+  double w = ELEM_ONE;
   double* dv = new double[2];
   dv[0] = h;
   dv[1] = w;
 
-  BFSearchNode* root = new BFSearchNodeOR(var_root, 0);
   root->setHeur(h);
   root->setValue(h);
-  root->setHeurCache(dv);
   root->set_terminal(false);
   root->set_fringe(true);
+  root->setHeurCache(dv);
 
-  BFSearchState state(NODE_OR, "s-2");
-  search_space_->setRoot(root);
-  search_space_->add_node(state, root);
-  tip_nodes_.push_back(root);
+  heuristic_bound_ = h;
+
   while(!root->is_solved()) {
     assert(tip_nodes_.size() > 0);
-    BFSearchNode* n = *tip_nodes_.begin();
+    ArrangeTipNodes();
+    BFSearchNode* n = ChooseTipNode();
     ExpandAndRevise(n);
   }
 
   if (root->is_solved()) {
-    m_solutionCost = root->getValue();
+    solution_cost_ = root->getValue();
+    m_problem->updateSolution(solution_cost_, &(search_space_->stats));
   }
+
   return true;
 }
 
@@ -64,41 +69,64 @@ void BestFirst::ExpandAndRevise(BFSearchNode* node) {
   assert(node->is_fringe() && !node->is_solved());
   Expand(node);
 
-  // Revise
-  std::multiset<BFSearchNode*> revise_set;
+#ifdef DEBUG
+  cout << "Expanded " << node->ToString() << endl;
+#endif
 
-  s.insert(node);
+  // Revise
+  std::multiset<BFSearchNode*, CompNodeIndexAsc> revise_set;
+
+  revise_set.insert(node);
   node->set_visited(true);
 
   while (!revise_set.empty()) {
     BFSearchNode *e = *revise_set.begin();
     revise_set.erase(revise_set.begin());
     e->set_visited(false);
+
+    assert(e->get_index() == 0);
     bool change = Revise(e);
 
+#ifdef DEBUG
+    cout << "Revised " << e->ToString() << (change ? " (changed)" : "") << endl;
+#endif
+    
     if (change) {
+      // Step 12 Nilssons
       if (e->getType() == NODE_AND) {
-        for (BFSearchNode* parent : e->get_parents()) {
-          size_t index = 0;
-          BFSearchNode* best = parent->get_best_child();
-          bool found = (best == e);
-
-          for (BFSearchNode* child : p->get_children) {
-            if (child->is_visited()) {
-              ++index;
+        assert(e->get_parents().size() == 1);
+        BFSearchNode* parent = e->get_parents().front();
+        
+        // Count children of e still in the revise_set
+        // The index will place this node later the more children there are.
+        size_t index = 0;
+        for (BFSearchNode* child : parent->get_children()) {
+          if (child->is_visited()) {
+            ++index;
+          }
+        }
+        BFSearchNode* best = parent->get_best_child();
+        bool found = (best == e); // Is 'e' the marked AND child of the parent?
+        if (parent->is_visited()) {
+          // decrease parent index and replace
+          auto si = revise_set.begin();
+          for (; si != revise_set.end(); ++si) {
+            if (parent == *si) {
+              if (parent->get_index() > 0) {
+                revise_set.erase(si);
+                parent->decrement_index();
+                revise_set.insert(parent);
+              }
+              break;
             }
           }
-
-          if (parent->is_visited()) {
-            revise_set.erase(parent);
-            parent->decrement_index();
-          } else if (found) {
-            parent->set_index(index);
-            parent->set_visited(true);
-          }
+        } else if (found) {
+          parent->set_index(index);
+          parent->set_visited(true);
           revise_set.insert(parent);
         }
-      } else {
+      } else if (e->getType() == NODE_OR) {
+        // Multiple parents in the CMAO graph.
         for (BFSearchNode* parent : e->get_parents()) {
           size_t index = 0;
           for (BFSearchNode* child : parent->get_children()) {
@@ -106,18 +134,42 @@ void BestFirst::ExpandAndRevise(BFSearchNode* node) {
               ++index;
             }
           }
-          parent->set_index(index);
-          parent->set_visited(true);
-          revise_set.insert(parent);
+
+          if (parent->is_visited()) {
+            auto si = revise_set.begin();
+            for (; si != revise_set.end(); ++si) {
+              if (parent == *si) {
+                if (parent->get_index() > 0) {
+                  revise_set.erase(si);
+                  parent->decrement_index();
+                  revise_set.insert(parent);
+                }
+                break;
+              }
+            }
+          } else {
+            parent->set_index(index);
+            parent->set_visited(true);
+            revise_set.insert(parent);
+          }
         }
       }
     } else {
+      assert(e->getType() != NODE_AND || e->get_parents().size() == 1);
       for (BFSearchNode* parent : e->get_parents()) {
         if (parent->is_visited()) {
-          revise_set.erase(parent);
-          parent->decrease_index();
-          revise_set.insert(parent);
-        }
+          auto si = revise_set.begin();
+          for (; si != revise_set.end(); ++si) {
+            if (parent == *si) {
+              if (parent->get_index() > 0) {
+                revise_set.erase(si);
+                parent->decrement_index();
+                revise_set.insert(parent);
+              }
+              break;
+            }
+          }
+        } 
       }
     }
   }
@@ -126,7 +178,8 @@ void BestFirst::ExpandAndRevise(BFSearchNode* node) {
   tip_nodes_.clear();
   FindBestPartialTree();
 
-  assert(search_space_->getRoot()->isSolved() || tip_nodes_.size() > 0);
+  assert(dynamic_cast<BFSearchNode*>(search_space_->getRoot())->is_solved() ||
+         tip_nodes_.size() > 0);
 }
 
 void BestFirst::Expand(BFSearchNode* node) {
@@ -134,65 +187,73 @@ void BestFirst::Expand(BFSearchNode* node) {
   int var = node->getVar();
   int depth = node->getDepth();
   PseudotreeNode* pt_node = m_pseudotree->getNode(var);
-  if (node->getType == NODE_AND) {
+  if (node->getType() == NODE_AND) {
     const std::vector<PseudotreeNode*>& children = pt_node->getChildren();
     for (PseudotreeNode* ch : children) {
       int var_child = ch->getVar();
-      BFSearchNodeOR* c = new BFSearchNodeOR(var_child, depth + 1);
+      PseudotreeNode* pt_child = m_pseudotree->getNode(var_child);
+      std::string str = Context(NODE_OR, pt_child->getFullContext());
+      BFSearchState state(NODE_OR, str);
+
+#ifdef DEBUG
+      cout << var_child << " OR context: " << str.c_str() << endl;
+      cout << pt_node->getFullContext() << endl;
+      cout.flush();
+#endif
+
+      BFSearchNodeOR* c;
+      if (search_space_->find_node(var_child, state)) {
+        c = (BFSearchNodeOR*) search_space_->get_node(var_child, state);
+      } else {
+        c = new BFSearchNodeOR(node, var_child, depth + 1);
+        double h = assignCostsOR(c);
+        c->setHeur(h);
+        c->setValue(h);
+
+        search_space_->add_node(state, c);
+      }
       c->add_parent(node);
       node->add_child(c);
-
-      int old_value = m_assignment[c->getVar()];
-      h = assignCostsOR(c);
-      m_assignment[c->getVar] = old_value;
-      
-      c->setHeur(h);
-      c->setValue(h);
-
-      std::string str = Context(var_child, NONE, pt_node->getFullContext());
-      BFSearchState state(NODE_OR, str);
-      search_space_->add_node(state, c);
       no_children = false;
     }
 
     node->set_expanded(true);
     node->set_fringe(false);
     node->set_terminal(children.empty());
-    search_space_->incNodesExpanded(NODE_AND);
+    search_space_->IncNodesExpanded(NODE_AND);
   } else {
+    assert(node->getHeurCache());
     for (int val = 0; val < m_problem->getDomainSize(var); ++val) {
-      std::string str = Context(var, val, pt_node->getAndContext());
-      BFSearchState(NODE_AND, str);
-      if (search_space_->find_node(state)) {
-        BFSearchNodeAND* c = (BFSearchNodeAND*) search_space_->get(state);
-        node->add_child(c);
-        c->add_parent(node);
-      } else {
-        BFSearchNodeAND* c = new BFSearchNodeAND(var, val, depth + 1);
-        node->add_child(c);
-        c->add_parent(node);
-        double* heur_cache = node->getHeurCache();
-        double h = heur_cache[2 * val];
-        double w = heur_cache[2 * val + 1];
-        c->setHeur(h - w);
-        c->setValue(h - w);
-        search_space_->add_node(state, c);
-      }
+      std::string str = Context(NODE_AND, pt_node->getFullContext());
+      BFSearchState state(NODE_AND, str);
+      BFSearchNodeAND* c = new BFSearchNodeAND(node, var, val, depth + 1);
+      node->add_child(c);
+      c->add_parent(node);
+      double* heur_cache = node->getHeurCache();
+      double h = heur_cache[2 * val];
+      double w = heur_cache[2 * val + 1];
+      c->setHeur(h - w);
+      c->setValue(h - w);
+      search_space_->add_node(state, c);
+
       no_children = false;
     }
     node->set_expanded(true);
     node->set_fringe(false);
     node->set_terminal(false);
-    search_space_->incNodesExpanded(NODE_OR);
+    search_space_->IncNodesExpanded(NODE_OR);
   }
   return no_children;
 }
 
 bool BestFirst::Revise(BFSearchNode* node) {
+  assert(node);
+
   bool change = true;
+  bool tightening_threshold_reached = false;
   if (node->getType() == NODE_AND) {
     if (node->is_terminal()) {
-      node->setValue(0.0);
+      node->setValue(ELEM_ONE);
       node->set_solved(true);
       node->set_fringe(false);
 
@@ -200,10 +261,10 @@ bool BestFirst::Revise(BFSearchNode* node) {
     } else {
       double old_value = node->getValue();
       bool solved = true;
-      double q_value = 0.0;
+      double q_value = ELEM_ONE;
       for (BFSearchNode* child : node->get_children()) {
-        solved &= child->is_solved();
-        q_value += child->getValue();
+        solved = solved && child->is_solved();
+        q_value OP_TIMESEQ child->getValue();
       }
 
       node->setValue(q_value);
@@ -211,19 +272,20 @@ bool BestFirst::Revise(BFSearchNode* node) {
         node->set_solved(true);
         node->set_fringe(false);
       }
+
       change = solved || q_value != old_value;
     }
-  } else {
+  } else if (node->getType() == NODE_OR) {
     double old_value = node->getValue();
-    double q_value = std::numeric_limits<double>::max();
+    double q_value = -std::numeric_limits<double>::infinity();
     BFSearchNode* best = nullptr;
     
     for (BFSearchNode* child : node->get_children()) {
       int val = child->getVal();
       double w = node->getWeight(val);
-      double q = w + child->getValue();
+      double q = w OP_TIMES child->getValue();
 
-      if (q + 1e-15 < q_value) {
+      if (q > q_value) {
         q_value = q;
         best = child;
       } else if (q == q_value) {
@@ -243,7 +305,14 @@ bool BestFirst::Revise(BFSearchNode* node) {
       node->set_fringe(false);
     }
     change = solved || q_value != old_value;
+    if (change && node == search_space_->getRoot()) {
+      if (heuristic_bound_ - q_value > 1e-5) {
+        heuristic_bound_ = q_value;
+        m_problem->updateUpperBound(heuristic_bound_, &(search_space_->stats));
+      }
+    }
   }
+
   return change;
 }
 
@@ -256,7 +325,7 @@ bool BestFirst::FindBestPartialTree() {
   dfs_stack.push(root);
   while (!dfs_stack.empty()) {
     BFSearchNode* e = dfs_stack.top();
-    s.pop();
+    dfs_stack.pop();
 
     if (e->getType() == NODE_AND) {
       int var = e->getVar();
@@ -266,8 +335,8 @@ bool BestFirst::FindBestPartialTree() {
       if (!e->get_children().empty()) {
         for (BFSearchNode* child : e->get_children()) {
           child->set_current_parent(e);
-          if (!c->is_solved()) {
-            dfs_stack.push(c);
+          if (!child->is_solved()) {
+            dfs_stack.push(child);
           }
         }
       } else {
@@ -289,18 +358,26 @@ bool BestFirst::FindBestPartialTree() {
   return !tip_nodes_.empty();
 }
 
-void BestFirst::Context(int var, int val, const std::set<int>& ctxt) {
+void BestFirst::ArrangeTipNodes() {
+  std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeOrderingHeurDescFn);
+}
+
+BFSearchNode* BestFirst::ChooseTipNode() {
+  if (!tip_nodes_.empty()) {
+    return *tip_nodes_.begin();
+  } else {
+    return nullptr;
+  }
+}
+
+std::string BestFirst::Context(int node_type, const std::set<int>& ctxt) {
   std::ostringstream oss;
-  if (ctxt.empty() || val == NONE) {
-    oss << "s" << m_globalSearchIndex++;
+  if (ctxt.empty() || node_type == NODE_AND) {
+    oss << "s" << global_search_index_++;
   } else {
     for (int cvar : ctxt) {
-      if (cvar == var) {
-        oss << "x" << var << "=" << val << ";";
-      } else {
-        assert(m_assignment[cvar] != UNKNOWN);
-        oss << "x" << cvar << "=" << m_assignment[cvar] << ";";
-      }
+      assert(m_assignment[cvar] != UNKNOWN);
+      oss << "x" << cvar << "=" << m_assignment[cvar] << ";";
     }
   }
   return oss.str();
@@ -308,7 +385,48 @@ void BestFirst::Context(int var, int val, const std::set<int>& ctxt) {
 
 
 void BestFirst::reset(SearchNode* p) {
-  
+  search_space_->clear_all_nodes();
+}
+
+SearchNode* BestFirst::initSearch() {
+  reset(nullptr);
+  int var_root = m_pseudotree->getRoot()->getVar();
+
+  BFSearchNode* root = new BFSearchNodeOR(nullptr, var_root, 0);
+  root->set_terminal(false);
+  root->set_fringe(true);
+
+  BFSearchState state(NODE_OR, "s-2");
+  search_space_->setRoot(root);
+  search_space_->add_node(state, root);
+  tip_nodes_.push_back(root);
+  return root;
+}
+
+
+// Empty implementations for unused functions.
+bool BestFirst::doCompleteProcessing(SearchNode* n) {
+  assert(false);
+  return false;
+}
+
+bool BestFirst::doExpand(SearchNode* n) {
+  assert(false);
+  return false;
+}
+
+SearchNode* BestFirst::nextNode() {
+  assert(false);
+  return nullptr;
+}
+
+BestFirst::BestFirst(Problem* p, Pseudotree* pt, SearchSpace* space,
+                     Heuristic* heur, BoundPropagator* prop,
+                     ProgramOptions* po)
+: Search(p, pt, space, heur, prop, po), global_search_index_(0) {
+  search_space_ = dynamic_cast<BFSearchSpace*>(space);
+  this->initSearch();
+  CompNodeOrderingHeurDescFn = CompNodeOrderingHeurDesc(pt);
 }
 
 }  // namespace daoopt

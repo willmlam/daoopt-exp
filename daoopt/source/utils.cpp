@@ -35,7 +35,9 @@ void myprint(std::string s) {
   double T = duration_cast<duration<double>>(now - _time_start).count();
   {
     GETLOCK(mtx_io, lk);
-    std::cout << '[' << (int)T << "] " << s << std::flush;
+    std::cout << setprecision(4) << setiosflags(ios::fixed);
+    std::cout << '[' << T << "] " << s << std::flush;
+    std::cout << resetiosflags(ios::fixed);
   }
 }
 
@@ -111,12 +113,9 @@ ostream& operator <<(ostream& os, const vector<int*>& s) {
 }
 
 ostream& operator <<(ostream& os, const set<int>& s) {
-  os << '{';
-  for (set<int>::const_iterator it = s.begin(); it != s.end(); ) {
-    os << *it;
-    if (++it != s.end()) os << ',';
-  }
-  os << '}';
+  os << "[ ";
+  std::copy(s.begin(), s.end(), std::ostream_iterator<int>(os, " "));
+  os << "]";
   return os;
 }
 

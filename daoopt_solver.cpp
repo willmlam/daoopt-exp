@@ -31,6 +31,8 @@ DEFINE_string(evid_file, "", "path to evidence file (optional)");
 DEFINE_string(ordering_file, "",
               "read elimination ordering from this file (first to last), or"
               "write elimination ordering to this file if it does not exist");
+DEFINE_string(algorithm, "aobb", "search algorithm to use (aobb,aobf)");
+
 DEFINE_bool(adaptive, false, "enable adaptive ordering scheme");
 DEFINE_int32(max_time, kint32max, "timeout threshold in seconds");
 DEFINE_string(minibucket_file, "", "path to read/store minibucket heuristic");
@@ -169,7 +171,16 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
 
     if (FLAGS_input_file.empty()) {
       cout << "No input file given." << endl;
-      return NULL;
+      return false;
+    }
+
+    if (FLAGS_algorithm == "aobb") {
+      opt->algorithm = 0;
+    } else if (FLAGS_algorithm == "aobf") {
+      opt->algorithm = 1;
+    } else {
+      cout << "Invalid search algorithm specified." << endl;
+      return false;
     }
 
     opt->in_problemFile = FLAGS_input_file;
