@@ -60,6 +60,21 @@ class BestFirst : virtual public Search {
         ->getOrderingHeuristic();
       double y_ordering_heur = pt_->getNode(y->getVar())
         ->getOrderingHeuristic();
+      return x_ordering_heur > y_ordering_heur;
+    }
+    Pseudotree* pt_;
+  };
+
+  std::function<bool(const BFSearchNode*,
+                     const BFSearchNode*)> CompNodeOrderingHeurDescFn;
+
+  struct CompNodeOrderingHeurDesc2 {
+    CompNodeOrderingHeurDesc2(Pseudotree* pt) : pt_(pt) { }
+    bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
+      double x_ordering_heur = pt_->getNode(x->getVar())
+        ->getOrderingHeuristic();
+      double y_ordering_heur = pt_->getNode(y->getVar())
+        ->getOrderingHeuristic();
       // use decreasing heuristic of original if tied
       if (x_ordering_heur == y_ordering_heur) {
         return x->getHeur() > y->getHeur();
@@ -71,7 +86,7 @@ class BestFirst : virtual public Search {
   };
 
   std::function<bool(const BFSearchNode*,
-                     const BFSearchNode*)> CompNodeOrderingHeurDescFn;
+                     const BFSearchNode*)> CompNodeOrderingHeurDescFn2;
 
   void reset(SearchNode* p);
   SearchNode* nextNode();

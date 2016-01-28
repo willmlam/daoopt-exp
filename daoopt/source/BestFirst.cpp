@@ -202,7 +202,7 @@ void BestFirst::Expand(BFSearchNode* node) {
 #endif
 
       BFSearchNodeOR* c;
-      if (search_space_->find_node(var_child, state)) {
+      if (!m_options->nocaching && search_space_->find_node(var_child, state)) {
         c = (BFSearchNodeOR*) search_space_->get_node(var_child, state);
       } else {
         c = new BFSearchNodeOR(node, var_child, depth + 1);
@@ -359,7 +359,15 @@ bool BestFirst::FindBestPartialTree() {
 }
 
 void BestFirst::ArrangeTipNodes() {
-  std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeOrderingHeurDescFn);
+  string ordering = m_options->aobf_subordering;
+  if (ordering == "be_desc") {
+    std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeOrderingHeurDescFn);
+  } else if (ordering == "be_desc+") {
+    std::sort(tip_nodes_.begin(), tip_nodes_.end(),
+        CompNodeOrderingHeurDescFn2);
+  } else {
+    std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeHeurDesc());
+  }
 }
 
 BFSearchNode* BestFirst::ChooseTipNode() {
@@ -427,6 +435,7 @@ BestFirst::BestFirst(Problem* p, Pseudotree* pt, SearchSpace* space,
   search_space_ = dynamic_cast<BFSearchSpace*>(space);
   this->initSearch();
   CompNodeOrderingHeurDescFn = CompNodeOrderingHeurDesc(pt);
+  CompNodeOrderingHeurDescFn2 = CompNodeOrderingHeurDesc2(pt);
 }
 
 }  // namespace daoopt

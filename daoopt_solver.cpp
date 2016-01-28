@@ -152,6 +152,9 @@ DEFINE_bool(do_heuristic_prop, false,
             "do heuristic upper bound propagation and output anytime upper "
             "bounds");
 
+DEFINE_string(aobf_subordering, "", "subproblem ordering for AOBF (default: "
+    "descending heuristic, options: be_desc, be_desc+");
+
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 DEFINE_string(supplemental_log_file, "", "path to supplmental log file");
 
@@ -279,6 +282,8 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
     opt->perturb = FLAGS_zero_perturb;
 
     opt->out_pstFile = FLAGS_pst_file;
+
+    opt->aobf_subordering = FLAGS_aobf_subordering;
 
     if (FLAGS_supplemental_log_file != "") {
       opt->_fpLogFile = fopen(FLAGS_supplemental_log_file.c_str(), "w");

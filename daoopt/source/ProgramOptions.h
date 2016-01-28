@@ -119,6 +119,9 @@ public:
   // Heuristic upper bound propagation
   bool prop_heuristic; // do upper bound propagation.
 
+  // AOBF options
+  string aobf_subordering; // subproblem ordering heuristic (heur_desc, be_desc, be_desc+)
+
   // Added to allow program to terminate itself.
   int maxTime; // timeout threshold (seconds)
 
