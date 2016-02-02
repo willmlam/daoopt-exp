@@ -126,6 +126,10 @@ bool Main::loadProblem() {
   if (!m_problem->parseUAI(m_options->problemSpec, m_options->problemSpec_len,
       m_options->evidSpec, m_options->evidSpec_len, m_options->collapse))
     return false;
+
+  if (m_options->perturb > 0) {
+    m_problem->perturbDeterminism(m_options->perturb);
+  }
   cout << "Created problem with " << m_problem->getN()
        << " variables and " << m_problem->getC() << " functions." << endl;
 

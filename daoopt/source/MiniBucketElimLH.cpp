@@ -1508,10 +1508,33 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
           count_zero, count_lteps, count_gteps);
   }
 
+  vector<double> accumulated_error(m_problem->getN(), 0.0);
+  stack<PseudotreeNode*> dfs;
+  dfs.push(m_pseudotree->getRoot());
+  for (int v : m_pseudotree->getElimOrder()) {
+    int n_children = m_pseudotree->getNode(v)->getChildren().size();
+    accumulated_error[v] += _BucketError_Rel[v] / (n_children + 1);
+    if (v != m_pseudotree->getRoot()->getVar()) {
+      PseudotreeNode* p = m_pseudotree->getNode(v)->getParent();
+      int p_var = p->getVar();
+      int n_p_var_children = p->getChildren().size();
+      accumulated_error[p_var] += accumulated_error[v] / (n_p_var_children + 1);
+    }
+  }
+
   // Write bucket error as ordering heuristic
   for (unsigned int i = 0; i < m_problem->getN(); ++i) {
-    m_pseudotree->getNode(i)->setOrderingHeuristic(_BucketError_Rel[i]);
+    m_pseudotree->getNode(i)->setOrderingHeuristic(accumulated_error[i]);
   }
+
+  // Output accumulated error
+  cout << "Accumulated relative bucket errors:" << endl;
+  cout << accumulated_error.size();
+  for (double err : accumulated_error) {
+    cout << " " << err;
+  }
+  cout << endl;
+  
   m_options->lookaheadDepth = 0;
 	return 0;
 }

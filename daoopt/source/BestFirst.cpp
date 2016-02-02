@@ -258,6 +258,10 @@ bool BestFirst::Revise(BFSearchNode* node) {
       node->set_fringe(false);
 
       change = true;
+    } else if (m_pseudotree->getNode(node->getVar())
+               ->getOrderingHeuristic() == 0.0) {
+      node->set_solved(true);
+      node->set_fringe(false);
     } else {
       double old_value = node->getValue();
       bool solved = true;
@@ -285,7 +289,7 @@ bool BestFirst::Revise(BFSearchNode* node) {
       double w = node->getWeight(val);
       double q = w OP_TIMES child->getValue();
 
-      if (q > q_value) {
+      if (q - 1e-10 > q_value) {
         q_value = q;
         best = child;
       } else if (q == q_value) {
