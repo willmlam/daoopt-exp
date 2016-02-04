@@ -154,6 +154,9 @@ DEFINE_bool(do_heuristic_prop, false,
 
 DEFINE_string(aobf_subordering, "", "subproblem ordering for AOBF (default: "
     "descending heuristic, options: be_desc, be_desc+");
+DEFINE_bool(aobf_bee_pruning, false,
+    "mark nodes as solved if the bucket error is zero. (WARNING: could cause "
+    "incorrect results if bucket error is sampled.)");
 
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 DEFINE_string(supplemental_log_file, "", "path to supplmental log file");
@@ -284,6 +287,7 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
     opt->out_pstFile = FLAGS_pst_file;
 
     opt->aobf_subordering = FLAGS_aobf_subordering;
+    opt->aobf_bee_pruning = FLAGS_aobf_bee_pruning;
 
     if (FLAGS_supplemental_log_file != "") {
       opt->_fpLogFile = fopen(FLAGS_supplemental_log_file.c_str(), "w");

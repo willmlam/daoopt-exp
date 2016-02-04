@@ -258,8 +258,8 @@ bool BestFirst::Revise(BFSearchNode* node) {
       node->set_fringe(false);
 
       change = true;
-    } else if (m_pseudotree->getNode(node->getVar())
-               ->getOrderingHeuristic() == 0.0) {
+    } else if (m_options->aobf_bee_pruning &&
+        m_pseudotree->getNode(node->getVar())->getOrderingHeuristic() == 0.0) {
       node->set_solved(true);
       node->set_fringe(false);
     } else {
