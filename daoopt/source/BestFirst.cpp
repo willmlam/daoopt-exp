@@ -1,10 +1,14 @@
 #include "BestFirst.h"
 #include "BFSearchSpace.h"
 
+#include <chrono>
+using namespace std::chrono;
+
 #undef DEBUG
 
 namespace daoopt {
 
+extern high_resolution_clock::time_point _time_start; // From Main.cpp
 
 bool BestFirst::solve(size_t nodeLimit) {
   // for when BestFirst search runs out of memory
@@ -49,6 +53,8 @@ bool BestFirst::AOStar() {
   root->setHeurCache(dv);
 
   heuristic_bound_ = h;
+
+  prev_reported_time_ = -1;
 
   while(!root->is_solved()) {
     assert(tip_nodes_.size() > 0);
@@ -310,9 +316,15 @@ bool BestFirst::Revise(BFSearchNode* node) {
     }
     change = solved || q_value != old_value;
     if (change && node == search_space_->getRoot()) {
-      if (heuristic_bound_ - q_value > 1e-5) {
+      if (heuristic_bound_ - q_value > 1e-10) {
         heuristic_bound_ = q_value;
-        m_problem->updateUpperBound(heuristic_bound_, &(search_space_->stats));
+        high_resolution_clock::time_point now = high_resolution_clock::now();
+        double t = duration_cast<duration<double>>(now - _time_start).count();
+        if (prev_reported_time_ < 0 || t - prev_reported_time_ > 5) {
+          m_problem->updateUpperBound(heuristic_bound_,
+                                      &(search_space_->stats));
+          prev_reported_time_ = t;
+        }
       }
     }
   }

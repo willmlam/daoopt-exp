@@ -106,6 +106,7 @@ class BestFirst : virtual public Search {
   size_t global_search_index_;
   double solution_cost_;
   double heuristic_bound_;
+  double prev_reported_time_;
 };
 
 
