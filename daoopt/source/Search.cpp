@@ -569,7 +569,10 @@ double Search::assignCostsOR(SearchNode* n)
 
   n->setHeur(h);
   n->setHeurCache(dv);
+  double ordering_heuristic = m_heuristic->getOrderingHeur(v, m_assignment, n);
+  n->setOrderingHeur(ordering_heuristic);
   m_assignment[v] = old_value;
+
 
   return h;
 

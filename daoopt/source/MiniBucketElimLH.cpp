@@ -804,6 +804,14 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment, SearchNode
 		}
 }
 
+// placeholder for more complicated ordering heuristic computation
+// currently only using "static" _SubtreeError
+double MiniBucketElimLH::getOrderingHeur(int var,
+                                         std::vector<val_t>& assignment,
+                                         SearchNode* n) {
+  return _SubtreeError[var];
+}
+
 
 double MiniBucketElimLH::getLocalError(int var, vector<val_t> & assignment)
 {
@@ -1508,35 +1516,26 @@ int MiniBucketElimLH::computeLocalErrorTables(bool build_tables, double TotalMem
           count_zero, count_lteps, count_gteps);
   }
 
-  vector<double> accumulated_error(m_problem->getN(), 0.0);
-  stack<PseudotreeNode*> dfs;
-  dfs.push(m_pseudotree->getRoot());
+  // Try with rel or abs. absavg may make more sense here.
+  InitializeSubtreeErrors(_BucketError_AbsAvg);
+
+  m_options->lookaheadDepth = 0;
+	return 0;
+}
+
+void MiniBucketElimLH::InitializeSubtreeErrors(
+    const std::vector<double>& bucket_error) {
+  _SubtreeError.resize(m_problem->getN(), 0.0);
   for (int v : m_pseudotree->getElimOrder()) {
     int n_children = m_pseudotree->getNode(v)->getChildren().size();
-    accumulated_error[v] += _BucketError_Rel[v] / (n_children + 1);
+    _SubtreeError[v] += bucket_error[v] / (n_children + 1);
     if (v != m_pseudotree->getRoot()->getVar()) {
       PseudotreeNode* p = m_pseudotree->getNode(v)->getParent();
       int p_var = p->getVar();
       int n_p_var_children = p->getChildren().size();
-      accumulated_error[p_var] += accumulated_error[v] / (n_p_var_children + 1);
+      _SubtreeError[p_var] += _SubtreeError[v] / (n_p_var_children + 1);
     }
   }
-
-  // Write bucket error as ordering heuristic
-  for (unsigned int i = 0; i < m_problem->getN(); ++i) {
-    m_pseudotree->getNode(i)->setOrderingHeuristic(accumulated_error[i]);
-  }
-
-  // Output accumulated error
-  cout << "Accumulated relative bucket errors:" << endl;
-  cout << accumulated_error.size();
-  for (double err : accumulated_error) {
-    cout << " " << err;
-  }
-  cout << endl;
-  
-  m_options->lookaheadDepth = 0;
-	return 0;
 }
 
 }  // namespace daoopt

@@ -132,6 +132,12 @@ public:
   virtual void getLabelAll(int var, const std::vector<val_t>& assignment, SearchNode* node,
       std::vector<double>& out) = 0;
 
+  /* Compute a secondary heuristic estimate for subproblem ordering */
+  virtual double getOrderingHeur(int var, std::vector<val_t>& assignment,
+      SearchNode* node) {
+    return 0;
+  }
+
   /* Returns true if the heuristic is provably accurate. Default false,
    * override in child class.
    */

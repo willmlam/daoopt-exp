@@ -153,7 +153,7 @@ DEFINE_bool(do_heuristic_prop, false,
             "bounds");
 
 DEFINE_string(aobf_subordering, "", "subproblem ordering for AOBF (default: "
-    "descending heuristic, options: be_desc, be_desc+");
+    "descending heuristic, options: be_desc");
 DEFINE_bool(aobf_bee_pruning, false,
     "mark nodes as solved if the bucket error is zero. (WARNING: could cause "
     "incorrect results if bucket error is sampled.)");

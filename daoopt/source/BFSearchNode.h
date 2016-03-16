@@ -99,13 +99,6 @@ class BFSearchNode : public SearchNode {
     is_solved_ = flag;
   }
 
-  inline bool is_lookahead() const {
-    return is_lookahead_;
-  }
-  inline void set_lookahead(bool flag) {
-    is_lookahead_ = flag;
-  }
-
   inline bool is_terminal() const {
     return is_terminal_;
   }
@@ -145,7 +138,6 @@ class BFSearchNode : public SearchNode {
   // Various flags to indicate the status of the node.
   bool is_fringe_;
   bool is_solved_;
-  bool is_lookahead_;
   bool is_terminal_;
   bool is_expanded_;
   bool is_visited_;
@@ -288,7 +280,6 @@ inline BFSearchNode::BFSearchNode(SearchNode* parent)
   : SearchNode(parent),
     is_fringe_(false),
     is_solved_(false),
-    is_lookahead_(false),
     is_terminal_(false),
     is_expanded_(false),
     is_visited_(false),
@@ -342,7 +333,6 @@ inline std::string BFSearchNodeOR::ToString() {
   oss << "}";
   oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
   oss << ", solved = " << (is_solved() ? "YES" : "NO");
-  oss << ", looked = " << (is_lookahead() ? "YES" : "NO");
 
   return oss.str();
 }

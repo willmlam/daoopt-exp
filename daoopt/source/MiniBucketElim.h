@@ -116,6 +116,9 @@ class MiniBucketElim : public Heuristic {
   void getLabelAll(int var, const vector<val_t>& assignment, SearchNode* n,
                    vector<double>& out);
 
+  virtual double getOrderingHeur(int var, vector<val_t>& assignment,
+      SearchNode* n);
+
   // reset the i-bound
   void setIbound(int ibound) { m_ibound = ibound; }
   // gets the i-bound

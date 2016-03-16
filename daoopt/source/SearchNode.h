@@ -62,6 +62,9 @@ protected:
   double m_nodeValue;                // node value (as in cost)
   double m_heurValue;                // heuristic estimate of the node's value
 
+  double m_orderingHeurValue;        // heuristic for ordering subproblems
+                                     // (generally an estimate of the residual)
+
   // after checking if this node can be pruned, pruning gap is the min value of "curPSTVal - curOR->getValue()" over all ancestors/checks.
   // if _PruningGap is <=0, the node can be pruned. if _PruningGap>0, pruning check failed.
   // _PruningGap indicates how close we came to pruning; e.g. if the h was smaller by this amount, we would have pruned the node.
@@ -101,6 +104,9 @@ public:
   // the first one is overridden in SearchNodeOR, the second one isn't
   virtual double getHeur() const { return m_heurValue; }
 //  virtual double getHeurOrg() const { return m_heurValue; }
+
+  void setOrderingHeur(double d) { m_orderingHeurValue = d; }
+  virtual double getOrderingHeur() const { return m_orderingHeurValue; }
 
   inline double & PruningGap(void) { return _PruningGap ; }
 

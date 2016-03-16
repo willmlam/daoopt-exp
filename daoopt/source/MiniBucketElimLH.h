@@ -137,6 +137,9 @@ class MiniBucketElimLH : public MiniBucketElim
 	std::vector<double> _BucketError_AbsAvg, _BucketError_AbsMin, _BucketError_AbsMax ;
   std::vector<double> _BucketError_Rel;
 
+  // Used for "static" subproblem ordering heuristic
+  std::vector<double> _SubtreeError;
+
   std::vector<int> _Pseudowidth;
 
 	// for each var, distance to the closest descendant with more than 1 MB/BucketErrorQuality>0. INT_MAX means infinite (no descendants).
@@ -178,6 +181,9 @@ public:
 	virtual double getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH);
 	// computes heuristic values for all instantiations of var, given context assignment
 	virtual void getHeurAll(int var, std::vector<val_t>& assignment, SearchNode* n, std::vector<double>& out);
+
+	virtual double getOrderingHeur(int var, std::vector<val_t>& assignment,
+                                 SearchNode* n) override;
 
 	// computes the lookahead heuristic for variable var given a (partial) assignment.
 	// note : this fn returns BucketError[var]. all variables in the output fn of bucket[var] should be instantiated by 'assignment'.
@@ -222,6 +228,8 @@ public:
 		_BucketErrorFunctions.clear() ;
 		return 0 ;
 	}
+
+  void InitializeSubtreeErrors(const std::vector<double>& bucket_error);
 
 public :
 

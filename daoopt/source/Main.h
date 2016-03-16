@@ -55,7 +55,7 @@
 #include "BoundPropagator.h"
 #endif
 
-#include "BestFirst.h"
+#include "AOStar.h"
 #include "LimitedDiscrepancy.h"
 
 namespace daoopt {

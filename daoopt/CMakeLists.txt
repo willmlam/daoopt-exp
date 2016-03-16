@@ -14,7 +14,7 @@ add_subdirectory(lib)
 
 # Main daoopt source files
 add_library(daoopt OBJECT
-  ./source/BestFirst.cpp
+  ./source/AOStar.cpp
   ./source/BoundPropagator.cpp
   ./source/BoundPropagatorMaster.cpp
   ./source/BranchAndBound.cpp

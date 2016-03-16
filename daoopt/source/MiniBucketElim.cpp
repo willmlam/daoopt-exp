@@ -136,6 +136,13 @@ void MiniBucketElim::getLabelAll(int var, const vector<val_t> &assignment, Searc
     }
 }
 
+// For the baseline minibucket heuristic, the ordering heuristic is identical
+// to the original heuristic. This is always used after getHeur().
+double MiniBucketElim::getOrderingHeur(int var, std::vector<val_t>& assignment,
+    SearchNode* node) {
+  return node->getHeur();
+}
+
 
 void MiniBucketElim::reset() {
 
