@@ -105,9 +105,9 @@ public:
 	mex::Factor asFactor();
 	void fromFactor(const mex::Factor&);
 
-    void setTableValue(int idx, double val) {
-        m_table[idx] = val;
-    }
+  void setTableValue(int idx, double val) {
+    m_table[idx] = val;
+  }
 
 protected:
   /* main work for substitution: computes new scope, new table and table size

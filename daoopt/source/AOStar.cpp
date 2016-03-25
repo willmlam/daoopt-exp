@@ -264,10 +264,6 @@ bool AOStar::Revise(BFSearchNode* node) {
       node->set_fringe(false);
 
       change = true;
-    } else if (m_options->aobf_bee_pruning &&
-        m_pseudotree->getNode(node->getVar())->getOrderingHeuristic() == 0.0) {
-      node->set_solved(true);
-      node->set_fringe(false);
     } else {
       double old_value = node->getValue();
       bool solved = true;
@@ -375,12 +371,7 @@ bool AOStar::FindBestPartialTree() {
 }
 
 void AOStar::ArrangeTipNodes() {
-  string ordering = m_options->aobf_subordering;
-  if (ordering == "be_desc") {
-    std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeOrderingHeurDesc());
-  } else {
-    std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeHeurDesc());
-  }
+  std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeOrderingHeurDesc());
 }
 
 BFSearchNode* AOStar::ChooseTipNode() {

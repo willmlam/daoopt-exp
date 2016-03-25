@@ -140,6 +140,9 @@ class MiniBucketElimLH : public MiniBucketElim
   // Used for "static" subproblem ordering heuristic
   std::vector<double> _SubtreeError;
 
+  // Stores full bucket error functions (or sampled ones)
+  std::vector<Function*> _BucketErrorFns;
+
   std::vector<int> _Pseudowidth;
 
 	// for each var, distance to the closest descendant with more than 1 MB/BucketErrorQuality>0. INT_MAX means infinite (no descendants).
@@ -203,17 +206,28 @@ public:
 	// note : localerror should always be >=0, regardless of whether normal/log representation, since item_1 is at least as large as item_2 (above).
 	// note : the scope of the table (as fn) is the same as the bucket output fn.
 	// note : this fn sets _BucketErrorQuality[var] to 0/1+ when it can be determined; sometimes when bucket error table is all 0, we won't compute the table and will set _BucketErrorQuality[var]=0.
-	int computeLocalErrorTable(int var, bool build_table, bool sample_table_if_not_computed, 
-		double TableMemoryLimitAsNumElementsLog, 
-		double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
-		double & avgError, // OUT : avg bucket error; computed when output table is not too large.
-		double & avgExact, // OUT : avg value over entire bucket output table; computed when error is computed.
-		Function * & error_fn, // OUT : bucket error fn; computed when output table is not too large.
-		int64 & nEntriesGenerated) ; // OUT : number of actual table entires computed
-	int computeLocalErrorTables(
-		bool build_tables, 
-		double TotalMemoryLimitAsNumElementsLog, 
-		double TableMemoryLimitAsNumElementsLog) ; 
+	int computeLocalErrorTable(int var, bool build_table,
+      bool sample_table_if_not_computed, 
+      double TableMemoryLimitAsNumElementsLog, 
+      double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
+      double & avgError, // OUT : avg bucket error; computed when output table is not too large.
+      double & avgExact, // OUT : avg value over entire bucket output table; computed when error is computed.
+      Function * & error_fn, // OUT : bucket error fn; computed when output table is not too large.
+      int64 & nEntriesGenerated) ; // OUT : number of actual table entires computed
+
+  // A version of the above that takes in a partial scope to enumerate,
+  // sampling the rest.
+	int computeLocalErrorTableSlice(int var, const set<int>& output_scope,
+      double TableMemoryLimitAsNumElementsLog, 
+      double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
+      double & avgError, // OUT : avg bucket error; computed when output table is not too large.
+      double & avgExact, // OUT : avg value over entire bucket output table; computed when error is computed.
+      Function * & error_fn, // OUT : bucket error fn; computed when output table is not too large.
+      int64 & nEntriesGenerated) ; // OUT : number of actual table entires computed
+  int computeLocalErrorTables(
+      bool build_tables, 
+      double TotalMemoryLimitAsNumElementsLog, 
+      double TableMemoryLimitAsNumElementsLog) ; 
 
 	// compute local MiniBucket error_H, defined as the different between 
 	// 1) max-product of m_augmented FNs in the bucket

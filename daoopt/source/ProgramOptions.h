@@ -121,7 +121,7 @@ public:
 
   // AOBF options
   string aobf_subordering; // subproblem ordering heuristic (heur_desc, be_desc, be_desc+)
-  bool aobf_bee_pruning; // prune a node if the bucket error is zero. (warning: may cause incorrect results if the bucket error is sampled!)
+  int bee_slice_sample_scope_size;
 
   // Added to allow program to terminate itself.
   int maxTime; // timeout threshold (seconds)
@@ -194,7 +194,7 @@ inline ProgramOptions::ProgramOptions()
     lookahead_LE_IgnoreThreshold(DBL_MIN), 
     maxTime(kint32max),
     force_compute_tables(false),
-    aobf_bee_pruning(false),
+    bee_slice_sample_scope_size(-1),
     _fpLogFile(nullptr) {
 }
 

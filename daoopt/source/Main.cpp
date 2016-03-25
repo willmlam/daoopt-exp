@@ -24,7 +24,6 @@
 #include "Main.h"
 #include "DaooptInterface.h"
 #include "MiniBucketElim.h"
-#include "MiniBucketElimLHobsolete.h"
 #include "MiniBucketElimLH.h"
 #include "MiniBucketElimInc.h"
 

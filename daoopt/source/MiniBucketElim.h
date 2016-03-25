@@ -24,7 +24,6 @@
 #ifndef MINIBUCKETELIM_H_
 #define MINIBUCKETELIM_H_
 
-
 #include "mex/include/factorgraph.h"
 #include "mex/include/mplp.h"
 #include "mex/include/mbe.h"
@@ -58,15 +57,15 @@ class MiniBucketElim : public Heuristic {
 
   // The augmented buckets that will store the minibucket functions (but not the
   // original ones)
-  vector<vector<Function*> > m_augmented;
+  vector<vector<Function*>> m_augmented;
   // Precompute and store, for each variable v, the relevant intermediate
   // functions that are
   // generated in a pseudotree descendant and passed to an ancestor of v
   // (points to the same function objects as m_augmented)
-  vector<vector<Function*> > m_intermediate;
-  
+  vector<vector<Function*>> m_intermediate;
+
   // a set of minibuckets, one for each var
-  std::vector<std::vector<MiniBucket>> _MiniBuckets ;
+  std::vector<std::vector<MiniBucket>> _MiniBuckets;
 
   int m_memlimit;
 
@@ -87,8 +86,9 @@ class MiniBucketElim : public Heuristic {
   virtual void reset();
 
  public:
-
-  inline std::vector<std::vector<MiniBucket>> & MiniBuckets(void) { return _MiniBuckets ; }
+  inline std::vector<std::vector<MiniBucket>>& MiniBuckets(void) {
+    return _MiniBuckets;
+  }
 
   // checks if the given i-bound would exceed the memlimit and lowers
   // it accordingly.
@@ -100,24 +100,31 @@ class MiniBucketElim : public Heuristic {
 
   // builds the heuristic, limited to the relevant subproblem, if applicable.
   // if computeTables=false, only returns size estimate (no tables computed)
-  virtual size_t build(const vector<val_t>* assignment = NULL,bool computeTables = true);
-  virtual size_t build(int task, const vector<val_t>* assignment = NULL, bool computeTables = true);
+  virtual size_t build(const vector<val_t>* assignment = NULL,
+                       bool computeTables = true);
+  virtual size_t build(int task, const vector<val_t>* assignment = NULL,
+                       bool computeTables = true);
 
   // returns the global upper bound
   double getGlobalUB() const { return m_globalUB; }
 
   // computes the heuristic for variable var given a (partial) assignment
   virtual double getHeur(int var, vector<val_t>& assignment, SearchNode* n);
-  virtual double getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH);
-  // computes heuristic values for all instantiations of var, given context assignment
-  virtual void getHeurAll(int var, vector<val_t>& assignment, SearchNode* n, vector<double>& out);
+  virtual double getHeurPerIndSubproblem(int var,
+                                         std::vector<val_t>& assignment,
+                                         SearchNode* node, double label,
+                                         std::vector<double>& subprobH);
+  // computes heuristic values for all instantiations of var, given context
+  // assignment
+  virtual void getHeurAll(int var, vector<val_t>& assignment, SearchNode* n,
+                          vector<double>& out);
 
   double getLabel(int var, const vector<val_t>& assignment, SearchNode* n);
   void getLabelAll(int var, const vector<val_t>& assignment, SearchNode* n,
                    vector<double>& out);
 
   virtual double getOrderingHeur(int var, vector<val_t>& assignment,
-      SearchNode* n);
+                                 SearchNode* n);
 
   // reset the i-bound
   void setIbound(int ibound) { m_ibound = ibound; }
@@ -186,8 +193,7 @@ inline void MiniBucketElim::printExtraStats() const {
        << endl;
   uint64 total_calls = 0;
   for (int i = 0; i < m_problem->getN(); ++i) {
-    uint64 adjusted_count =
-        var_heur_calls_[i] / m_problem->getDomainSize(i);
+    uint64 adjusted_count = var_heur_calls_[i] / m_problem->getDomainSize(i);
     cout << " " << adjusted_count;
     total_calls += adjusted_count;
   }
@@ -195,8 +201,7 @@ inline void MiniBucketElim::printExtraStats() const {
   cout << "Heuristic calls (OR): " << total_calls << endl;
 }
 
-inline MiniBucketElim::~MiniBucketElim() { reset() ; }
-
+inline MiniBucketElim::~MiniBucketElim() { reset(); }
 
 inline bool scopeIsLarger(Function* p, Function* q) {
   assert(p && q);
