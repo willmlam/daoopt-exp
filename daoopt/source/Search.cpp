@@ -420,6 +420,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 #ifndef NO_HEURISTIC
   // retrieve precomputed labels and heuristic values
   double* heur = n->getHeurCache();
+  double* ordering_heur = n->getOrderingHeurCache();
 #endif
 
   val_t vDomain = m_problem->getDomainSize(var) ;
@@ -457,6 +458,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
     SearchNodeAND* c = new SearchNodeAND(n, i, heur[2*i+1]); // uses cached label
     // set cached heur. value
     c->setHeur( heur[2*i] );
+    c->setOrderingHeur( ordering_heur[i] );
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 	c->setHeurValueForEachIndSubproblem(nChildren > 0 ? heur + (subprobH_ + i*nChildren) : NULL) ;
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
@@ -508,8 +510,16 @@ double Search::assignCostsOR(SearchNode* n)
 #else
   double* dv = new double[vDomain*2];
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
-  for (int i=0; i<vDomain; ++i) dv[2*i+1] = ELEM_ONE;
+  double* ordering_cache = new double[vDomain];
+
+  // Set first so computed values can be used right away
+  n->setHeurCache(dv);
+  n->setOrderingHeurCache(ordering_cache);
+
+  for (int i = 0; i < vDomain; ++i) dv[2*i+1] = ELEM_ONE;
+  for (int i = 0; i < vDomain; ++i) ordering_cache[i] = 0;
   double h = ELEM_ZERO; // the new OR nodes h value
+  int argmax_h = -1;
 
 #ifdef GET_VALUE_BULK
   // Need to get correct costs for function after shifting
@@ -533,6 +543,7 @@ double Search::assignCostsOR(SearchNode* n)
   }
 #else
   double label, heuristic;
+  double ordering_heuristic;
   int j ;
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   std::vector<double> subprobH ;
@@ -551,12 +562,16 @@ double Search::assignCostsOR(SearchNode* n)
 #else
     heuristic = m_heuristic->getHeur(v, m_assignment, n);
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
+    
 
     // store label and heuristic into cache table
     dv[2*i+1] = label; // label
     dv[2*i] = heuristic OP_TIMES label; // heuristic
-    if (dv[2*i] > h)
-        h = dv[2*i]; // keep max. for OR node heuristic
+    if (dv[2*i] > h) {
+      argmax_h = i;
+      h = dv[2*i]; // keep max. for OR node heuristic
+    }
+    ordering_cache[i] = m_heuristic->getOrderingHeur(v, m_assignment, n);
 
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
     // store h of each subproblem
@@ -568,9 +583,8 @@ double Search::assignCostsOR(SearchNode* n)
 #endif
 
   n->setHeur(h);
-  n->setHeurCache(dv);
-  n->setOrderingHeur(m_heuristic->getOrderingHeur(v, m_assignment, n));
   m_assignment[v] = old_value;
+  n->setOrderingHeur(ordering_cache[argmax_h]);
 
 
   return h;

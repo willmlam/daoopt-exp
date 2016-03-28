@@ -155,7 +155,10 @@ DEFINE_bool(do_heuristic_prop, false,
 DEFINE_string(aobf_subordering, "", "subproblem ordering for AOBF (default: "
     "descending heuristic, options: static_be, sampled_be");
 DEFINE_int32(bee_slice_sample_scope_size, 10, "maximum size for output scope "
-              "when sampling error tables");
+             "when sampling error tables");
+DEFINE_bool(bee_slice_sample_closest_first, false,
+            "keep the closest variables wrt to the search space "
+            "(default: farthest varaibles)");
 
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 DEFINE_string(supplemental_log_file, "", "path to supplmental log file");
@@ -287,6 +290,7 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
 
     opt->aobf_subordering = FLAGS_aobf_subordering;
     opt->bee_slice_sample_scope_size = FLAGS_bee_slice_sample_scope_size;
+    opt->bee_slice_sample_closest_first = FLAGS_bee_slice_sample_closest_first;
 
     if (FLAGS_supplemental_log_file != "") {
       opt->_fpLogFile = fopen(FLAGS_supplemental_log_file.c_str(), "w");

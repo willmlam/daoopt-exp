@@ -51,9 +51,15 @@ class AOStar : virtual public Search {
     }
   };
 
+  // Ordering heuristic, tie breaks in favor of smaller depth.
   struct CompNodeOrderingHeurDesc : public std::binary_function<BFSearchNode*,
     BFSearchNode*, bool> {
     bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
+      /*
+      if (x->getOrderingHeur() == y->getOrderingHeur()) {
+        return x->getDepth() < y->getDepth();
+      } 
+      */
       return x->getOrderingHeur() > y->getOrderingHeur();
     }
   };

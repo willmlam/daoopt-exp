@@ -140,7 +140,7 @@ void MiniBucketElim::getLabelAll(int var, const vector<val_t> &assignment, Searc
 // to the original heuristic. This is always used after getHeur().
 double MiniBucketElim::getOrderingHeur(int var, std::vector<val_t>& assignment,
     SearchNode* node) {
-  return node->getHeur();
+  return node->getHeurCache()[assignment[var]];
 }
 
 

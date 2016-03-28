@@ -199,6 +199,9 @@ class BFSearchNodeAND : public BFSearchNode {
   void setHeurCache(double* d) { }
   double* getHeurCache() const { return nullptr; }
   void clearHeurCache() { }
+  void setOrderingHeurCache(double* d) { }
+  double* getOrderingHeurCache() const { return nullptr; }
+  void clearOrderingHeurCache() { }
 
   void set_best_child(BFSearchNode* node) { }
   BFSearchNode* get_best_child() { }
@@ -262,6 +265,16 @@ class BFSearchNodeOR : public BFSearchNode {
     if (heur_cache_) delete[] heur_cache_;
   }
 
+  inline double* getOrderingHeurCache() const {
+    return ordering_heur_cache_;
+  }
+  inline void setOrderingHeurCache(double* ordering_heur_cache) {
+    ordering_heur_cache_ = ordering_heur_cache;
+  }
+  inline void clearOrderingHeurCache() {
+    if (ordering_heur_cache_) delete[] ordering_heur_cache_;
+  }
+
   inline BFSearchNode* get_best_child() {
     return best_child_;
   }
@@ -272,6 +285,7 @@ class BFSearchNodeOR : public BFSearchNode {
  protected:
 
   double* heur_cache_;
+  double* ordering_heur_cache_;
   BFSearchNode* best_child_;
 
 };
@@ -296,6 +310,7 @@ inline std::string BFSearchNodeAND::ToString() {
   oss << "AND node: (x" << getVar() << "," << getVal() << ")"
       << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
       << ", q = " << (getValue() == 0 ? 0 : -getValue())
+      << ", oh = " << getOrderingHeur()
       << ", ub = inf" 
       << ", depth = " << getDepth();
   oss << ", children { ";
@@ -316,6 +331,7 @@ inline std::string BFSearchNodeOR::ToString() {
   oss << "OR node: (x" << getVar() << ")"
       << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
       << ", q = " << (getValue() == 0 ? 0 : -getValue())
+      << ", oh = " << getOrderingHeur()
       << ", ub = inf" 
       << ", depth = " << getDepth()
       << ", weights { ";
@@ -360,6 +376,7 @@ inline BFSearchNodeOR::BFSearchNodeOR(SearchNode* parent, int var, int depth)
   depth_ = depth;
   best_child_ = nullptr;
   heur_cache_ = nullptr;
+  ordering_heur_cache_ = nullptr;
 }
 
 inline BFSearchNodeOR::~BFSearchNodeOR() {

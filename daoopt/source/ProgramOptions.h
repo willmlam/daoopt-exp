@@ -122,6 +122,7 @@ public:
   // AOBF options
   string aobf_subordering; // subproblem ordering heuristic (heur_desc, be_desc, be_desc+)
   int bee_slice_sample_scope_size;
+  bool bee_slice_sample_closest_first;
 
   // Added to allow program to terminate itself.
   int maxTime; // timeout threshold (seconds)
@@ -195,6 +196,7 @@ inline ProgramOptions::ProgramOptions()
     maxTime(kint32max),
     force_compute_tables(false),
     bee_slice_sample_scope_size(-1),
+    bee_slice_sample_closest_first(false),
     _fpLogFile(nullptr) {
 }
 

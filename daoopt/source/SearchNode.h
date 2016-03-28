@@ -183,6 +183,10 @@ public:
   virtual void setHeurCache(double* d) = 0;
   virtual double* getHeurCache() const = 0;
   virtual void clearHeurCache() = 0;
+
+  virtual void setOrderingHeurCache(double* d) = 0;
+  virtual double* getOrderingHeurCache() const = 0;
+  virtual void clearOrderingHeurCache() = 0;
   
   virtual const unique_ptr<ExtraNodeInfo> &getExtraNodeInfo() const { return m_eInfo;}
   virtual void setExtraNodeInfo(ExtraNodeInfo *inf) { m_eInfo.reset(inf); }
@@ -255,6 +259,9 @@ public:
   void setHeurCache(double* d) {}
   double* getHeurCache() const { return NULL; }
   void clearHeurCache() {}
+  void setOrderingHeurCache(double* d) {}
+  double* getOrderingHeurCache() const { return NULL; }
+  void clearOrderingHeurCache() {}
 
 public:
   SearchNodeAND(SearchNode* p, val_t val, double label = ELEM_ONE);
@@ -274,6 +281,8 @@ protected:
   double m_complexityEstimate; // subproblem complexity estimate
 #endif
   double* m_heurCache;   // Stores the precomputed heuristic values of the AND children
+  double* m_orderingHeurCache; // Stores the precomputed ordering heuristic
+                               // values of the AND children
   context_t m_cacheContext; // Stores the context (for caching)
 
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
@@ -345,6 +354,10 @@ public:
   void setHeurCache(double* d) { m_heurCache = d; }
   double* getHeurCache() const { return m_heurCache; }
   void clearHeurCache();
+
+  void setOrderingHeurCache(double* d) { m_orderingHeurCache = d; }
+  double* getOrderingHeurCache() const { return m_orderingHeurCache; }
+  void clearOrderingHeurCache();
 
 public:
   SearchNodeOR(SearchNode* parent, int var, int depth);
@@ -425,6 +438,13 @@ inline void SearchNodeOR::clearHeurCache() {
   }
 }
 
+inline void SearchNodeOR::clearOrderingHeurCache() {
+  if (m_orderingHeurCache) {
+    delete[] m_orderingHeurCache;
+    m_orderingHeurCache = NULL;
+  }
+}
+
 
 inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label) :
     SearchNode(parent), m_val(val), m_nodeLabel(label) 
@@ -451,7 +471,9 @@ inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
 
 inline SearchNodeOR::~SearchNodeOR() {
   this->clearHeurCache();
+  this->clearOrderingHeurCache();
 }
+
 
 /*
 inline bool SearchNodeComp::operator ()(const SearchNode* a, const SearchNode* b) const {

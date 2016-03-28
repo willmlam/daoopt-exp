@@ -236,10 +236,13 @@ void AOStar::Expand(BFSearchNode* node) {
       node->add_child(c);
       c->add_parent(node);
       double* heur_cache = node->getHeurCache();
+      double* ordering_heur_cache = node->getOrderingHeurCache();
       double h = heur_cache[2 * val];
       double w = heur_cache[2 * val + 1];
+      double oh = ordering_heur_cache[val];
       c->setHeur(h - w);
       c->setValue(h - w);
+      c->setOrderingHeur(oh);
       search_space_->add_node(state, c);
 
       no_children = false;
@@ -371,7 +374,8 @@ bool AOStar::FindBestPartialTree() {
 }
 
 void AOStar::ArrangeTipNodes() {
-  std::sort(tip_nodes_.begin(), tip_nodes_.end(), CompNodeOrderingHeurDesc());
+  std::sort(tip_nodes_.begin(), tip_nodes_.end(),
+      CompNodeOrderingHeurDesc());
 }
 
 BFSearchNode* AOStar::ChooseTipNode() {

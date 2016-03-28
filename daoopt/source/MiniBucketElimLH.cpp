@@ -744,6 +744,7 @@ double MiniBucketElimLH::getOrderingHeur(int var,
   } else if (m_options->aobf_subordering == "sampled_be") {
     // If the error function doesn't exist, assume that it's zero.
     if (!_BucketErrorFunctions[var]) {
+//      cout << "(no eFn) using bucket error function value: 0"  << endl;
       return 0.0;
     } else {
       double v = _BucketErrorFunctions[var]->getValue(assignment);
@@ -751,7 +752,7 @@ double MiniBucketElimLH::getOrderingHeur(int var,
       return v;
     }
   } else {
-    return n->getHeur();
+    return n->getOrderingHeurCache()[assignment[var]];
   }
 }
 
@@ -1339,7 +1340,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   // Readjust time_to_sample to not exceed the scope
   times_to_sample = min(times_to_sample, sample_cardinality);
   /*
-  cout << endl;
+  cout << "var: " << var << ", ";
   cout << "Will sample " << times_to_sample << " times for each entry" << endl;
   */
 
@@ -1606,7 +1607,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
             (double)TableMemoryLimitAsNumElementsLog);
   printf(
       "\n   BuckerErrorFnTableSizes total = %g, total_memory_limit = %g, "
-      "total_memory_limit = %g",
+      "total_memory_limit = %g\n",
       (double)_BuckerErrorFnTableSizes_Total,
       (double)TotalMemoryLimitAsNumElementsLog,
       (double)TableMemoryLimitAsNumElementsLog);
@@ -1654,11 +1655,24 @@ int MiniBucketElimLH::computeLocalErrorTables(
       set<int> output_scope(_BucketScopes[v]);
       int target_scope_size = min(m_options->bee_slice_sample_scope_size, 
                                   m_ibound - 2);
-      for (int v : m_pseudotree->getElimOrder()) {
-        if (output_scope.size() <= target_scope_size) {
-          break;
+      
+      const vector<int>& elim_order = m_pseudotree->getElimOrder();
+
+      // We either keep the closest variables or the farthest.
+      if (m_options->bee_slice_sample_closest_first) {
+        for (auto itV = elim_order.rbegin(); itV != elim_order.rend(); ++itV) {
+          if (output_scope.size() <= target_scope_size) {
+            break;
+          }
+          output_scope.erase(*itV);
         }
-        output_scope.erase(v);
+      } else { // farthest first
+        for (auto itV = elim_order.begin(); itV != elim_order.end(); ++itV) {
+          if (output_scope.size() <= target_scope_size) {
+            break;
+          }
+          output_scope.erase(*itV);
+        }
       }
       computeLocalErrorTableSlice(v, output_scope, table_size_actual_limit,
                                   tableSize, avgError, E, errorFn,
