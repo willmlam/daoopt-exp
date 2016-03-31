@@ -1937,7 +1937,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
   }
 
   // Try with rel or abs. absavg may make more sense here.
-  ComputeSubtreeErrors(_BucketError_AbsAvg);
+  ComputeSubtreeErrors(_BucketError_Rel);
   if (m_options->aobf_subordering == "sampled_st_be") {
     /*
     for (const auto* fn : _BucketErrorFunctions) {
