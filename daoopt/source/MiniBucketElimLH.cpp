@@ -742,16 +742,30 @@ double MiniBucketElimLH::getOrderingHeur(int var,
   if (m_options->aobf_subordering == "static_be") {
     return _SubtreeError[var];
   } else if (m_options->aobf_subordering == "sampled_be") {
+//    return _SubtreeError[var];
     // If the error function doesn't exist, assume that it's zero.
-    if (!_BucketErrorFunctions[var]) {
+    if (!_TrueSlicedBucketErrorFunctions[var]) {
 //      cout << "(no eFn) using bucket error function value: 0"  << endl;
       return 0.0;
     } else {
-      double v = _BucketErrorFunctions[var]->getValue(assignment);
+//      double v = _BucketErrorFunctions[var]->getValue(assignment);
+      double v = _TrueSlicedBucketErrorFunctions[var]->getValue(assignment);
 //      cout << "using bucket error function value: " << v << endl;
       return v;
     }
-  } else {
+  } else if (m_options->aobf_subordering == "sampled_st_be") {
+//    return _SubtreeError[var];
+    // If the error function doesn't exist, assume that it's zero.
+    if (!_SubtreeErrorFunctions[var]) {
+//      cout << "(no eFn) using bucket error function value: 0"  << endl;
+      return 0.0;
+    } else {
+      double v = _SubtreeErrorFunctions[var]->getValue(assignment);
+//      cout << "using bucket error function value: " << v << endl;
+      return v;
+    }
+  }
+  else {
     return n->getOrderingHeurCache()[assignment[var]];
   }
 }
@@ -1254,10 +1268,6 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   // safety check
   assert(isSubset(output_scope, jointScope));
 
-  // no need to build error function
-  if (minibuckets.size() <= 1) {
-    return 0;
-  }
 
   // make scope of bucket output fn
   set<int> scope = jointScope;
@@ -1268,9 +1278,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
 
   // construct vector of scope domains; compute new table size and collect
   // domain sizes
-  vector<val_t> domains;
   vector<val_t> slice_domains;
-  domains.reserve(scope.size());
   slice_domains.reserve(scope_slice.size());
 
   // Should be safe to do this in linear space since the slice is no larger
@@ -1279,7 +1287,28 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   set<int>::const_iterator sit;
   for (sit = scope_slice.begin(); sit != scope_slice.end(); ++sit) {
     TableSize *= ((int64)m_problem->getDomainSize(*sit));
-    domains.push_back(m_problem->getDomainSize(*sit));
+    slice_domains.push_back(m_problem->getDomainSize(*sit));
+  }
+
+  // build a dummy function of zeros if trivially no error
+  if (minibuckets.size() <= 1) {
+    double* newTable = new double[TableSize];
+    for (int j = 0; j < TableSize; ++j) {
+      newTable[j] = 0.0;
+    }
+    avgError = 0.0;
+    errorFn = new FunctionBayes(-var, m_problem, scope_slice, newTable,
+        TableSize);
+
+    // DEBUG
+    newTable = new double[TableSize];
+    for (int j = 0; j < TableSize; ++j) {
+      newTable[j] = 0.0;
+    }
+    _TrueSlicedBucketErrorFunctions[var] = 
+      new FunctionBayes(-var, m_problem, scope_slice, newTable,
+        TableSize);
+    return 0;
   }
 
   TableSizeLog = log10(TableSize);
@@ -1325,7 +1354,6 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   vector<val_t*> tuple_sample;
 
   vector<int> scope_sample;
-  int64 sample_cardinality = 1;
 
   for (int i = 0; i < scopeB.size(); ++i) {
     if (ContainsKey(scope_slice, scopeB[i])) {
@@ -1333,8 +1361,15 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     } else {
       tuple_sample.push_back(&tuple[i]);
       scope_sample.push_back(i);
-      sample_cardinality *= m_problem->getDomainSize(scopeB[i]);
     }
+  }
+
+  int64 sample_cardinality = 1;
+  vector<val_t> sample_domains;
+  sample_domains.reserve(scope_sample.size());
+  for (int v : scope_sample) {
+    sample_cardinality *= ((int64)m_problem->getDomainSize(v));
+    sample_domains.push_back(m_problem->getDomainSize(v));
   }
 
   // Readjust time_to_sample to not exceed the scope
@@ -1391,7 +1426,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     ++nEntriesGenerated;
     // get next combination in slice
     for (int i = tuple_slice.size() - 1; i >= 0; i--) {
-      if (++(*tuple_slice[i]) < domains[i]) break;
+      if (++(*tuple_slice[i]) < slice_domains[i]) break;
       *tuple_slice[i] = 0;
     }
     double e_sampled_avg = 0.0;
@@ -1406,8 +1441,9 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       double tableentryB = ELEM_ZERO, zB;
       for (tuple[n] = 0; tuple[n] < int(bucket_var_domain_size); tuple[n]++) {
         zB = ELEM_ONE;
-        for (int k = 0; k < int(funs_B.size()); ++k)
+        for (int k = 0; k < int(funs_B.size()); ++k) {
           zB OP_TIMESEQ funs_B[k]->getValuePtr(idxMapB[k]);
+        }
         tableentryB = max(tableentryB, zB);
       }
 
@@ -1447,12 +1483,105 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
 
       avgExact += tableentryB;
       avgError += e;
-      e_sampled_avg += e;
+      e_sampled_avg += e; // normalize to make it relative error
       numErrorItems += 1.0;
     }
     e_sampled_avg /= times_to_sample;
     if (NULL != newTable) newTable[j] = e_sampled_avg;
   }
+
+  /*
+  // DEBUG
+  // TESTING FOR ACCURACY OF SAMPLING
+  for (int i = n - 1; i >= 0; --i) tuple[i] = 0;
+  *tuple_slice.back() = -1;
+  double *true_slice_error_fn_table = new double[TableSize];
+  for (int64 j = 0; j < TableSize; j++) {
+    // get next combination in slice
+    for (int i = tuple_slice.size() - 1; i >= 0; i--) {
+      if (++(*tuple_slice[i]) < slice_domains[i]) break;
+      *tuple_slice[i] = 0;
+    }
+    double e_sampled_avg = 0.0;
+    for (int i = 0; i < tuple_sample.size(); ++i) {
+      *tuple_sample[i] = 0;
+    }
+    *tuple_sample.back() = -1;
+    for (int64 ks = 0; ks < sample_cardinality; ++ks) {
+      // get next combination in sampling scope
+      for (int i = tuple_sample.size() - 1; i >= 0; i--) {
+        if (++(*tuple_sample[i]) < sample_domains[i]) break;
+        *tuple_sample[i] = 0;
+      }
+
+      // enumerate over all bucket var values; combine all bucket FNs
+      double tableentryB = ELEM_ZERO, zB;
+      for (tuple[n] = 0; tuple[n] < int(bucket_var_domain_size); tuple[n]++) {
+        zB = ELEM_ONE;
+        for (int k = 0; k < int(funs_B.size()); ++k) {
+          zB OP_TIMESEQ funs_B[k]->getValuePtr(idxMapB[k]);
+        }
+        tableentryB = max(tableentryB, zB);
+      }
+
+      // combine MB output FNs
+      double tableentryMB = ELEM_ONE;
+      for (int k = 0; k < int(funs_MB.size()); k++)
+        tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
+
+      double e = 0.0;
+      if (tableentryMB < tableentryB){
+#ifdef DEBUG
+        nBadErrorValues++;
+#endif
+      } else { // note tableentryB may be -infinity.
+        e = tableentryMB - tableentryB;
+        // If both are inf, then there is no error
+        if (std::isinf(tableentryMB) && std::isinf(tableentryB)) {
+          e = 0.0;
+        }
+      }
+
+      avgError += e;
+      e_sampled_avg += e;
+    }
+    e_sampled_avg /= sample_cardinality;
+    if (NULL != true_slice_error_fn_table) {
+      true_slice_error_fn_table[j] = e_sampled_avg;
+    }
+  }
+  _TrueSlicedBucketErrorFunctions[var] = 
+    new FunctionBayes(-var, m_problem, scope_slice, true_slice_error_fn_table,
+        TableSize);
+
+  double avg_sampling_error = 0.0;
+  double avg_rel_sampling_error = 0.0;
+  int uncomputable_entries = 0;
+  for (int j = 0; j < TableSize; ++j) {
+    double err = newTable[j] - true_slice_error_fn_table[j];
+    if (std::isinf(newTable[j]) && std::isinf(true_slice_error_fn_table[j])) {
+      err = 0.0;
+    } else if (std::isinf(newTable[j]) ||
+        std::isinf(true_slice_error_fn_table[j])) {
+      ++uncomputable_entries;
+      continue;
+    }
+    avg_sampling_error += err;
+//    cout << " " << true_slice_error_fn_table[j] << endl;
+    double rel_err =
+      (!std::isinf(true_slice_error_fn_table[j]) &&
+       true_slice_error_fn_table[j] != 0.0 ?
+       fabs(err) / true_slice_error_fn_table[j] :
+       fabs(err));
+    avg_rel_sampling_error += rel_err;
+
+  }
+  avg_sampling_error /= TableSize - uncomputable_entries;
+  avg_rel_sampling_error /= TableSize - uncomputable_entries;
+  cout << "v" << var << ", average sampling error: " << avg_sampling_error
+    << " (" << avg_rel_sampling_error << ")" << endl;
+  // END SAMPLING DEBUG!!!!
+  */
 
   if (nEntriesGenerated <= 0) {
     // we have no data; leave _BucketErrorQuality[] as is (-1 most likely).
@@ -1567,6 +1696,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
 
   deleteLocalErrorFNs();
   _BucketErrorFunctions.resize(m_problem->getN());
+  _TrueSlicedBucketErrorFunctions.resize(m_problem->getN());
   _BuckerErrorFnTableSizes_Total = _BuckerErrorFnTableSizes_Precomputed =
       _BuckerErrorFnTableSizes_Ignored =
           -DBL_MIN;  // don't make -infinity; math will blow up.
@@ -1647,14 +1777,15 @@ int MiniBucketElimLH::computeLocalErrorTables(
       do_sample = false;
     }
 
-    if (m_options->aobf_subordering == "sampled_be") {
+    if (m_options->aobf_subordering == "sampled_be" ||
+        m_options->aobf_subordering == "sampled_st_be") {
       // Slice option: remove variables from the bucket scope until
       // the number of variables is less than or equal to the specified
       // flag. Currently arbitrarily making it so we use 2 fewer variables
       // than the i-bound to guarantee less memory usage.
       set<int> output_scope(_BucketScopes[v]);
       int target_scope_size = min(m_options->bee_slice_sample_scope_size, 
-                                  m_ibound - 2);
+                                  m_ibound);
       
       const vector<int>& elim_order = m_pseudotree->getElimOrder();
 
@@ -1806,13 +1937,35 @@ int MiniBucketElimLH::computeLocalErrorTables(
   }
 
   // Try with rel or abs. absavg may make more sense here.
-  InitializeSubtreeErrors(_BucketError_AbsAvg);
+  ComputeSubtreeErrors(_BucketError_AbsAvg);
+  if (m_options->aobf_subordering == "sampled_st_be") {
+    /*
+    for (const auto* fn : _BucketErrorFunctions) {
+      cout << "v" << fn->getId() << ": " << endl;
+      for (int j = 0; j < fn->getTableSize(); ++j) {
+        cout << " " << fn->getTable()[j] << endl;
+      }
+      cout << endl;
+    }
+    */
+//    ComputeSubtreeErrorFns(_TrueSlicedBucketErrorFunctions);
+    ComputeSubtreeErrorFns(_BucketErrorFunctions);
+    /*
+    for (const auto* fn : _SubtreeErrorFunctions) {
+      cout << "v" << fn->getId() << ": " << endl;
+      for (int j = 0; j < fn->getTableSize(); ++j) {
+        cout << " " << fn->getTable()[j] << endl;
+      }
+      cout << endl;
+    }
+    */
+  }
 
   m_options->lookaheadDepth = 0;
   return 0;
 }
 
-void MiniBucketElimLH::InitializeSubtreeErrors(
+void MiniBucketElimLH::ComputeSubtreeErrors(
     const std::vector<double> &bucket_error) {
   _SubtreeError.resize(m_problem->getN(), 0.0);
   for (int v : m_pseudotree->getElimOrder()) {
@@ -1823,6 +1976,135 @@ void MiniBucketElimLH::InitializeSubtreeErrors(
       int p_var = p->getVar();
       int n_p_var_children = p->getChildren().size();
       _SubtreeError[p_var] += _SubtreeError[v] / (n_p_var_children + 1);
+    }
+  }
+}
+
+// For all leaves, the subtree error function is identical
+// Otherwise, add the children values into the parents.
+void MiniBucketElimLH::ComputeSubtreeErrorFns(
+    const std::vector<Function*>& bucket_error_functions) {
+  _SubtreeErrorFunctions.resize(m_problem->getN());
+  for (int i = 0; i < _SubtreeErrorFunctions.size(); ++i) {
+    const auto* current_fn = bucket_error_functions[i];
+    if (!current_fn) {
+      // set up a 
+    }
+    int64 table_size = current_fn->getTableSize();
+    double* new_table = new double[table_size];
+    for (int j = 0; j < table_size; ++j) {
+      new_table[j] = 0.0;
+    }
+    _SubtreeErrorFunctions[i] = new FunctionBayes(-i, m_problem,
+        current_fn->getScopeSet(), new_table, table_size);
+  }
+  for (int v : m_pseudotree->getElimOrder()) {
+    const auto* current_fn = _SubtreeErrorFunctions[v];
+    if (!current_fn) {
+      continue;
+    }
+    int64 table_size = current_fn->getTableSize();
+    double* table = current_fn->getTable();
+    double* be_table = bucket_error_functions[v]->getTable();
+    for (int64 j = 0; j < table_size; ++j) {
+      table[j] += be_table[j];
+    }
+    
+    if (v != m_pseudotree->getRoot()->getVar()) {
+      PseudotreeNode *p = m_pseudotree->getNode(v)->getParent();
+      int p_var = p->getVar();
+      const auto* parent_fn = _SubtreeErrorFunctions[p_var];
+      
+      const set<int>& var_scope = current_fn->getScopeSet();
+      const set<int>& p_var_scope = parent_fn->getScopeSet();
+
+      vector<int> var_domains;
+      for (int vs : var_scope) {
+        var_domains.push_back(m_problem->getDomainSize(vs));
+      }
+
+      set<int> total_scope(var_scope);
+      total_scope.insert(p_var_scope.begin(), p_var_scope.end());
+      set<int> intersecting_scope = intersection(var_scope, p_var_scope);
+      int n = total_scope.size();
+      vector<int> total_scope_vec(total_scope.begin(), total_scope.end());
+      val_t* tuple = new val_t[n];
+      for (int k = 0; k < n; ++k) {
+        tuple[k] = 0; 
+      }
+
+      // These are used to actually get values from the functions
+      vector<val_t*> idx_map_v_var;
+      vector<val_t*> idx_map_p_var;
+
+      // These are used to iterate over the combination in the correct manner
+      vector<val_t*> idx_map_intersect;
+      vector<val_t*> idx_map_v_only_var;
+      vector<val_t*> idx_map_p_only_var;
+
+      vector<int> intersecting_domains;
+      vector<int> v_only_var_domains;
+      vector<int> p_only_var_domains;
+      int64 v_only_cardinality = 1;
+      int64 p_only_cardinality = 1;
+      int64 intersecting_cardinality = 1;
+
+      for (int k = 0; k < n; ++k) {
+        int vs = total_scope_vec[k];
+        if (ContainsKey(intersecting_scope, vs)) {
+          int d = m_problem->getDomainSize(vs);
+          intersecting_domains.push_back(d);
+          intersecting_cardinality *= d;
+          idx_map_v_var.push_back(&tuple[k]);
+          idx_map_p_var.push_back(&tuple[k]);
+          idx_map_intersect.push_back(&tuple[k]);
+        } else if (ContainsKey(var_scope, vs)) {
+          int d = m_problem->getDomainSize(vs);
+          v_only_var_domains.push_back(d);
+          v_only_cardinality *= d;
+          idx_map_v_var.push_back(&tuple[k]);
+          idx_map_v_only_var.push_back(&tuple[k]);
+        } else if (ContainsKey(p_var_scope, vs)) {
+          int d = m_problem->getDomainSize(vs);
+          p_only_var_domains.push_back(d);
+          p_only_cardinality *= d;
+          idx_map_p_var.push_back(&tuple[k]);
+          idx_map_p_only_var.push_back(&tuple[k]);
+        }
+      }
+
+      // Iterate over the intersection and take the average over
+      // the variables not in the target parent
+      // For each assignment to a variable in the target parent not
+      // in the current, use the averaged value for all of them.
+      bool increment_done = false;
+      for (int64 j = 0; j < intersecting_cardinality; ++j) {
+        double value = 0.0;
+        bool v_only_increment_done = false;
+        for (int64 jj = 0; jj < v_only_cardinality; ++jj) {
+          value += current_fn->getValuePtr(idx_map_v_var);
+          v_only_increment_done = !idx_map_increment(idx_map_v_only_var,
+              v_only_var_domains);
+        }
+        assert(v_only_increment_done);
+        value /= v_only_cardinality;
+
+        bool p_only_increment_done = false;
+        int n_p_var_children = p->getChildren().size();
+        for (int64 jj = 0; jj < p_only_cardinality; ++jj) {
+          double p_value = parent_fn->getValuePtr(idx_map_p_var);
+          parent_fn->setValuePtr(idx_map_p_var, p_value +
+              value / (1 + n_p_var_children));
+
+          p_only_increment_done =
+            !idx_map_increment(idx_map_p_only_var, p_only_var_domains);
+        }
+        assert(p_only_increment_done);
+
+        increment_done = !idx_map_increment(idx_map_intersect,
+            intersecting_domains);
+      }
+      assert(increment_done);
     }
   }
 }

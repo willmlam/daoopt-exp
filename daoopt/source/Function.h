@@ -100,6 +100,7 @@ public:
 
   /* returns the function value for the tuple (which is pointered function scope) */
   double getValuePtr(const vector<val_t*>& tuple) const;
+  void setValuePtr(const vector<val_t*>& tuple, double value);
 
 	/* ATI: convert between mex/Factor and daoopt/Function representations */
 	mex::Factor asFactor();

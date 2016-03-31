@@ -138,6 +138,25 @@ double Function::getValuePtr(const vector<val_t*>& tuple) const {
   return m_table[idx];
 }
 
+void Function::setValuePtr(const vector<val_t*>& tuple, double value) {
+  assert(tuple.size() == m_scopeV.size()); // make sure tuple size matches scope size
+#ifdef PRECOMP_OFFSETS
+  size_t idx = 0;
+  for (size_t i=0; i<m_scopeV.size(); ++i)
+    idx += *(tuple[i]) * m_offsets[i];
+#else
+  size_t idx = 0, offset=1;
+  vector<int>::const_reverse_iterator rit=m_scopeV.rbegin();
+  vector<val_t*>::const_reverse_iterator ritTup = tuple.rbegin();
+  for (; rit!=m_scopeV.rend(); ++rit,++ritTup) {
+    idx += *(*ritTup) * offset;
+    offset *= m_problem->getDomainSize(*rit);
+  }
+#endif
+  assert(idx < m_tableSize);
+  m_table[idx] = value;
+}
+
 
 void Function::translateScope(const map<int, int>& translate) {
   vector<int> newScope;

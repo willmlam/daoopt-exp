@@ -112,7 +112,12 @@ class MiniBucketElimLH : public MiniBucketElim
 	// original + augmented function of each bucket; this is the set of functions that minibucket algorithm works with.
 	std::vector<std::vector<Function *>> _BucketFunctions ;
 
+  // Stores full bucket error functions (or sampled ones)
 	std::vector<Function*> _BucketErrorFunctions ;
+
+  // The following is for testing purposes to see how good our approximation
+  // is and to see whether it makes sense to slice functions
+	std::vector<Function*> _TrueSlicedBucketErrorFunctions ;
 	double _BuckerErrorFnTableSizes_Total ; // log
 	double _BuckerErrorFnTableSizes_Precomputed ; // log
 	double _BuckerErrorFnTableSizes_Ignored ; // log
@@ -140,8 +145,8 @@ class MiniBucketElimLH : public MiniBucketElim
   // Used for "static" subproblem ordering heuristic
   std::vector<double> _SubtreeError;
 
-  // Stores full bucket error functions (or sampled ones)
-  std::vector<Function*> _BucketErrorFns;
+  // Used for "sampled function" subproblem ordering heuristic
+  std::vector<Function*> _SubtreeErrorFunctions;
 
   std::vector<int> _Pseudowidth;
 
@@ -243,7 +248,8 @@ public:
 		return 0 ;
 	}
 
-  void InitializeSubtreeErrors(const std::vector<double>& bucket_error);
+  void ComputeSubtreeErrors(const std::vector<double>& bucket_error);
+  void ComputeSubtreeErrorFns(const std::vector<Function*>& bucket_error_fns);
 
 public :
 
