@@ -1373,7 +1373,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   }
 
   // Readjust time_to_sample to not exceed the scope
-  times_to_sample = min(times_to_sample, sample_cardinality);
+  times_to_sample = min(times_to_sample, 2*sample_cardinality);
   /*
   cout << "var: " << var << ", ";
   cout << "Will sample " << times_to_sample << " times for each entry" << endl;
@@ -1430,6 +1430,8 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       *tuple_slice[i] = 0;
     }
     double e_sampled_avg = 0.0;
+    double exact_noninf_sampled_avg = 0.0;
+    int64 num_rejected_samples = 0;
     for (int64 ks = 0; ks < times_to_sample; ++ks) {
       // get random tuple for non-slice
       for (int i = tuple_sample.size() - 1; i >= 0; i--) {
@@ -1460,6 +1462,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
           nEntries_B_inf++;
       } else {
         avgExact_non_inf += tableentryB;
+        exact_noninf_sampled_avg += tableentryB;
         nEntries_non_inf++;
       }
 
@@ -1477,16 +1480,25 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       }
 
       // at this point, it should be that e >= 0
-      if (e < OUR_OWN_pInfinity) avgError_non_inf += e;
+      if (e < OUR_OWN_pInfinity) {
+        avgError_non_inf += e;
+        e_sampled_avg += e;
+      } else { // reject inf samples
+        ++num_rejected_samples;
+      }
       if (e < errorAbsMin) errorAbsMin = e;
       if (e > errorAbsMax) errorAbsMax = e;
 
       avgExact += tableentryB;
       avgError += e;
-      e_sampled_avg += e; // normalize to make it relative error
       numErrorItems += 1.0;
     }
-    e_sampled_avg /= times_to_sample;
+    e_sampled_avg /= times_to_sample - num_rejected_samples;
+    exact_noninf_sampled_avg /= times_to_sample - num_rejected_samples;
+    // make relative error?
+    e_sampled_avg = fabs(exact_noninf_sampled_avg) > 0.0
+      ? fabs(e_sampled_avg / exact_noninf_sampled_avg)
+      : 0.0;
     if (NULL != newTable) newTable[j] = e_sampled_avg;
   }
 
