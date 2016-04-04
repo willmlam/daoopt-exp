@@ -55,11 +55,9 @@ class AOStar : virtual public Search {
   struct CompNodeOrderingHeurDesc : public std::binary_function<BFSearchNode*,
     BFSearchNode*, bool> {
     bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
-      /*
       if (x->getOrderingHeur() == y->getOrderingHeur()) {
-        return x->getDepth() < y->getDepth();
+        return x->getHeur() < y->getHeur();
       } 
-      */
       return x->getOrderingHeur() > y->getOrderingHeur();
     }
   };

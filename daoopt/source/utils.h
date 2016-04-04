@@ -123,8 +123,8 @@ inline bool increaseTuple(size_t& idx, val_t* tuple, const vector<val_t>& limit)
   else return false;
 }
 
-inline bool idx_map_increment(vector<val_t*> idx_map,
-    const vector<int>& domains) {
+inline bool IdxMapIncrement(vector<val_t*> idx_map,
+    const vector<val_t>& domains) {
   for (int k = idx_map.size() - 1; k >= 0; --k) {
     if (++(*idx_map[k]) < domains[k]) {
       return true;
