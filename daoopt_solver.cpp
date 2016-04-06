@@ -146,6 +146,8 @@ DEFINE_int32(lookahead_subtree_size_limit, -1,
 DEFINE_int32(lookahead_n_be_abs_error_to_include, INT_MAX,
              "lookahead: number of largest avg abs bucket error variables"
              "to include in LH");
+DEFINE_bool(bee_importance_sampling, false, "use importance sampling for BEE "
+    "sampling. the weight is based on exponentiating log costs.");
 
 // Heuristic upper bound propagation
 DEFINE_bool(do_heuristic_prop, false,
@@ -159,6 +161,8 @@ DEFINE_int32(bee_slice_sample_scope_size, 10, "maximum size for output scope "
 DEFINE_bool(bee_slice_sample_closest_first, false,
             "keep the closest variables wrt to the search space "
             "(default: farthest varaibles)");
+DEFINE_bool(aobf_subordering_use_relative_error, false, "use relative error "
+    "for AOBF subproblem ordering heuristic.");
 
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 DEFINE_string(supplemental_log_file, "", "path to supplmental log file");

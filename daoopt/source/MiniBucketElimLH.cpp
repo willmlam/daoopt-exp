@@ -24,6 +24,10 @@
 #include <cstddef>
 #include <fstream>
 #include <chrono>
+#include <gflags/gflags.h>
+
+DECLARE_bool(bee_importance_sampling);
+DECLARE_bool(aobf_subordering_use_relative_error);
 
 using namespace std::chrono;
 
@@ -1113,6 +1117,9 @@ int MiniBucketElimLH::computeLocalErrorTable(
     for (k = 0; k < int(funs_MB.size()); k++)
       tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
 
+    double sample_weight = FLAGS_bee_importance_sampling ?
+      pow(10.0, tableentryB) : 1.0;
+
     // compute numbers of special cases
     if (OUR_OWN_nInfinity == tableentryB) {
       if (OUR_OWN_nInfinity == tableentryMB)
@@ -1120,7 +1127,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
       else
         nEntries_B_inf++;
     } else {
-      avgExact_non_inf += tableentryB;
+      avgExact_non_inf += sample_weight * tableentryB;
       nEntries_non_inf++;
     }
 
@@ -1129,8 +1136,10 @@ int MiniBucketElimLH::computeLocalErrorTable(
 #if defined DEBUG || _DEBUG
       if (tableentryMB < tableentryB) nBadErrorValues++;
 #endif
-    } else  // note tableentryB may be -infinity.
+    } else { // note tableentryB may be -infinity.
       e = tableentryMB - tableentryB;
+    }
+    e *= sample_weight;
 
     // at this point, it should be that e >= 0
 
@@ -1304,6 +1313,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
         TableSize);
 
     // DEBUG
+    /*
     newTable = new double[TableSize];
     for (int j = 0; j < TableSize; ++j) {
       newTable[j] = 0.0;
@@ -1311,6 +1321,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     _TrueSlicedBucketErrorFunctions[var] = 
       new FunctionBayes(-var, m_problem, scope_slice, newTable,
         TableSize);
+        */
     return 0;
   }
 
@@ -1318,6 +1329,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
 
   double sampling_space_available_log =
       TableMemoryLimitAsNumElementsLog - TableSizeLog;
+  assert(sampling_space_available_log >= 0.0);
   int64 times_to_sample = pow(10.0, sampling_space_available_log);
 
   // Set times to sample such that it is as large as possible but under
@@ -1346,11 +1358,11 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   // size of tuple is n+1
 
   // safety check : scopes must be the same
-  if (scopeB.size() != scopeMB.size())  // scope of all bucket FNs - var should
-                                        // be the same as (the union of) scopes
-                                        // of MB output FNs.
-    return 1;
-  if (scopeB.size() != scope.size()) return 1;
+  // scope of all bucket FNs - var should
+  // be the same as (the union of) scopes
+  // of MB output FNs.
+  assert(scopeB.size() == scopeMB.size());
+  assert(scopeB.size() == scope.size());
 
   // Indexes into tuple
   vector<val_t*> tuple_slice;
@@ -1390,8 +1402,10 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     newTable = new double[TableSize];
   }
   catch (...) {
+    cout << "out of memory" << endl;
   }
-  if (NULL == newTable) return 1;
+  assert(newTable);
+//  if (NULL == newTable) return 1;
 
 #if defined DEBUG || _DEBUG
   size_t nBadErrorValues = 0;
@@ -1429,7 +1443,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   nEntriesRequested = min(TableSize, nEntriesRequested);
 
   double sample_coverage = 0.0;
-  // printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
+//   printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
   bool slice_inc_done = false;
 //  cout << "Times to sample: " << times_to_sample << endl;
   for (int64 j = 0; j < nEntriesRequested; j++) {
@@ -1457,6 +1471,10 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
         tableentryB = max(tableentryB, zB);
       }
 
+      // can convert to relative by dividing weight by tableentryB.
+      double sample_weight = FLAGS_bee_importance_sampling ?
+        pow(10.0, tableentryB) : 1.0;
+
       // combine MB output FNs
       double tableentryMB = ELEM_ONE;
       for (int k = 0; k < int(funs_MB.size()); k++)
@@ -1469,8 +1487,8 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
         else
           nEntries_B_inf++;
       } else {
-        avgExact_non_inf += tableentryB;
-        exact_noninf_sampled_avg += tableentryB;
+        avgExact_non_inf += sample_weight * tableentryB;
+        exact_noninf_sampled_avg += sample_weight * tableentryB;
         nEntries_non_inf++;
       }
 
@@ -1486,6 +1504,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
           e = 0.0;
         }
       }
+      e *= sample_weight;
 
       // at this point, it should be that e >= 0
       if (e < OUR_OWN_pInfinity) {
@@ -1508,9 +1527,11 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     e_sampled_avg /= times_to_sample - num_rejected_samples;
     exact_noninf_sampled_avg /= times_to_sample - num_rejected_samples;
     // make relative error?
-    e_sampled_avg = fabs(exact_noninf_sampled_avg) > 0.0
-      ? fabs(100 * e_sampled_avg / exact_noninf_sampled_avg)
-      : 0.0;
+    if (FLAGS_aobf_subordering_use_relative_error) {
+      e_sampled_avg = fabs(exact_noninf_sampled_avg) > 0.0
+        ? fabs(100 * e_sampled_avg / exact_noninf_sampled_avg)
+        : 0.0;
+    }
     if (NULL != newTable) newTable[j] = e_sampled_avg;
 
     slice_inc_done = !IdxMapIncrement(tuple_slice, slice_domains);
@@ -1670,6 +1691,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   if (newTable) {
     errorFn = new FunctionBayes(-var, m_problem, scope_slice, newTable,
         TableSize);
+    cout << "Created fn for var " << var << endl;
     if (NULL != errorFn) newTable = NULL;  // table belongs to errorFn
   }
 
@@ -1809,10 +1831,17 @@ int MiniBucketElimLH::computeLocalErrorTables(
       // the number of variables is less than or equal to the specified
       // flag. Currently arbitrarily making it so we use 2 fewer variables
       // than the i-bound to guarantee less memory usage.
+      //
+      // We also need to continue removing variables if the sliced scope
+      // results in a table with more entries than the table limit parameter.
+      double current_table_size_log = 0.0;
       set<int> output_scope(_BucketScopes[v]);
+      for (int v : output_scope) {
+        current_table_size_log += log10(m_problem->getDomainSize(v));
+      }
       int target_scope_size = min(m_options->bee_slice_sample_scope_size, 
                                   m_ibound);
-//      target_scope_size = 1;
+      
       
       const vector<int>& elim_order = m_pseudotree->getElimOrder();
 
@@ -1820,20 +1849,22 @@ int MiniBucketElimLH::computeLocalErrorTables(
       // we must keep the bucket variable however.
       if (m_options->bee_slice_sample_closest_first) {
         for (auto itV = elim_order.rbegin(); itV != elim_order.rend(); ++itV) {
-          if (output_scope.size() <= target_scope_size - 1) {
+          if (output_scope.size() <= target_scope_size - 1 &&
+              current_table_size_log <= table_size_actual_limit) {
             break;
           }
-          if (*itV != v) {
-            output_scope.erase(*itV);
+          if (*itV != v && output_scope.erase(*itV)) {
+              current_table_size_log -= log10(m_problem->getDomainSize(*itV));
           }
         }
       } else { // farthest first
         for (auto itV = elim_order.begin(); itV != elim_order.end(); ++itV) {
-          if (output_scope.size() <= target_scope_size - 1) {
+          if (output_scope.size() <= target_scope_size - 1 &&
+              current_table_size_log <= table_size_actual_limit) {
             break;
           }
-          if (*itV != v) {
-            output_scope.erase(*itV);
+          if (*itV != v && output_scope.erase(*itV)) {
+            current_table_size_log -= log10(m_problem->getDomainSize(*itV));
           }
         }
       }
@@ -1983,7 +2014,11 @@ int MiniBucketElimLH::computeLocalErrorTables(
   */
 
   // Try with rel or abs. absavg may make more sense here.
-  ComputeSubtreeErrors(_BucketError_Rel);
+  if (FLAGS_aobf_subordering_use_relative_error) {
+    ComputeSubtreeErrors(_BucketError_Rel);
+  } else {
+    ComputeSubtreeErrors(_BucketError_AbsAvg);
+  }
   
   /*
   cout << "constants" << endl;
