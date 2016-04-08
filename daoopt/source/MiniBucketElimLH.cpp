@@ -1084,6 +1084,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
   } else {
     ++nFNsBEsampled;
   }
+  double total_sample_weight_noninf = 0.0;
 
 //  cout << "entries requested: " << nEntriesRequested << endl;
   // printf("\nBUCKET ERROR TABLE for var=%d", (int)var) ;
@@ -1118,7 +1119,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
       tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
 
     double sample_weight = FLAGS_bee_importance_sampling ?
-      pow(10.0, tableentryB) : 1.0;
+      pow(10.0, tableentryMB) : 1.0;
 
     // compute numbers of special cases
     if (OUR_OWN_nInfinity == tableentryB) {
@@ -1128,6 +1129,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
         nEntries_B_inf++;
     } else {
       avgExact_non_inf += sample_weight * tableentryB;
+      total_sample_weight_noninf += sample_weight;
       nEntries_non_inf++;
     }
 
@@ -1161,8 +1163,10 @@ int MiniBucketElimLH::computeLocalErrorTable(
   // avgExact_non_inf/avgError_non_inf are avg in case when neither MB/B value
   // is -infinity.
   if (nEntries_non_inf > 0) {
-    avgExact_non_inf /= nEntries_non_inf;
-    avgError_non_inf /= nEntries_non_inf;
+//    avgExact_non_inf /= nEntries_non_inf;
+//    avgError_non_inf /= nEntries_non_inf;
+    avgExact_non_inf /= total_sample_weight_noninf;
+    avgError_non_inf /= total_sample_weight_noninf;
   }
   // rel_error is relative error in case when neither MB/B value is -infinity.
   double rel_error = fabs(avgExact_non_inf) > 0.0
@@ -1452,6 +1456,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     double exact_noninf_sampled_avg = 0.0;
     int64 num_rejected_samples = 0;
     bool enumerate_done = false;
+    double total_sample_weight_noninf = 0.0;
     for (int64 ks = 0; ks < times_to_sample; ++ks) {
       ++nEntriesGenerated;
       if (!enumerate_table) {
@@ -1471,14 +1476,14 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
         tableentryB = max(tableentryB, zB);
       }
 
-      // can convert to relative by dividing weight by tableentryB.
-      double sample_weight = FLAGS_bee_importance_sampling ?
-        pow(10.0, tableentryB) : 1.0;
 
       // combine MB output FNs
       double tableentryMB = ELEM_ONE;
       for (int k = 0; k < int(funs_MB.size()); k++)
         tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
+
+      double sample_weight = FLAGS_bee_importance_sampling ?
+        pow(10.0, tableentryMB) : 1.0;
 
       // compute numbers of special cases
       if (OUR_OWN_nInfinity == tableentryB) {
@@ -1489,6 +1494,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       } else {
         avgExact_non_inf += sample_weight * tableentryB;
         exact_noninf_sampled_avg += sample_weight * tableentryB;
+        total_sample_weight_noninf += sample_weight;
         nEntries_non_inf++;
       }
 
@@ -1524,8 +1530,8 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       }
     }
     assert(!enumerate_table || enumerate_done);
-    e_sampled_avg /= times_to_sample - num_rejected_samples;
-    exact_noninf_sampled_avg /= times_to_sample - num_rejected_samples;
+    e_sampled_avg /= total_sample_weight_noninf;
+    exact_noninf_sampled_avg /= total_sample_weight_noninf;
     // make relative error?
     if (FLAGS_aobf_subordering_use_relative_error) {
       e_sampled_avg = fabs(exact_noninf_sampled_avg) > 0.0
@@ -1691,7 +1697,6 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   if (newTable) {
     errorFn = new FunctionBayes(-var, m_problem, scope_slice, newTable,
         TableSize);
-    cout << "Created fn for var " << var << endl;
     if (NULL != errorFn) newTable = NULL;  // table belongs to errorFn
   }
 
