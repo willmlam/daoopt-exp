@@ -2066,15 +2066,19 @@ void MiniBucketElimLH::ComputeSubtreeErrors(
   for (int v : m_pseudotree->getElimOrder()) {
     double e = max(0.0, bucket_error[v]);
     int n_children = m_pseudotree->getNode(v)->getChildren().size();
-    _SubtreeError[v] += e / (n_children + 1);
+    _SubtreeError[v] += e;// / (n_children + 1);
     if (v != m_pseudotree->getRoot()->getVar()) {
       PseudotreeNode *p = m_pseudotree->getNode(v)->getParent();
       int p_var = p->getVar();
       int n_p_var_children = p->getChildren().size();
       int child_penalty = 1;
+      int k = m_problem->getDomainSize(v);
+      child_penalty = k;
+      /*
       if (FLAGS_aobf_subordering_use_relative_error) {
         child_penalty += n_p_var_children;
       }
+      */
       _SubtreeError[p_var] += _SubtreeError[v] / child_penalty;
     }
   }
@@ -2193,9 +2197,12 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
         bool p_only_increment_done = false;
         int n_p_var_children = p->getChildren().size();
         int child_penalty = 1;
+        child_penalty = m_problem->getDomainSize(p_var);
+        /*
         if (FLAGS_aobf_subordering_use_relative_error) {
           child_penalty += n_p_var_children;
         }
+        */
         for (int64 jj = 0; jj < p_only_cardinality; ++jj) {
           double p_value = parent_fn->getValuePtr(idx_map_p_var);
           parent_fn->setValuePtr(idx_map_p_var, p_value +
