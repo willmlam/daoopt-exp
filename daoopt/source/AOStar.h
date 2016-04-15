@@ -56,7 +56,7 @@ class AOStar : virtual public Search {
     BFSearchNode*, bool> {
     bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
       if (x->getOrderingHeur() == y->getOrderingHeur()) {
-        return x->getHeur() < y->getHeur();
+        return x->getHeur() > y->getHeur();
       } 
       return x->getOrderingHeur() > y->getOrderingHeur();
     }
