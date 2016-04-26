@@ -1084,6 +1084,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
   } else {
     ++nFNsBEsampled;
   }
+
   double total_sample_weight_noninf = 0.0;
 
 //  cout << "entries requested: " << nEntriesRequested << endl;
@@ -1121,6 +1122,15 @@ int MiniBucketElimLH::computeLocalErrorTable(
     double sample_weight = FLAGS_bee_importance_sampling ?
       pow(10.0, tableentryMB) : 1.0;
 
+    e = tableentryMB - tableentryB; 
+    if (e >= 0 && e < OUR_OWN_pInfinity && tableentryB != OUR_OWN_nInfinity) {
+      total_sample_weight_noninf += sample_weight;
+      avgError_non_inf += sample_weight * e;
+      avgExact_non_inf += sample_weight * tableentryB;
+    }
+
+
+    /*
     // compute numbers of special cases
     if (OUR_OWN_nInfinity == tableentryB) {
       if (OUR_OWN_nInfinity == tableentryMB)
@@ -1129,7 +1139,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
         nEntries_B_inf++;
     } else {
       avgExact_non_inf += sample_weight * tableentryB;
-      total_sample_weight_noninf += sample_weight;
+      total_sample_weight_error_noninf += sample_weight;
       nEntries_non_inf++;
     }
 
@@ -1142,13 +1152,13 @@ int MiniBucketElimLH::computeLocalErrorTable(
       e = tableentryMB - tableentryB;
     }
     e *= sample_weight;
+    */
 
     // at this point, it should be that e >= 0
 
     numErrorItems += 1.0;
     avgError += e;
     avgExact += tableentryB;
-    if (e < OUR_OWN_pInfinity) avgError_non_inf += e;
     if (e < errorAbsMin) errorAbsMin = e;
     if (e > errorAbsMax) errorAbsMax = e;
     if (NULL != newTable) newTable[j] = e;
@@ -1162,11 +1172,9 @@ int MiniBucketElimLH::computeLocalErrorTable(
 
   // avgExact_non_inf/avgError_non_inf are avg in case when neither MB/B value
   // is -infinity.
-  if (nEntries_non_inf > 0) {
-//    avgExact_non_inf /= nEntries_non_inf;
-//    avgError_non_inf /= nEntries_non_inf;
-    avgExact_non_inf /= total_sample_weight_noninf;
+  if (total_sample_weight_noninf > 0) {
     avgError_non_inf /= total_sample_weight_noninf;
+    avgExact_non_inf /= total_sample_weight_noninf;
   }
   // rel_error is relative error in case when neither MB/B value is -infinity.
   double rel_error = fabs(avgExact_non_inf) > 0.0
@@ -1177,8 +1185,8 @@ int MiniBucketElimLH::computeLocalErrorTable(
   if (numErrorItems > 0.0) {
     avgError = avgError / numErrorItems;
     avgExact = avgExact / numErrorItems;
-    if (nEntries_non_inf > 0) {
-      _BucketError_AbsAvg[var] = avgError_non_inf / nEntries_non_inf;
+    if (total_sample_weight_noninf > 0.0) {
+      _BucketError_AbsAvg[var] = avgError_non_inf;
     } else {
       _BucketError_AbsAvg[var] = OUR_OWN_nInfinity;
     }
@@ -1429,6 +1437,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   int64 nEntries_both_inf = 0, nEntries_B_inf = 0, nEntries_non_inf = 0;
   double avgExact_non_inf = 0.0, avgError_non_inf = 0.0;
   double errorAbsMin = OUR_OWN_pInfinity, errorAbsMax = OUR_OWN_nInfinity;
+  double overall_total_sample_weight_noninf = 0.0;
 
   // enumerate all new fn scope combinations
   double numErrorItems = 0.0;
@@ -1485,6 +1494,17 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       double sample_weight = FLAGS_bee_importance_sampling ?
         pow(10.0, tableentryMB) : 1.0;
 
+      double e = tableentryMB - tableentryB; 
+      if (e >= 0 && e < OUR_OWN_pInfinity && tableentryB != OUR_OWN_nInfinity) {
+        avgError_non_inf += sample_weight * e;
+        avgExact_non_inf += sample_weight * tableentryB;
+
+        total_sample_weight_noninf += sample_weight;
+        e_sampled_avg += sample_weight * e;
+        exact_noninf_sampled_avg += sample_weight * tableentryB;
+      }
+
+      /*
       // compute numbers of special cases
       if (OUR_OWN_nInfinity == tableentryB) {
         if (OUR_OWN_nInfinity == tableentryMB)
@@ -1494,7 +1514,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       } else {
         avgExact_non_inf += sample_weight * tableentryB;
         exact_noninf_sampled_avg += sample_weight * tableentryB;
-        total_sample_weight_noninf += sample_weight;
+        total_sample_weight_exact_noninf += sample_weight;
         nEntries_non_inf++;
       }
 
@@ -1516,15 +1536,19 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       if (e < OUR_OWN_pInfinity) {
         avgError_non_inf += e;
         e_sampled_avg += e;
+        total_sample_weight_error_noninf += sample_weight;
       } else { // reject inf samples
         ++num_rejected_samples;
       }
+      */
       if (e < errorAbsMin) errorAbsMin = e;
       if (e > errorAbsMax) errorAbsMax = e;
 
       avgExact += tableentryB;
       avgError += e;
       numErrorItems += 1.0;
+      overall_total_sample_weight_noninf += total_sample_weight_noninf;
+
       if (enumerate_table) {
         enumerate_done = !IdxMapIncrement(tuple_sample, sample_domains);
       }
@@ -1543,99 +1567,6 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     slice_inc_done = !IdxMapIncrement(tuple_slice, slice_domains);
   }
 
-  /*
-  // DEBUG
-  // TESTING FOR ACCURACY OF SAMPLING
-  for (int i = n - 1; i >= 0; --i) tuple[i] = 0;
-  *tuple_slice.back() = -1;
-  double *true_slice_error_fn_table = new double[TableSize];
-  for (int64 j = 0; j < TableSize; j++) {
-    // get next combination in slice
-    for (int i = tuple_slice.size() - 1; i >= 0; i--) {
-      if (++(*tuple_slice[i]) < slice_domains[i]) break;
-      *tuple_slice[i] = 0;
-    }
-    double e_sampled_avg = 0.0;
-    for (int i = 0; i < tuple_sample.size(); ++i) {
-      *tuple_sample[i] = 0;
-    }
-    *tuple_sample.back() = -1;
-    for (int64 ks = 0; ks < sample_cardinality; ++ks) {
-      // get next combination in sampling scope
-      for (int i = tuple_sample.size() - 1; i >= 0; i--) {
-        if (++(*tuple_sample[i]) < sample_domains[i]) break;
-        *tuple_sample[i] = 0;
-      }
-
-      // enumerate over all bucket var values; combine all bucket FNs
-      double tableentryB = ELEM_ZERO, zB;
-      for (tuple[n] = 0; tuple[n] < int(bucket_var_domain_size); tuple[n]++) {
-        zB = ELEM_ONE;
-        for (int k = 0; k < int(funs_B.size()); ++k) {
-          zB OP_TIMESEQ funs_B[k]->getValuePtr(idxMapB[k]);
-        }
-        tableentryB = max(tableentryB, zB);
-      }
-
-      // combine MB output FNs
-      double tableentryMB = ELEM_ONE;
-      for (int k = 0; k < int(funs_MB.size()); k++)
-        tableentryMB OP_TIMESEQ funs_MB[k]->getValuePtr(idxMapMB[k]);
-
-      double e = 0.0;
-      if (tableentryMB < tableentryB){
-#ifdef DEBUG
-        nBadErrorValues++;
-#endif
-      } else { // note tableentryB may be -infinity.
-        e = tableentryMB - tableentryB;
-        // If both are inf, then there is no error
-        if (std::isinf(tableentryMB) && std::isinf(tableentryB)) {
-          e = 0.0;
-        }
-      }
-
-      avgError += e;
-      e_sampled_avg += e;
-    }
-    e_sampled_avg /= sample_cardinality;
-    if (NULL != true_slice_error_fn_table) {
-      true_slice_error_fn_table[j] = e_sampled_avg;
-    }
-  }
-  _TrueSlicedBucketErrorFunctions[var] = 
-    new FunctionBayes(-var, m_problem, scope_slice, true_slice_error_fn_table,
-        TableSize);
-
-  double avg_sampling_error = 0.0;
-  double avg_rel_sampling_error = 0.0;
-  int uncomputable_entries = 0;
-  for (int j = 0; j < TableSize; ++j) {
-    double err = newTable[j] - true_slice_error_fn_table[j];
-    if (std::isinf(newTable[j]) && std::isinf(true_slice_error_fn_table[j])) {
-      err = 0.0;
-    } else if (std::isinf(newTable[j]) ||
-        std::isinf(true_slice_error_fn_table[j])) {
-      ++uncomputable_entries;
-      continue;
-    }
-    avg_sampling_error += err;
-//    cout << " " << true_slice_error_fn_table[j] << endl;
-    double rel_err =
-      (!std::isinf(true_slice_error_fn_table[j]) &&
-       true_slice_error_fn_table[j] != 0.0 ?
-       fabs(err) / true_slice_error_fn_table[j] :
-       fabs(err));
-    avg_rel_sampling_error += rel_err;
-
-  }
-  avg_sampling_error /= TableSize - uncomputable_entries;
-  avg_rel_sampling_error /= TableSize - uncomputable_entries;
-  cout << "v" << var << ", average sampling error: " << avg_sampling_error
-    << " (" << avg_rel_sampling_error << ")" << endl;
-  // END SAMPLING DEBUG!!!!
-  */
-
   if (nEntriesGenerated <= 0) {
     // we have no data; leave _BucketErrorQuality[] as is (-1 most likely).
     return 0;
@@ -1643,9 +1574,9 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
 
   // avgExact_non_inf/avgError_non_inf are avg in case when neither MB/B value
   // is -infinity.
-  if (nEntries_non_inf > 0) {
-    avgExact_non_inf /= nEntries_non_inf;
-    avgError_non_inf /= nEntries_non_inf;
+  if (overall_total_sample_weight_noninf > 0) {
+    avgError_non_inf /= overall_total_sample_weight_noninf;
+    avgExact_non_inf /= overall_total_sample_weight_noninf;
   }
   // rel_error is relative error in case when neither MB/B value is -infinity.
   double rel_error = fabs(avgExact_non_inf) > 0.0
@@ -1657,7 +1588,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     avgError = avgError / numErrorItems;
     avgExact = avgExact / numErrorItems;
     if (nEntries_non_inf > 0) {
-      _BucketError_AbsAvg[var] = avgError_non_inf / nEntries_non_inf;
+      _BucketError_AbsAvg[var] = avgError_non_inf;
     } else {
       _BucketError_AbsAvg[var] = OUR_OWN_nInfinity;
     }
@@ -2196,13 +2127,8 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
 
         bool p_only_increment_done = false;
         int n_p_var_children = p->getChildren().size();
-        int child_penalty = 1;
-        child_penalty = m_problem->getDomainSize(p_var);
-        /*
-        if (FLAGS_aobf_subordering_use_relative_error) {
-          child_penalty += n_p_var_children;
-        }
-        */
+        int child_penalty = m_problem->getDomainSize(p_var);
+
         for (int64 jj = 0; jj < p_only_cardinality; ++jj) {
           double p_value = parent_fn->getValuePtr(idx_map_p_var);
           parent_fn->setValuePtr(idx_map_p_var, p_value +
