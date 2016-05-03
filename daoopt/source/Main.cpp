@@ -503,9 +503,9 @@ bool Main::initDataStructs() {
 #ifdef PARALLEL_DYNAMIC
   m_space.reset(new SearchSpaceMaster(m_pseudotree.get(), m_options.get()));
 #else
-  if (m_options->algorithm == 0) {
+  if (m_options->algorithm == "aobb") {
     m_space.reset(new SearchSpace(m_pseudotree.get(), m_options.get()));
-  } else if (m_options->algorithm == 1) {
+  } else if (m_options->algorithm == "aobf") {
     m_space.reset(new BFSearchSpace(m_pseudotree.get(), m_options.get(),
                                     m_problem->getN()));
   }
@@ -531,7 +531,7 @@ bool Main::initDataStructs() {
   m_search.reset(new ParallelManager(m_problem.get(), m_pseudotree.get(),
                                      m_space.get(), m_heuristic.get()));
 #else
-  if (m_options->algorithm == 0) {
+  if (m_options->algorithm == "aobb") {
     if (m_options->rotate) {
       m_search.reset(new BranchAndBoundRotate(
           m_problem.get(), m_pseudotree.get(), m_space.get(), m_heuristic.get(),
@@ -541,7 +541,7 @@ bool Main::initDataStructs() {
                                         m_space.get(), m_heuristic.get(),
                                         m_prop.get(), m_options.get()));
     }
-  } else if (m_options->algorithm == 1) {
+  } else if (m_options->algorithm == "aobf") {
     m_search.reset(new AOStar(m_problem.get(), m_pseudotree.get(),
                               m_space.get(), m_heuristic.get(), m_prop.get(),
                               m_options.get()));

@@ -6,6 +6,8 @@
 namespace daoopt {
 
 class BFSearchNode;
+class BFSearchNodeAND;
+class BFSearchNodeOR;
 
 class BFSearchNode : public SearchNode {
  public:
@@ -183,9 +185,15 @@ class BFSearchNodeAND : public BFSearchNode {
   /* empty, but required implementations */
   void setWeight(int val, double w) { assert(false); }
   double getWeight(int val) const { assert(false); return 0; }
-  double getLabel() const { assert(false); return 0; } // no label for OR nodes!
-  void addSubSolved(double d) { assert(false); } // not applicable for OR nodes
-  double getSubSolved() const { assert(false); return 0; } // not applicable for OR nodes
+  double getLabel() const { 
+    assert(false);
+  }
+  void addSubSolved(double d) {
+    sub_solved_ OP_TIMESEQ d;
+  }
+  double getSubSolved() const {
+    return sub_solved_;
+  }
   void setInitialBound(double d) { assert(false); }
   double getInitialBound() const { assert(false); return 0; }
   void setComplexityEstimate(double d) { assert(false); }
@@ -195,7 +203,7 @@ class BFSearchNodeAND : public BFSearchNode {
   const context_t& getCacheContext() const { return SearchNode::emptyCtxt; }
   void setCacheInst(size_t i) { }
   size_t getCacheInst() const { return 0; }
-  void getPST(vector<double>& v) const { }
+  void getPST(vector<double>& v) const { assert(false); }
   void setHeurCache(double* d) { }
   double* getHeurCache() const { return nullptr; }
   void clearHeurCache() { }
@@ -208,6 +216,7 @@ class BFSearchNodeAND : public BFSearchNode {
 
  protected:
   val_t val_;
+  double sub_solved_;
 };
 
 class BFSearchNodeOR : public BFSearchNode {
@@ -227,9 +236,11 @@ class BFSearchNodeOR : public BFSearchNode {
   size_t getCacheInst() const { assert(false); return 0; }
   void setInitialBound(double d) { assert(false); }
   double getInitialBound() const { assert(false); return 0; }
+
   void setComplexityEstimate(double d) { assert(false); }
   double getComplexityEstimate() const { assert(false); return 0; }
-  void getPST(vector<double>& pst) const { assert(false); }
+
+  void getPST(vector<double>& pst) const;
 
   int getType() const {
     return NODE_OR;
@@ -288,6 +299,7 @@ class BFSearchNodeOR : public BFSearchNode {
   double* ordering_heur_cache_;
   BFSearchNode* best_child_;
 
+
 };
 
 inline BFSearchNode::BFSearchNode(SearchNode* parent) 
@@ -303,6 +315,31 @@ inline BFSearchNode::BFSearchNode(SearchNode* parent)
     index_(0),
     current_parent_(nullptr),
     hash_key_(0) {
+}
+
+inline void BFSearchNodeOR::getPST(vector<double>& pst) const {
+  const SearchNode* curAND = nullptr;
+  const SearchNode* curOR = this;
+
+  pst.clear();
+
+  while (curOR->getParent()) {
+    curAND = curOR->getParent();
+    val_t val = curAND->getVal();
+    double label = dynamic_cast<BFSearchNodeOR*>(curAND->getParent())->
+        getWeight(val);
+    label OP_TIMESEQ curAND->getSubSolved();
+    NodeP* children = curAND->getChildren();
+    for (size_t i = 0; i< curAND->getChildCountFull(); ++i) {
+      if (children[i] && children[i] != curOR) {
+        label OP_TIMESEQ children[i]->getHeur();
+      }
+    }
+    pst.push_back(label);
+    
+    curOR = curAND->getParent();
+    pst.push_back(curOR->getValue());
+  }
 }
 
 inline std::string BFSearchNodeAND::ToString() {
@@ -364,6 +401,7 @@ inline BFSearchNodeAND::BFSearchNodeAND(SearchNode* parent, int var, int val,
   var_ = var;
   val_ = val;
   depth_ = depth;
+  sub_solved_ = ELEM_ONE;
 }
 
 inline BFSearchNodeAND::~BFSearchNodeAND() {

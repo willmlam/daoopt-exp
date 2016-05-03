@@ -312,6 +312,9 @@ bool AOStar::Revise(BFSearchNode* node) {
     if (solved) {
       node->set_solved(true);
       node->set_fringe(false);
+
+      BFSearchNode* parent = node->getParent();
+      parent->addSubSolved(node->getValue()); 
     }
     change = solved || q_value != old_value;
     if (change && node == search_space_->getRoot()) {

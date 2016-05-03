@@ -186,13 +186,11 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
       return false;
     }
 
-    if (FLAGS_algorithm == "aobb") {
-      opt->algorithm = 0;
-    } else if (FLAGS_algorithm == "aobf") {
-      opt->algorithm = 1;
-    } else {
+    if (FLAGS_algorithm != "aobb" && FLAGS_algorithm != "aobf") {
       cout << "Invalid search algorithm specified." << endl;
       return false;
+    } else {
+      opt->algorithm = FLAGS_algorithm;
     }
 
     opt->in_problemFile = FLAGS_input_file;
