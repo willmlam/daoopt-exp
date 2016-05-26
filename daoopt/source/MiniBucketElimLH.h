@@ -138,7 +138,7 @@ class MiniBucketElimLH : public MiniBucketElim {
   //		 1  = bucket error is >0 (but perhaps trivial)
   //		 2+ = bucket error is >0 and non-trivial
   //		99  = marked by default (by user) to be included in the LH
-  //subtree
+  // subtree
   // note that bucket error is MBvalue - B(exact)value. given that we solve
   // maximization problem, this should be always >=0, since MBvalue>=Bvalue.
   std::vector<signed char> _BucketErrorQuality;
@@ -398,6 +398,9 @@ inline void MiniBucketElimLH::printExtraStats() const {
                                            total_calls_and << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
   cout << "Better orderings w/ lookahead: " << count_better_ordering_ << endl;
+  cout << "Better orderings w/ lookahead (ratio): "
+       << static_cast<double>(count_better_ordering_) / total_lookahead_calls
+       << endl;
   cout << "Final lookahead probability: " << lookahead_probability_ << endl;
 }
 
@@ -820,7 +823,8 @@ class MiniBucketElimLHError {
         if (!IsSubtreeMBEfunction(*fn)) funs.push_back(fn);
       }
     }
-    /*		// fill in a list of relevant functions of the node[v] = all IF/AF in
+    /*		// fill in a list of relevant functions of the node[v] = all IF/AF
+    in
     [v] that came from relevant descendant buckets
     this code has bug; for all MB output FNs we should check if it is in [v]
     bucket first
@@ -1123,7 +1127,8 @@ class MiniBucketElimLHheuristic {
         _IntermediateSubtreeFunctions.push_back(fn);
     }
 
-    /*		// fill in a list of relevant functions of the node[v] = all IF/AF in
+    /*		// fill in a list of relevant functions of the node[v] = all IF/AF
+    in
     [v] that came from relevant descendant buckets
     this code has bug; for all MB output FNs we should check if it is in [v]
     bucket first
