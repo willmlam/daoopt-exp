@@ -29,6 +29,7 @@
 DECLARE_bool(bee_importance_sampling);
 DECLARE_bool(aobf_subordering_use_relative_error);
 DECLARE_double(lookahead_starting_probability);
+DECLARE_bool(lookahead_fix_probability);
 
 using namespace std::chrono;
 
@@ -769,9 +770,11 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
     // Update count and probability
     if (no_lh_argmax != lh_argmax) {
       ++count_better_ordering_;
-      lookahead_probability_ = max(0.1,
-          static_cast<double>(count_better_ordering_) /
-          count_lookahead_performed_);
+      if (!FLAGS_lookahead_fix_probability) {
+        lookahead_probability_ = max(0.1,
+            static_cast<double>(count_better_ordering_) /
+            count_lookahead_performed_);
+      }
     }
 
     /*

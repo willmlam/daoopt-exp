@@ -38,7 +38,7 @@ DEFINE_int32(max_time, kint32max, "timeout threshold in seconds");
 DEFINE_string(minibucket_file, "", "path to read/store minibucket heuristic");
 DEFINE_string(subproblem_file, "",
               "path to subproblem specification to limit search to");
-DEFINE_int32(suborder, 0, 
+DEFINE_int32(suborder, 0,
              "subproblem order "
              "(0:width-inc 1:width-dec 2:heur-inc 3:heur-dec)");
 DEFINE_string(sol_file, "", "path to output optimal solution to");
@@ -131,13 +131,13 @@ DEFINE_double(dfglp_tolerance, 1e-7, "convergence tolerance for dynamic FGLP");
 // Lookahead options
 DEFINE_int32(lookahead_depth, -1, "depth of lookahead when computing the h"
              "(heuristic) function");
-DEFINE_double(lookahead_local_error_single_table_limit, 7.0, 
-              "lookahead: limit as number of entries for a single local error" 
+DEFINE_double(lookahead_local_error_single_table_limit, 7.0,
+              "lookahead: limit as number of entries for a single local error"
               "table (in log10)");
-DEFINE_double(lookahead_local_error_all_tables_total_limit, 0.0, 
-              "lookahead: limit as number of entries for all local error" 
+DEFINE_double(lookahead_local_error_all_tables_total_limit, 0.0,
+              "lookahead: limit as number of entries for all local error"
               "tables (in log10)");
-DEFINE_double(lookahead_local_error_ignore_threshold, -DBL_MIN, 
+DEFINE_double(lookahead_local_error_ignore_threshold, -DBL_MIN,
               "lookahead: ignore threshold");
 DEFINE_bool(lookahead_use_full_subtree, false,
             "lookahead: do not perform pruning on lookahead subtree");
@@ -148,6 +148,8 @@ DEFINE_int32(lookahead_n_be_abs_error_to_include, INT_MAX,
              "to include in LH");
 DEFINE_double(lookahead_starting_probability, 1.0,
              "initial probability of performing lookahead");
+DEFINE_bool(lookahead_fix_probability, false, "keep the same probabiliy of"
+            "performing lookahead");
 DEFINE_bool(bee_importance_sampling, false, "use importance sampling for BEE "
     "sampling. the weight is based on exponentiating log costs.");
 
@@ -241,7 +243,7 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
         FLAGS_lookahead_local_error_single_table_limit;
     opt->lookahead_LE_AllTablesTotalLimit =
         FLAGS_lookahead_local_error_all_tables_total_limit;
-    opt->lookahead_LE_IgnoreThreshold = 
+    opt->lookahead_LE_IgnoreThreshold =
         FLAGS_lookahead_local_error_ignore_threshold;
     opt->lookahead_use_full_subtree =
         FLAGS_lookahead_use_full_subtree;
@@ -287,7 +289,7 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
     opt->out_reducedFile = FLAGS_reduce_file;
 
     opt->collapse = FLAGS_collapse;
-    
+
     opt->perturb = FLAGS_zero_perturb;
 
     opt->out_pstFile = FLAGS_pst_file;
@@ -365,4 +367,3 @@ int main(int argc, char** argv) {
   return 0;
 
 }
-
