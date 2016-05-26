@@ -409,6 +409,10 @@ public:
   static int next(const int& hi) {
     return static_cast<int>( (state=_r()) / (_r.max()+1.0) * hi );
   }
+  // probability from a uniform distribution.
+  static double next_unif() {
+    return static_cast<double>( (state=_r()) / (_r.max()+1.0) );
+  }
 
 };
 }  // namespace daoopt

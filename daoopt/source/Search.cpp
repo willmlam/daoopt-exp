@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Sep 22, 2009
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -216,7 +216,7 @@ SearchNode* Search::nextLeaf() {
     // Then move to next node.
     node = this->nextNode();
     high_resolution_clock::time_point time_now = high_resolution_clock::now();
-    double time_elapsed = duration_cast<duration<double>>(time_now - _time_start).count(); 
+    double time_elapsed = duration_cast<duration<double>>(time_now - _time_start).count();
     if (time_elapsed > m_options->maxTime) {
       cout << "Timed out at " << time_elapsed << " seconds." << endl;
       cout << "Stats at timeout: " << endl;
@@ -237,14 +237,14 @@ SearchNode* Search::nextLeaf() {
 
 bool Search::canBePruned(SearchNode* n) const {
   DIAG(oss ss; ss << std::setprecision(20) << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
- 
+
   n->PruningGap() = DBL_MAX ;
 
   // never prune the root node (is there a better solution maybe?)
   if (n->getDepth() < 0) return false;
 
       // heuristic is upper bound, prune if zero
-  if (n->getHeur() == ELEM_ZERO) 
+  if (n->getHeur() == ELEM_ZERO)
 	  { n->PruningGap() = ELEM_ZERO ; return true; }
 
   double curPSTVal = n->getHeur();  // includes label in case of AND node
@@ -496,7 +496,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 
 
 /* define the following to enable fetching of function values in bulk */
-//#define GET_VALUE_BULK
+#define GET_VALUE_BULK
 double Search::assignCostsOR(SearchNode* n)
 {
   int v = n->getVar();
@@ -520,6 +520,7 @@ double Search::assignCostsOR(SearchNode* n)
   for (int i = 0; i < vDomain; ++i) ordering_cache[i] = 0;
   double h = ELEM_ZERO; // the new OR nodes h value
   int argmax_h = -1;
+  m_heuristic->noteOrNodeExpansionBeginning(v, m_assignment, n) ;
 
 #ifdef GET_VALUE_BULK
   // Need to get correct costs for function after shifting
@@ -531,7 +532,7 @@ double Search::assignCostsOR(SearchNode* n)
 
   m_costTmp.clear();
   m_costTmp.resize(vDomain, ELEM_ONE);
-  m_heuristic->getHeurAll(v, m_assignment, n, labelAll, m_costTmp);
+  m_heuristic->getHeurAll(v, m_assignment, n, m_costTmp);
   for (int i=0; i<vDomain; ++i) {
     dv[2*i] = m_costTmp[i];
     dv[2*i+1] = labelAll[i];
@@ -539,7 +540,11 @@ double Search::assignCostsOR(SearchNode* n)
 
   for (int i=0; i<vDomain; ++i) {
     dv[2*i] = dv[2*i+1] OP_TIMES dv[2*i];
-    h = max(h, dv[2*i]);
+    if (dv[2*i] > h) {
+      argmax_h = i;
+      h = dv[2*i]; // keep max. for OR node heuristic
+    }
+    ordering_cache[i] = m_heuristic->getOrderingHeur(v, m_assignment, n);
   }
 #else
   double label, heuristic;
@@ -549,8 +554,7 @@ double Search::assignCostsOR(SearchNode* n)
   std::vector<double> subprobH ;
   int idxSubPH_ = 2*vDomain ;
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
-  m_heuristic->noteOrNodeExpansionBeginning(v, m_assignment, n) ;
-  for (val_t i=0;i<m_problem->getDomainSize(v);++i) {
+  for (val_t i = 0; i < vDomain; ++i) {
     m_assignment[v] = i;
 
     // get label from based on heuristic class instead
@@ -562,7 +566,7 @@ double Search::assignCostsOR(SearchNode* n)
 #else
     heuristic = m_heuristic->getHeur(v, m_assignment, n);
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
-    
+
 
     // store label and heuristic into cache table
     dv[2*i+1] = label; // label
@@ -576,7 +580,7 @@ double Search::assignCostsOR(SearchNode* n)
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
     // store h of each subproblem
     int idxSubPH_End = idxSubPH_ + nChildren ; j = 0 ;
-    for (; idxSubPH_ < idxSubPH_End ; idxSubPH_++, j++) 
+    for (; idxSubPH_ < idxSubPH_End ; idxSubPH_++, j++)
       dv[idxSubPH_] = subprobH[j] ;
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   }
@@ -949,12 +953,12 @@ bool Search::propHeuristic(SearchNode* node) {
   do {
     //      cout << "Prop iteration: " << ++prop_iteration << endl;
     if (cur->getType() == NODE_AND) {
-      // if this is where the propagation starts, we have freshly 
+      // if this is where the propagation starts, we have freshly
       // generated OR nodes with new heuristics.
-      if (prop_iteration == 0) { 
+      if (prop_iteration == 0) {
         double d = cur->getSubSolved();
         assert(d == ELEM_ONE); // OR nodes are fresh!
-        DIAG( ostringstream ss; 
+        DIAG( ostringstream ss;
             ss << "value stored (subsolved only): " << d << endl;
             myprint(ss.str()); )
           NodeP* children = cur->getChildren();
@@ -979,12 +983,12 @@ bool Search::propHeuristic(SearchNode* node) {
             if (d - old_h > 1e-12) {
               cout << "subsolved: " << cur->getSubSolved() << endl;
               cout << "missing children: " << count_missing_children << endl;
-              cout << "warning: bad AND h would have been propagated. gap:  " 
+              cout << "warning: bad AND h would have been propagated. gap:  "
                 << fabs(d - old_h) << endl;
               { ostringstream ss;
                 ss << setprecision(20);
-                ss << *cur <<" [AND] old_h: " << old_h 
-                  << ", new_h: " << d 
+                ss << *cur <<" [AND] old_h: " << old_h
+                  << ", new_h: " << d
                   << ", this label: " << cur->getLabel()
                   << endl;
                 myprint(ss.str()); }
@@ -1000,7 +1004,7 @@ bool Search::propHeuristic(SearchNode* node) {
           double new_h = cur->getHeur() OP_TIMES or_delta;
           DIAG( ostringstream ss;
               ss << setprecision(20);
-              ss << *cur << " [AND] old_h: " << old_h 
+              ss << *cur << " [AND] old_h: " << old_h
               << ", new_h: " << new_h << endl; )
 
             cur->setHeur(new_h);

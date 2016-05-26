@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 8, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -60,6 +60,7 @@ public :
 	int _MaxNumMBs ;
 	int _NumBucketsWithMoreThan1MB ;
 	vector<size_t> _NumNodesLookahead; // actual number of lookahead nodes during search by variable.
+	vector<size_t> _NumNodesLookaheadSkipped; // actual number of lookahead nodes during search by variable for those with nonempty lookahead subtrees
 	double _LookaheadTotalTime;
 public :
 	void reset(void)
@@ -76,14 +77,14 @@ public :
 	}
 public :
 	MiniBucketElimLHStatistics(void) :
-		_iBound(-1), 
-		_Width(-1), 
-		_PseudoWidth(-1), 
+		_iBound(-1),
+		_Width(-1),
+		_PseudoWidth(-1),
 		_EnforcedPseudoWidth(-1),
-//		_HPseudoWidth(-1), 
-		_MemorySize(0), 
+//		_HPseudoWidth(-1),
+		_MemorySize(0),
 		_LEMemorySizeMB(0),
-		_MaxNumMBs(0), 
+		_MaxNumMBs(0),
 		_NumBucketsWithMoreThan1MB(0)
 	{
 	}
@@ -118,10 +119,10 @@ class MiniBucketElimLH : public MiniBucketElim
   // The following is for testing purposes to see how good our approximation
   // is and to see whether it makes sense to slice functions
 	std::vector<Function*> _TrueSlicedBucketErrorFunctions ;
-	double _BuckerErrorFnTableSizes_Total ; // log
-	double _BuckerErrorFnTableSizes_Precomputed ; // log
-	double _BuckerErrorFnTableSizes_Ignored ; // log
-	int64 _nBucketsWithNonZeroBuckerError ;
+	double _BucketErrorFnTableSizes_Total ; // log
+	double _BucketErrorFnTableSizes_Precomputed ; // log
+	double _BucketErrorFnTableSizes_Ignored ; // log
+	int64 _nBucketsWithNonZeroBucketError ;
 	int64 _nBucketsWithMoreThan1MB ;
 
 	// for each variable, its bucket error indicator :
@@ -136,6 +137,7 @@ class MiniBucketElimLH : public MiniBucketElim
 
 	// number of times a LH call was made on each variable
 	std::vector<int64> _nLHcalls ;
+	std::vector<int64> _nLHcallsSkipped ;
 
 	// avg abs of bucket error. when initialized this is -infinity (unknown). actual value should be >=0.
 	// avg does not include those error entries that are infinite.
@@ -152,7 +154,7 @@ class MiniBucketElimLH : public MiniBucketElim
 
 	// for each var, distance to the closest descendant with more than 1 MB/BucketErrorQuality>0. INT_MAX means infinite (no descendants).
 	// this does not include the node itself; i.e. legal values are >0 & <= INT_MAX (meaning infinity = no such descendants).
-	// note that _distToClosestDescendantWithMBs[i] <= _distToClosestDescendantWithLE[i], since the only way a bucket error can occur 
+	// note that _distToClosestDescendantWithMBs[i] <= _distToClosestDescendantWithLE[i], since the only way a bucket error can occur
 	// is if nMBs>1 (the other way is not neccessarily correct - it could be that nMBs>1, but LE=0).
 	std::vector<int> _distToClosestDescendantWithMBs ;
 	std::vector<int> _distToClosestDescendantWithLE ;
@@ -161,10 +163,34 @@ class MiniBucketElimLH : public MiniBucketElim
 //	std::vector<MiniBucketElimLHobsoleteheuristic> _Lookahead ;
 	std::vector<MBLHSubtree> _Lookahead ;
 
+
+  // Variables pertaining to dynamic lookahead computation scheme
+  // We must use GET_VALUE_BULK to get the counts to change correctly.
+
+  // Max lookahead trials -- the number of times we will always perform
+  // lookahead
+  int64 max_lookahead_trials_;
+
+  // these quantities count a set of lookahead values across a variable's domain
+  // as a single unit.
+  int64 count_better_ordering_;
+  int64 count_lookahead_performed_;
+
+  // Probablility for computing lookahead. This is set to be proprotional to
+  // time times that lookahead gives a different ordering (i.e. the ratio
+  // between count_better_ordering_ and count_lookahead_performed_).
+  double lookahead_probability_;
+
+	// Flag to note whether ComputeHeuristic was called so getHeur* functions know
+	// whether GetHeuristic calls should be made on the lookahead subtree
+	bool lookahead_subtree_updated_;
+
+
 public:
 
 	inline std::vector<MBLHSubtree> & LH(void) { return _Lookahead ; }
 	inline int64 nLHcalls(int v) { return _nLHcalls[v] ; }
+	inline int64 nLHcallsSkipped(int v) { return _nLHcallsSkipped[v] ; }
 	inline std::set<int> & BucketScope(int v) { return _BucketScopes[v] ; }
 	inline std::vector<signed char> & BucketErrorQuality(void) { return _BucketErrorQuality ; }
 	inline signed char BucketErrorQuality(int v) { return _BucketErrorQuality[v] ; }
@@ -199,21 +225,21 @@ public:
 	// note : the return values should be >= 0.0, regardless of whether normal/log representation.
 	virtual double getLocalError(int var, vector<val_t> & assignment) ;
 	// get local error of the 'Child', for each value of the 'Parent'.
-	// we assume that 'out' is initialized; furthermore, we will subtract 
+	// we assume that 'out' is initialized; furthermore, we will subtract
 	// localerror from current values of 'out'.
 	// e.g. typically 'out' is passed in as h/f of 'parent'.
 	virtual void getLocalError(int parent, int child, std::vector<val_t>& assignment, std::vector<double>& out) ;
 
-	// compute local MiniBucket error, defined as the different between 
+	// compute local MiniBucket error, defined as the different between
 	//		1) the combination of all the mini-bucket output functions,
-	//		2) what the normal/full bucket elimination would compute. 
+	//		2) what the normal/full bucket elimination would compute.
 	// note : error_fn/avg_error/avg_exact are in the same representation space (normal/log) as the problem itself.
 	// note : localerror should always be >=0, regardless of whether normal/log representation, since item_1 is at least as large as item_2 (above).
 	// note : the scope of the table (as fn) is the same as the bucket output fn.
 	// note : this fn sets _BucketErrorQuality[var] to 0/1+ when it can be determined; sometimes when bucket error table is all 0, we won't compute the table and will set _BucketErrorQuality[var]=0.
 	int computeLocalErrorTable(int var, bool build_table,
-      bool sample_table_if_not_computed, 
-      double TableMemoryLimitAsNumElementsLog, 
+      bool sample_table_if_not_computed,
+      double TableMemoryLimitAsNumElementsLog,
       double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
       double & avgError, // OUT : avg bucket error; computed when output table is not too large.
       double & avgExact, // OUT : avg value over entire bucket output table; computed when error is computed.
@@ -223,18 +249,18 @@ public:
   // A version of the above that takes in a partial scope to enumerate,
   // sampling the rest.
 	int computeLocalErrorTableSlice(int var, const set<int>& output_scope,
-      double TableMemoryLimitAsNumElementsLog, 
+      double TableMemoryLimitAsNumElementsLog,
       double & TableSizeLog, // OUT : bucket error table size, regardless of whether it is actually computed; this is in log scale, i.e. sum_log10(var_domain_size).
       double & avgError, // OUT : avg bucket error; computed when output table is not too large.
       double & avgExact, // OUT : avg value over entire bucket output table; computed when error is computed.
       Function * & error_fn, // OUT : bucket error fn; computed when output table is not too large.
       int64 & nEntriesGenerated) ; // OUT : number of actual table entires computed
   int computeLocalErrorTables(
-      bool build_tables, 
-      double TotalMemoryLimitAsNumElementsLog, 
-      double TableMemoryLimitAsNumElementsLog) ; 
+      bool build_tables,
+      double TotalMemoryLimitAsNumElementsLog,
+      double TableMemoryLimitAsNumElementsLog) ;
 
-	// compute local MiniBucket error_H, defined as the different between 
+	// compute local MiniBucket error_H, defined as the different between
 	// 1) max-product of m_augmented FNs in the bucket
 	// 2) output FNs of all minibuckets of the bucket
 	int localError_H(int var, bool computeTable, double & avgError, Function * & errorFn) ;
@@ -251,6 +277,18 @@ public:
   void ComputeSubtreeErrors(const std::vector<double>& bucket_error);
   void ComputeSubtreeErrorFns(const std::vector<Function*>& bucket_error_fns);
 
+  double GetLookaheadProbability() const {
+    return lookahead_probability_;
+  }
+  void SetLookaheadProbability(double p) {
+    lookahead_probability_ = p;
+  }
+
+  static bool CompValueHeurPairLess(const std::pair<int, double>& a,
+      const std::pair<int, double>& b) {
+    return a.second < b.second;
+  }
+
 public :
 
 	MiniBucketElimLH(Problem *p, Pseudotree *pt, ProgramOptions *po, int ib) ;
@@ -259,17 +297,21 @@ public :
 } ;
 
 inline MiniBucketElimLH::MiniBucketElimLH(Problem* p, Pseudotree* pt, ProgramOptions* po, int ib) :
-    MiniBucketElim(p, pt, po, ib), 
-	_BuckerErrorFnTableSizes_Total(-1), 
-	_BuckerErrorFnTableSizes_Precomputed(-1), 
-	_BuckerErrorFnTableSizes_Ignored(-1), 
-	_nBucketsWithNonZeroBuckerError(-1), 
-	_nBucketsWithMoreThan1MB(-1) 
-{
+    MiniBucketElim(p, pt, po, ib),
+	_BucketErrorFnTableSizes_Total(-1),
+	_BucketErrorFnTableSizes_Precomputed(-1),
+	_BucketErrorFnTableSizes_Ignored(-1),
+	_nBucketsWithNonZeroBucketError(-1),
+	_nBucketsWithMoreThan1MB(-1),
+  max_lookahead_trials_(1000),
+  count_better_ordering_(0),
+  count_lookahead_performed_(0),
+  lookahead_probability_(1.0),
+	lookahead_subtree_updated_(false) {
 }
 
 inline void MiniBucketElimLH::printExtraStats() const {
-  cout << "Heuristic call counts: " 
+  cout << "Heuristic call counts: "
        << endl;
   uint64 total_calls_or = 0;
   uint64 total_calls_and = 0;
@@ -284,28 +326,35 @@ inline void MiniBucketElimLH::printExtraStats() const {
 
   cout << "Lookahead node counts: " << endl;
 
+	uint64 total_lookahead_calls = 0;
+	uint64 total_lookahead_calls_skipped = 0;
+
   uint64 total_lookahead_or = 0;
   uint64 total_lookahead_and = 0;
   uint64 count_var_lookahead = 0;
   for (int i = 0; i < m_problem->getN(); ++i) {
+		total_lookahead_calls += _nLHcalls[i];
+		total_lookahead_calls_skipped += _nLHcallsSkipped[i];
     total_lookahead_and += _Stats._NumNodesLookahead[i];
     uint64 adjusted_count =
       _Stats._NumNodesLookahead[i] / m_problem->getDomainSize(i);
-    cout << " " << adjusted_count;
     total_lookahead_or += adjusted_count;
     if (adjusted_count > 0) count_var_lookahead += 1;
   }
   cout << endl;
+	cout << "LH calls: " << total_lookahead_calls << endl;
+	cout << "LH calls skipped: " << total_lookahead_calls_skipped << endl;
   cout << "Heuristic calls (OR): " << total_calls_or << endl;
   cout << "Heuristic calls (AND): " << total_calls_and << endl;
   cout << "Lookahead calls (OR): " << total_lookahead_or << endl;
   cout << "Lookahead calls (AND): " << total_lookahead_and << endl;
-  cout << "Lookahead ratio (OR): " 
+  cout << "Lookahead ratio (OR): "
        << double(total_lookahead_or) / total_calls_or << endl;
-  cout << "Lookahead ratio (AND): " 
+  cout << "Lookahead ratio (AND): "
        << double(total_lookahead_and) / total_calls_and << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
-  cout << "Lookahead total time: " << _Stats._LookaheadTotalTime << endl;
+  cout << "Better orderings w/ lookahead: "<< count_better_ordering_ << endl;
+  cout << "Final lookahead probability: " << lookahead_probability_ << endl;
 }
 
 inline MiniBucketElimLH::~MiniBucketElimLH(void)
@@ -316,11 +365,11 @@ inline MiniBucketElimLH::~MiniBucketElimLH(void)
 /*
 int computeMBOutFnArgsVectorPtrMap(
 	// IN
-	int elim_var, 
-	vector<Function*> & Functions, 
+	int elim_var,
+	vector<Function*> & Functions,
 	// OUT
-	set<int> & scope, 
-	int & n, 
+	set<int> & scope,
+	int & n,
 	val_t * & tuple, // size is n+1; elim_var is last.
 	vector<vector<val_t *>> & idxMap // this array can be used in a call to Function::getValuePtr().
 	) ;
@@ -339,9 +388,9 @@ public :
 	std::vector<Function *> _RelevantBucketFunctions ; // OF + AF that came from outside of the LH-subteee rooted at this node
 	std::vector<MiniBucketElimLHErrorNode *> _Children ; // children of this node in the bucket tree, that have non-0 bucket error within LH-subteee rooted at this node.
 public :
-	int Delete(void) 
+	int Delete(void)
 	{
-		for (vector<MiniBucketElimLHErrorNode *>::iterator it = _Children.begin(); it!=_Children.end(); ++it) 
+		for (vector<MiniBucketElimLHErrorNode *>::iterator it = _Children.begin(); it!=_Children.end(); ++it)
 			delete *it ;
 		_Children.clear() ;
 		_RelevantBucketFunctions.clear() ;
@@ -356,18 +405,18 @@ public :
 		vector<double> sumVals ; sumVals.resize((vector<double>::size_type) _k, ELEM_ONE) ;
 		for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF) {
 			(*itF)->getValues(assignment, _v, funVals) ;
-			for (i = 0 ; i < _k ; ++i) 
+			for (i = 0 ; i < _k ; ++i)
 				sumVals[i] OP_TIMESEQ funVals[i] ;
 			}
 		if (_Children.size() > 0) {
 			vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _Children.end() ;
 			for (i = 0 ; i < _k ; ++i) {
 				assignment[_v] = i ;
-				for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _Children.begin() ; itC != itC_end ; ++itC) 
+				for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _Children.begin() ; itC != itC_end ; ++itC)
 					sumVals[i] OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
 				}}
 		double tableentryB = sumVals[0] ;
-		for (i = 1 ; i < _k ; ++i) 
+		for (i = 1 ; i < _k ; ++i)
 			tableentryB = max(tableentryB, sumVals[i]) ;
 		return tableentryB ;*/
 		vector<Function*>::const_iterator itF_end = _RelevantBucketFunctions.end() ;
@@ -384,9 +433,9 @@ public :
 #endif
 			assignment[_v] = i ;
 			double value = ELEM_ONE ;
-			for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF) 
+			for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF)
 				value OP_TIMESEQ (*itF)->getValue(assignment) ;
-			for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _Children.begin() ; itC != itC_end ; ++itC) 
+			for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _Children.begin() ; itC != itC_end ; ++itC)
 				value OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
 			valueMax = max(valueMax, value) ;
 			}
@@ -401,14 +450,14 @@ public :
 	{
 		if (1 == _depth2go) {
 			const Function *eFN = (_H->_BucketErrorFunctions)[_v] ;
-			if (NULL != eFN) 
+			if (NULL != eFN)
 				return eFN->getValue(assignment) ;
 			}
 		double tableentryMB = ELEM_ONE ;
 		vector<Function*>::const_iterator itF_end = _RelevantMiniBucketFunctions.end() ;
-		for (vector<Function*>::const_iterator itF = _RelevantMiniBucketFunctions.begin() ; itF != itF_end ; ++itF) 
+		for (vector<Function*>::const_iterator itF = _RelevantMiniBucketFunctions.begin() ; itF != itF_end ; ++itF)
 			tableentryMB OP_TIMESEQ (*itF)->getValue(assignment) ;
-		if (OUR_OWN_nInfinity == tableentryMB) 
+		if (OUR_OWN_nInfinity == tableentryMB)
 			return 0.0 ; // if must be that tableentryB is also -Infinity and error is 0.
 		double tableentryB = ExactBucketValue(assignment) ;
 		if (tableentryMB <= tableentryB) return 0.0 ;
@@ -425,7 +474,7 @@ public :
 			const Function *eFN = (_H->_BucketErrorFunctions)[_v] ;
 			if (NULL != eFN) {
 				eFN->getValues(assignment, root_var, funVals) ;
-				for (k = 0 ; k < domainsize_root_var ; ++k) 
+				for (k = 0 ; k < domainsize_root_var ; ++k)
 					out[k] OP_DIVIDEEQ funVals[k] ;
 				return ;
 				}
@@ -434,17 +483,17 @@ public :
 		vector<Function*>::const_iterator itF_end = _RelevantMiniBucketFunctions.end() ;
 		for (vector<Function*>::const_iterator itF = _RelevantMiniBucketFunctions.begin() ; itF != itF_end ; ++itF) {
 			(*itF)->getValues(assignment, root_var, funVals) ;
-			for (k = 0 ; k < domainsize_root_var ; ++k) 
+			for (k = 0 ; k < domainsize_root_var ; ++k)
 				MBVals[k] OP_TIMESEQ funVals[k] ;
 			}
 		// compute bucket output for the given assignment; this is the exact bucket value, given its functions and assignment.
 		// note here we have two unassigned variables : _v and Child (var). we have to enumerate over one of them.
 		for (k = 0 ; k < domainsize_root_var ; ++k) {
-			if (OUR_OWN_nInfinity == MBVals[k]) 
+			if (OUR_OWN_nInfinity == MBVals[k])
 				continue ; // if must be that tableentryB is also -Infinity and error is 0.
 			assignment[root_var] = k ;
 			double tableentryB = ExactBucketValue(assignment) ;
-			if (MBVals[k] <= tableentryB) 
+			if (MBVals[k] <= tableentryB)
 				continue ; // '<' is bad, '=' is ok. either way, error is 0.
 			out[k] OP_DIVIDEEQ (MBVals[k] - tableentryB) ;
 			}
@@ -471,7 +520,7 @@ public :
 	bool IsSubtreeVariable(int v)
 	{
 		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
-			if (v == (*itRB)->_v) 
+			if (v == (*itRB)->_v)
 				return true ;
 			}
 		return false ;
@@ -491,21 +540,21 @@ public :
 	}
 	inline double Error(vector<val_t> & assignment) const
 	{
-		if (0 == _SubtreeNodes.size()) 
+		if (0 == _SubtreeNodes.size())
 			return 0.0 ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
-		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity, 
+		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity,
 		// whereas in reality, some children have 0-error, some non-0-error.
 		double e = ELEM_ONE ;
 		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
-		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC) 
+		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC)
 			e OP_TIMESEQ (*itC)->Error(assignment) ;
 		return e ;
 	}
 	inline double ErrorPerIndSubproblem(vector<val_t> & assignment, double current_pruning_gap, std::vector<double> & subprobH) const
 	{
-		if (0 == _SubtreeNodes.size()) 
+		if (0 == _SubtreeNodes.size())
 			return 0.0 ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
-		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity, 
+		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity,
 		// whereas in reality, some children have 0-error, some non-0-error.
 		double e = ELEM_ONE ;
 		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
@@ -514,7 +563,7 @@ public :
 			subprobH[(*itC)->_idxWRTparent] OP_DIVIDEEQ eChild ;
 			e OP_TIMESEQ eChild ;
 			current_pruning_gap OP_DIVIDEEQ eChild ;
-			if (current_pruning_gap <= 0.0) 
+			if (current_pruning_gap <= 0.0)
 				break ; // error so far is big enough to cause pruning; no need to improve the error further.
 			}
 		return e ;
@@ -524,15 +573,15 @@ public :
 	// e.g. typically 'out' is passed in as h/f of 'Parent'.
 	inline void Error(vector<val_t> & assignment, vector<double> & out) const
 	{
-		if (0 == _SubtreeNodes.size()) 
+		if (0 == _SubtreeNodes.size())
 			return ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
 #if defined DEBUG || _DEBUG
 		vector<double> out_(out) ;
 #endif
-		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity, 
+		// need to sum errors for each child separately, because MB value for some child could be -infinity and hence if we summed all MB, it would also be -infinity,
 		// whereas in reality, some children have 0-error, some non-0-error.
 		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
-		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC) 
+		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC)
 			(*itC)->Error(_v, assignment, out) ;
 #if defined DEBUG || _DEBUG
 		for (int k = 0 ; k < _H->m_problem->getDomainSize(_v) ; k++) {
@@ -552,7 +601,7 @@ public :
 		_H = &H ; _v = v ; _depth = depth ;
 		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ;
 		// always check if there is any point in computing error
-		if (H._distToClosestDescendantWithLE[v] > depth) 
+		if (H._distToClosestDescendantWithLE[v] > depth)
 			return 0 ;
 		// build tree of nodes
 		int memory = depth*5 ; if (memory > H.m_problem->getN()) memory = H.m_problem->getN() ; // assume avg branching factor of 5
@@ -580,7 +629,7 @@ public :
 				if (depth2go > 0) { try { nodes2process.push(n) ; } catch (...) { delete n ; return 1 ; }}
 				n->_idxWRTparent = N->_Children.size() - 1 ;
 				// add all MB output functions of [child] bucket that are in [v] bucket to currentrootchild
-				MiniBucketElimLHErrorNode *currentrootchild_ = (NULL == currentrootchild) ? n : currentrootchild ; 
+				MiniBucketElimLHErrorNode *currentrootchild_ = (NULL == currentrootchild) ? n : currentrootchild ;
 				vector<MiniBucket> & minibuckets = H._MiniBuckets[child] ;
 				for (vector<MiniBucket>::iterator itMB = minibuckets.begin() ; itMB != minibuckets.end() ; ++itMB) {
 					Function *fnMB = itMB->output_fn() ;
@@ -606,8 +655,8 @@ public :
 			for (vector<Function*>::iterator itF = AFlist.begin() ; itF != AFlist.end() ; ++itF) {
 				Function *fn = *itF ;
 //				int vOriginating = abs(fn->getId()) ;
-//				if (! IsSubtreeVariable(vOriginating)) 
-				if (! IsSubtreeMBEfunction(*fn)) 
+//				if (! IsSubtreeVariable(vOriginating))
+				if (! IsSubtreeMBEfunction(*fn))
 					funs.push_back(fn) ;
 				}
 			}
@@ -625,7 +674,7 @@ this code has bug; for all MB output FNs we should check if it is in [v] bucket 
 			}*/
 		return 0 ;
 	}
-	int Delete(void) 
+	int Delete(void)
 	{
 		_RootNode.Delete() ;
 		_SubtreeNodes.clear() ;
@@ -651,9 +700,9 @@ public :
 	std::vector<Function *> _RelevantBucketFunctions ; // OF + AF (in this bucket) that came from outside of the LH-subteee
 	std::vector<MiniBucketElimLHheuristicNode *> _Children ; // children of this node in the bucket tree, that have non-0 bucket error within LH-subteee rooted at this node.
 public :
-	int Delete(void) 
+	int Delete(void)
 	{
-		for (vector<MiniBucketElimLHheuristicNode *>::iterator it = _Children.begin(); it!=_Children.end(); ++it) 
+		for (vector<MiniBucketElimLHheuristicNode *>::iterator it = _Children.begin(); it!=_Children.end(); ++it)
 			delete *it ;
 		_Children.clear() ;
 		_RelevantBucketFunctions.clear() ;
@@ -675,15 +724,15 @@ public :
 #endif
 			assignment[_v] = i ;
 			double value = ELEM_ONE ;
-			for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF) 
+			for (vector<Function*>::const_iterator itF = _RelevantBucketFunctions.begin() ; itF != itF_end ; ++itF)
 				value OP_TIMESEQ (*itF)->getValue(assignment) ;
 			for (vector<MiniBucketElimLHheuristicNode *>::const_iterator itC = _Children.begin() ; itC != itC_end ; ++itC) {
 				value OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
-				if (OUR_OWN_nInfinity == value) 
+				if (OUR_OWN_nInfinity == value)
 					goto done_this_iteration ; // no point in continuing with the computation
 				}
 			valueMax = max(valueMax, value) ;
-done_this_iteration : 
+done_this_iteration :
 			continue ;
 			}
 #ifdef DEBUG
@@ -716,7 +765,7 @@ public :
 	bool IsSubtreeVariable(int v)
 	{
 		for (vector<MiniBucketElimLHErrorNode *>::iterator itRB = _SubtreeNodes.begin(); itRB!=_SubtreeNodes.end(); ++itRB) {
-			if (v == (*itRB)->_v) 
+			if (v == (*itRB)->_v)
 				return true ;
 			}
 		return false ;
@@ -736,7 +785,7 @@ public :
 	}
 	inline double GetHeuristic(vector<val_t> & assignment) const
 	{
-		if (0 == _SubtreeNodes.size()) 
+		if (0 == _SubtreeNodes.size())
 			return _H->MiniBucketElim::getHeur(_v, assignment, NULL) ; // most likely, all the children(buckets) up to depth d have exactly 1 MB.
 
 		// add up all lambda functions of _v that came from outside the LH subtree; these functions are fully instantiated
@@ -744,7 +793,7 @@ public :
 		vector<Function*>::const_iterator itF_end = _IntermediateSubtreeFunctions.end() ;
 		for (vector<Function*>::const_iterator itF = _IntermediateSubtreeFunctions.begin() ; itF != itF_end ; ++itF) {
 			h OP_TIMESEQ (*itF)->getValue(assignment) ;
-			if (OUR_OWN_nInfinity == h) 
+			if (OUR_OWN_nInfinity == h)
 				return OUR_OWN_nInfinity ; // no point in continuing with the computation
 			}
 
@@ -752,7 +801,7 @@ public :
 		vector<MiniBucketElimLHErrorNode *>::const_iterator itC_end = _RootNode._Children.end() ;
 		for (vector<MiniBucketElimLHErrorNode *>::const_iterator itC = _RootNode._Children.begin() ; itC != itC_end ; ++itC) {
 			h OP_TIMESEQ (*itC)->ExactBucketValue(assignment) ;
-			if (OUR_OWN_nInfinity == h) 
+			if (OUR_OWN_nInfinity == h)
 				return OUR_OWN_nInfinity ; // no point in continuing with the computation
 			}
 
@@ -765,7 +814,7 @@ public :
 		_H = &H ; _v = v ; _depth = depth ;
 		_RootNode._v = v ; _RootNode._k = (H.m_problem)->getDomainSize(v) ; _RootNode._depth2go = depth ;
 		// always check if there is any point in computing error
-		if (H._distToClosestDescendantWithLE[v] > depth) 
+		if (H._distToClosestDescendantWithLE[v] > depth)
 			return 0 ;
 		// build tree of nodes
 		int memory = depth*5 ; if (memory > H.m_problem->getN()) memory = H.m_problem->getN() ; // assume avg branching factor of 5
@@ -805,8 +854,8 @@ public :
 			for (vector<Function*>::iterator itF = AFlist.begin() ; itF != AFlist.end() ; ++itF) {
 				Function *fn = *itF ;
 //				int vOriginating = abs(fn->getId()) ;
-//				if (! IsSubtreeVariable(vOriginating)) 
-				if (! IsSubtreeMBEfunction(*fn)) 
+//				if (! IsSubtreeVariable(vOriginating))
+				if (! IsSubtreeMBEfunction(*fn))
 					funs.push_back(fn) ;
 				}
 			}
@@ -814,13 +863,13 @@ public :
 		vector<Function *> & vAFlist = H.m_augmented[v] ;
 		for (vector<Function*>::iterator itF = vAFlist.begin() ; itF != vAFlist.end() ; ++itF) {
 			Function *fn = *itF ;
-			if (! IsSubtreeMBEfunction(*fn)) 
+			if (! IsSubtreeMBEfunction(*fn))
 				_IntermediateSubtreeFunctions.push_back(fn) ;
 			}
 		vector<Function *> & vIFlist = H.m_intermediate[v] ;
 		for (vector<Function*>::iterator itF = vIFlist.begin() ; itF != vIFlist.end() ; ++itF) {
 			Function *fn = *itF ;
-			if (! IsSubtreeMBEfunction(*fn)) 
+			if (! IsSubtreeMBEfunction(*fn))
 				_IntermediateSubtreeFunctions.push_back(fn) ;
 			}
 
@@ -838,7 +887,7 @@ this code has bug; for all MB output FNs we should check if it is in [v] bucket 
 			}*/
 		return 0 ;
 	}
-	int Delete(void) 
+	int Delete(void)
 	{
 		_RootNode.Delete() ;
 		_SubtreeNodes.clear() ;

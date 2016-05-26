@@ -28,6 +28,7 @@
 
 DECLARE_bool(bee_importance_sampling);
 DECLARE_bool(aobf_subordering_use_relative_error);
+DECLARE_double(lookahead_starting_probability);
 
 using namespace std::chrono;
 
@@ -141,6 +142,8 @@ void MiniBucketElimLH::reset(void) {
 
   _Stats.reset();
   _Stats._NumNodesLookahead.resize(m_problem->getN(), 0);
+  _Stats._NumNodesLookaheadSkipped.resize(m_problem->getN(), 0);
+  lookahead_probability_ = FLAGS_lookahead_starting_probability;
 
   MiniBucketElim::reset();
 }
@@ -240,28 +243,19 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
   _MiniBuckets.resize(m_problem->getN());
   //	_LookaheadResiduals.resize(m_problem->getN());
   _Lookahead.resize(m_problem->getN());
-  _BucketErrorQuality.resize(m_problem->getN());
-  _BucketError_AbsAvg.resize(m_problem->getN());
-  _BucketError_AbsMin.resize(m_problem->getN());
-  _BucketError_AbsMax.resize(m_problem->getN());
+  _BucketErrorQuality.resize(m_problem->getN(), -1);
+  _BucketError_AbsAvg.resize(m_problem->getN(), OUR_OWN_nInfinity);
+  _BucketError_AbsMin.resize(m_problem->getN(), OUR_OWN_nInfinity);
+  _BucketError_AbsMax.resize(m_problem->getN(), OUR_OWN_nInfinity);
   _BucketError_Rel.resize(m_problem->getN(), 0);
   _Pseudowidth.resize(m_problem->getN(), -1);
-  for (int i = m_problem->getN() - 1; i >= 0; i--) {
-    _BucketErrorQuality[i] = -1;
-    _BucketError_AbsAvg[i] = _BucketError_AbsMin[i] = _BucketError_AbsMax[i] =
-        OUR_OWN_nInfinity;
-  }
-  _distToClosestDescendantWithMBs.resize(m_problem->getN());
-  for (int i = m_problem->getN() - 1; i >= 0; i--)
-    _distToClosestDescendantWithMBs[i] = INT_MAX;
-  _nLHcalls.resize(m_problem->getN());
-  for (int i = m_problem->getN() - 1; i >= 0; i--) _nLHcalls[i] = 0;
-  _distToClosestDescendantWithLE.resize(m_problem->getN());
-  for (int i = m_problem->getN() - 1; i >= 0; i--)
-    _distToClosestDescendantWithLE[i] = INT_MAX;
+  _distToClosestDescendantWithMBs.resize(m_problem->getN(), INT_MAX);
+  _nLHcalls.resize(m_problem->getN(), 0);
+  _nLHcallsSkipped.resize(m_problem->getN(), 0);
+  _distToClosestDescendantWithLE.resize(m_problem->getN(), INT_MAX);
   deleteLocalErrorFNs();
-  for (int i = m_problem->getN() - 1; i >= 0;
-       i--) {/* _LookaheadResiduals[i].Delete() ; */
+  for (int i = m_problem->getN() - 1; i >= 0; i--) {
+    // _LookaheadResiduals[i].Delete() ;
     _Lookahead[i].Delete();
   }
 
@@ -539,12 +533,12 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     cout << "Local Error Memory (MB): " << _Stats._LEMemorySizeMB << endl;
     cout << "Total Heuristic Memory (MB): "
          << minibucket_mem_mb + _Stats._LEMemorySizeMB << endl;
-    cout << "LH nBucketsWithNonZeroBuckerError: "
-         << _nBucketsWithNonZeroBuckerError
+    cout << "LH nBucketsWithNonZeroBucketError: "
+         << _nBucketsWithNonZeroBucketError
          << " nBucketsWithMoreThan1MB: " << _nBucketsWithMoreThan1MB << endl;
     cout << "LH nNodesWithDescendants: " << LH_nNodesWithDescendants
          << " nTotalDescendants: " << LH_nTotalDescendants
-         << " (BuckerErrorIgnoreThreshold="
+         << " (BucketErrorIgnoreThreshold="
          << m_options->lookahead_LE_IgnoreThreshold << ")" << endl;
     cout << "LH averageLookaheadTreeSize: " << LH_averageLookaheadTreeSize
          << endl;
@@ -637,8 +631,16 @@ void MiniBucketElimLH::noteOrNodeExpansionBeginning(
     int var, std::vector<val_t> &assignment, SearchNode *search_node) {
   MBLHSubtree &lhHelper = _Lookahead[var];
   if (lhHelper._SubtreeNodes.size() > 0) {
-    ++_nLHcalls[var];
-    lhHelper.ComputeHeuristic(assignment);
+    if (count_lookahead_performed_ < max_lookahead_trials_ ||
+        rand::next_unif() <= lookahead_probability_) {
+      ++_nLHcalls[var];
+      lhHelper.ComputeHeuristic(assignment);
+      ++count_lookahead_performed_;
+      lookahead_subtree_updated_ = true;
+    } else {
+      ++_nLHcallsSkipped[var];
+      lookahead_subtree_updated_ = false;
+    }
   }
 }
 
@@ -651,22 +653,10 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> &assignment,
   }
 #endif
 
-#ifdef USE_H_RESIDUAL
-
-  double h = MiniBucketElim::getHeur(var, assignment, search_node);
-  if (m_options->lookaheadDepth <= 0) return h;
-  if (_distToClosestDescendantWithLE[var] > m_options->lookaheadDepth) return h;
-
-  double DH = _LookaheadResiduals[var].Error(assignment);
-  _Stats._NumNodesLookahead[var] += 1;
-  double h_fixed = h - DH;
-  return h_fixed;
-
-#else
-
   MBLHSubtree &lhHelper = _Lookahead[var];
-  if (0 == lhHelper._SubtreeNodes.size())
+  if (0 == lhHelper._SubtreeNodes.size() || !lookahead_subtree_updated_) {
     return MiniBucketElim::getHeur(var, assignment, search_node);
+  }
   _Stats._NumNodesLookahead[var] += 1;
 #if defined DEBUG || _DEBUG
   // get the pseudo(bucket) tree node; this will give us children so that we can
@@ -709,13 +699,12 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> &assignment,
 #else
   return lhHelper.GetHeuristic(assignment);
 #endif
-
-#endif
 }
 
 void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
                                   SearchNode *search_node,
                                   vector<double> &out) {
+  /*
   if (m_options->lookaheadDepth <= 0) {
     MiniBucketElim::getHeurAll(var, assignment, search_node, out);
     return;
@@ -727,12 +716,84 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
              // lookahead depth
   }
 
-  MBLHSubtree &lh = _Lookahead[var];
+  MBLHSubtree &lhHelper = _Lookahead[var];
   short i, var_domain_size = m_problem->getDomainSize(var);
   for (i = 0; i < var_domain_size; ++i) {
     assignment[var] = i;
-    out[i] = lh.GetHeuristic(assignment);
+    out[i] = lhHelper.GetHeuristic(assignment);
   }
+  */
+
+  val_t old_value = assignment[var];
+  val_t var_domain_size = m_problem->getDomainSize(var);
+
+
+  // always do non lookahead lookups
+  MiniBucketElim::getHeurAll(var, assignment, search_node, out);
+  /*
+  for (int i = 0; i < var_domain_size; ++i) {
+    assignment[var] = i;
+    out[i] = MiniBucketElim::getHeur(var, assignment, search_node);
+  }
+  */
+
+  // Check if lookahead is possibly relevant
+  MBLHSubtree &lhHelper = _Lookahead[var];
+
+  if (lhHelper._SubtreeNodes.size() > 0 && lookahead_subtree_updated_) {
+    // storage for comparison purposes later
+//    vector<pair<int, double>> no_lh_pairs;
+//    vector<pair<int, double>> lh_pairs;
+    int no_lh_argmax = -1;
+    double no_lh_max = ELEM_ZERO;
+    int lh_argmax = -1;
+    double lh_max = ELEM_ZERO;
+
+    // Overwrite non-lh values, but store them first for comparison
+    for (val_t i = 0; i < var_domain_size; ++i) {
+      assignment[var] = i;
+      if (out[i] > no_lh_max) {
+        no_lh_argmax = i;
+        no_lh_max = out[i];
+      }
+//      no_lh_pairs.push_back(make_pair(i, out[i]));
+      out[i] = lhHelper.GetHeuristic(assignment);
+      if (out[i] > lh_max) {
+        lh_argmax = i;
+        lh_max = out[i];
+      }
+//      lh_pairs.push_back(make_pair(i, out[i]));
+    }
+
+    // Faster approximation based only on the max
+    // Update count and probability
+    if (no_lh_argmax != lh_argmax) {
+      ++count_better_ordering_;
+      lookahead_probability_ = max(1.0,
+          static_cast<double>(count_better_ordering_) /
+          count_lookahead_performed_);
+    }
+
+    /*
+    std::sort(no_lh_pairs.begin(), no_lh_pairs.end(), CompValueHeurPairLess);
+    std::sort(lh_pairs.begin(), lh_pairs.end(), CompValueHeurPairLess);
+
+    // Find out if the ordering for lookahead is different (therefore better)
+    for (int i = 0; i < var_domain_size; ++i) {
+      // Update count and probability
+      if (no_lh_pairs[i].first != lh_pairs[i].first) {
+        ++count_better_ordering_;
+        lookahead_probability_ =
+          static_cast<double>(count_better_ordering_) /
+          count_lookahead_performed_;
+        break;
+      }
+    }
+    */
+  }
+
+  assignment[var] = old_value;
+
 }
 
 // Uses either the _SubtreeError value or computed error functions.
@@ -1122,7 +1183,7 @@ int MiniBucketElimLH::computeLocalErrorTable(
     double sample_weight = FLAGS_bee_importance_sampling ?
       pow(10.0, tableentryMB) : 1.0;
 
-    e = tableentryMB - tableentryB; 
+    e = tableentryMB - tableentryB;
     if (e >= 0 && e < OUR_OWN_pInfinity && tableentryB != OUR_OWN_nInfinity) {
       total_sample_weight_noninf += sample_weight;
       avgError_non_inf += sample_weight * e;
@@ -1330,7 +1391,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     for (int j = 0; j < TableSize; ++j) {
       newTable[j] = 0.0;
     }
-    _TrueSlicedBucketErrorFunctions[var] = 
+    _TrueSlicedBucketErrorFunctions[var] =
       new FunctionBayes(-var, m_problem, scope_slice, newTable,
         TableSize);
         */
@@ -1358,7 +1419,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
   }
 
   int n = 0;
-  val_t *tuple = NULL; 
+  val_t *tuple = NULL;
 
   vector<int> scopeB;
   vector<vector<val_t *>> idxMapB;
@@ -1474,7 +1535,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
           int d_size = m_problem->getDomainSize(scope_sample[i]);
           *tuple_sample[i] = rand::next(d_size);
         }
-      } 
+      }
       // enumerate over all bucket var values; combine all bucket FNs
       double tableentryB = ELEM_ZERO, zB;
       for (tuple[n] = 0; tuple[n] < int(bucket_var_domain_size); tuple[n]++) {
@@ -1494,7 +1555,7 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
       double sample_weight = FLAGS_bee_importance_sampling ?
         pow(10.0, tableentryMB) : 1.0;
 
-      double e = tableentryMB - tableentryB; 
+      double e = tableentryMB - tableentryB;
       if (e >= 0 && e < OUR_OWN_pInfinity && tableentryB != OUR_OWN_nInfinity) {
         avgError_non_inf += sample_weight * e;
         avgExact_non_inf += sample_weight * tableentryB;
@@ -1681,10 +1742,10 @@ int MiniBucketElimLH::computeLocalErrorTables(
   deleteLocalErrorFNs();
   _BucketErrorFunctions.resize(m_problem->getN());
   _TrueSlicedBucketErrorFunctions.resize(m_problem->getN());
-  _BuckerErrorFnTableSizes_Total = _BuckerErrorFnTableSizes_Precomputed =
-      _BuckerErrorFnTableSizes_Ignored =
+  _BucketErrorFnTableSizes_Total = _BucketErrorFnTableSizes_Precomputed =
+      _BucketErrorFnTableSizes_Ignored =
           -DBL_MIN;  // don't make -infinity; math will blow up.
-  _nBucketsWithNonZeroBuckerError = _nBucketsWithMoreThan1MB = 0;
+  _nBucketsWithNonZeroBucketError = _nBucketsWithMoreThan1MB = 0;
 
   // compute total of all bucket error table sizes
   for (vector<int>::reverse_iterator itV = elimOrder.rbegin();
@@ -1707,22 +1768,22 @@ int MiniBucketElimLH::computeLocalErrorTables(
       TableSize += dsLog;
     }
     if (TableSize >= 0.0)
-      _BuckerErrorFnTableSizes_Total =
-          _BuckerErrorFnTableSizes_Total +
-          log10(1.0 + pow(10.0, TableSize - _BuckerErrorFnTableSizes_Total));
+      _BucketErrorFnTableSizes_Total =
+          _BucketErrorFnTableSizes_Total +
+          log10(1.0 + pow(10.0, TableSize - _BucketErrorFnTableSizes_Total));
   }
 
   if (NULL != m_options ? NULL != m_options->_fpLogFile : false)
     fprintf(m_options->_fpLogFile,
-            "\n   BuckerErrorFnTableSizes total = %g, total_memory_limit = %g, "
+            "\n   BucketErrorFnTableSizes total = %g, total_memory_limit = %g, "
             "total_memory_limit = %g",
-            (double)_BuckerErrorFnTableSizes_Total,
+            (double)_BucketErrorFnTableSizes_Total,
             (double)TotalMemoryLimitAsNumElementsLog,
             (double)TableMemoryLimitAsNumElementsLog);
   printf(
-      "\n   BuckerErrorFnTableSizes total = %g, total_memory_limit = %g, "
+      "\n   BucketErrorFnTableSizes total = %g, total_memory_limit = %g, "
       "total_memory_limit = %g\n",
-      (double)_BuckerErrorFnTableSizes_Total,
+      (double)_BucketErrorFnTableSizes_Total,
       (double)TotalMemoryLimitAsNumElementsLog,
       (double)TableMemoryLimitAsNumElementsLog);
 
@@ -1734,9 +1795,9 @@ int MiniBucketElimLH::computeLocalErrorTables(
     double table_space_left =
         (TotalMemoryLimitAsNumElementsLog > 0.0 &&
          TotalMemoryLimitAsNumElementsLog >
-             _BuckerErrorFnTableSizes_Precomputed)
+             _BucketErrorFnTableSizes_Precomputed)
             ? TotalMemoryLimitAsNumElementsLog +
-                  log10(1 - pow(10.0, _BuckerErrorFnTableSizes_Precomputed -
+                  log10(1 - pow(10.0, _BucketErrorFnTableSizes_Precomputed -
                                           TotalMemoryLimitAsNumElementsLog))
             : OUR_OWN_nInfinity;
     double table_size_actual_limit =
@@ -1775,10 +1836,10 @@ int MiniBucketElimLH::computeLocalErrorTables(
       for (int v : output_scope) {
         current_table_size_log += log10(m_problem->getDomainSize(v));
       }
-      int target_scope_size = min(m_options->bee_slice_sample_scope_size, 
+      int target_scope_size = min(m_options->bee_slice_sample_scope_size,
                                   m_ibound);
-      
-      
+
+
       const vector<int>& elim_order = m_pseudotree->getElimOrder();
 
       // We either keep the closest variables or the farthest.
@@ -1814,14 +1875,14 @@ int MiniBucketElimLH::computeLocalErrorTables(
     }
     nTotalEntriesGenerated += nEntriesGenerated;
     _BucketErrorFunctions[v] = errorFn;
-    if (_BucketErrorQuality[v] > 1) _nBucketsWithNonZeroBuckerError++;
+    if (_BucketErrorQuality[v] > 1) _nBucketsWithNonZeroBucketError++;
     if (NULL != errorFn ? NULL != errorFn->getTable() : false) {
       double *table = errorFn->getTable();
       if (tableSize > 0)
-        _BuckerErrorFnTableSizes_Precomputed =
-            _BuckerErrorFnTableSizes_Precomputed +
+        _BucketErrorFnTableSizes_Precomputed =
+            _BucketErrorFnTableSizes_Precomputed +
             log10(1.0 +
-                  pow(10.0, tableSize - _BuckerErrorFnTableSizes_Precomputed));
+                  pow(10.0, tableSize - _BucketErrorFnTableSizes_Precomputed));
       // compute standard deviation
       double stdDev = -DBL_MAX;
       size_t ts = errorFn->getTableSize();
@@ -1843,9 +1904,9 @@ int MiniBucketElimLH::computeLocalErrorTables(
         fprintf(m_options->_fpLogFile, ", stdDev = %g", (double)stdDev);
 #endif
     } else if (tableSize > 0) {
-      _BuckerErrorFnTableSizes_Ignored =
-          _BuckerErrorFnTableSizes_Ignored +
-          log10(1.0 + pow(10.0, tableSize - _BuckerErrorFnTableSizes_Ignored));
+      _BucketErrorFnTableSizes_Ignored =
+          _BucketErrorFnTableSizes_Ignored +
+          log10(1.0 + pow(10.0, tableSize - _BucketErrorFnTableSizes_Ignored));
       if (_BucketErrorQuality[v] > 0) {
         // this would be bad; something is wrong. maybe table was too large.
       }
@@ -1854,16 +1915,16 @@ int MiniBucketElimLH::computeLocalErrorTables(
 
   if (NULL != m_options ? NULL != m_options->_fpLogFile : false) {
     fprintf(m_options->_fpLogFile,
-            "\n   BuckerErrorFnTableSizes (precomputed/ignored/total) = "
+            "\n   BucketErrorFnTableSizes (precomputed/ignored/total) = "
             "%g/%g/%g entries; nTotalEntriesGenerated=%lld",
-            (double)_BuckerErrorFnTableSizes_Precomputed,
-            (double)_BuckerErrorFnTableSizes_Ignored,
-            (double)_BuckerErrorFnTableSizes_Total,
+            (double)_BucketErrorFnTableSizes_Precomputed,
+            (double)_BucketErrorFnTableSizes_Ignored,
+            (double)_BucketErrorFnTableSizes_Total,
             (int64)nTotalEntriesGenerated);
     fprintf(
         m_options->_fpLogFile,
-        "\n   nBucketsWithNonZeroBuckerError (nMB>1/total) = %lld (%lld/%lld)",
-        (int64)_nBucketsWithNonZeroBuckerError, (int64)_nBucketsWithMoreThan1MB,
+        "\n   nBucketsWithNonZeroBucketError (nMB>1/total) = %lld (%lld/%lld)",
+        (int64)_nBucketsWithNonZeroBucketError, (int64)_nBucketsWithMoreThan1MB,
         (int64)m_problem->getN());
     fprintf(m_options->_fpLogFile,
             "\n   BE computation : nFNsBEexact=%d nFNsBEsampled=%d",
@@ -1871,13 +1932,13 @@ int MiniBucketElimLH::computeLocalErrorTables(
     fprintf(m_options->_fpLogFile, "\n");
   }
   printf(
-      "\n   BuckerErrorFnTableSizes (precomputed/ignored/total) = %g/%g/%g "
+      "\n   BucketErrorFnTableSizes (precomputed/ignored/total) = %g/%g/%g "
       "entries; nTotalEntriesGenerated=%lld",
-      (double)_BuckerErrorFnTableSizes_Precomputed,
-      (double)_BuckerErrorFnTableSizes_Ignored,
-      (double)_BuckerErrorFnTableSizes_Total, (int64)nTotalEntriesGenerated);
-  printf("\n   nBucketsWithNonZeroBuckerError (nMB>1/total) = %lld (%lld/%lld)",
-         (int64)_nBucketsWithNonZeroBuckerError,
+      (double)_BucketErrorFnTableSizes_Precomputed,
+      (double)_BucketErrorFnTableSizes_Ignored,
+      (double)_BucketErrorFnTableSizes_Total, (int64)nTotalEntriesGenerated);
+  printf("\n   nBucketsWithNonZeroBucketError (nMB>1/total) = %lld (%lld/%lld)",
+         (int64)_nBucketsWithNonZeroBucketError,
          (int64)_nBucketsWithMoreThan1MB, (int64)m_problem->getN());
   printf("\n   BE computation : nFNsBEexact=%d nFNsBEsampled=%d",
       nFNsBEexact, nFNsBEsampled);
@@ -1955,7 +2016,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
   } else {
     ComputeSubtreeErrors(_BucketError_AbsAvg);
   }
-  
+
   /*
   cout << "constants" << endl;
   for (int i = 0; i < _SubtreeError.size(); ++i) {
@@ -1987,7 +2048,9 @@ int MiniBucketElimLH::computeLocalErrorTables(
     */
   }
 
-  m_options->lookaheadDepth = 0;
+  //(TODO): this is for when we want to remove lookahead from experiments
+  // concerning AOBF using local errors.
+  //m_options->lookaheadDepth = 0;
   return 0;
 }
 
@@ -2023,7 +2086,7 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
   for (int i = 0; i < _SubtreeErrorFunctions.size(); ++i) {
     const auto* current_fn = bucket_error_functions[i];
     if (!current_fn) {
-      // set up a 
+      // set up a
     }
     int64 table_size = current_fn->getTableSize();
     double* new_table = new double[table_size];
@@ -2045,12 +2108,12 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
     for (int64 j = 0; j < table_size; ++j) {
       table[j] += be_table[j] / (n_children + 1);
     }
-    
+
     if (v != m_pseudotree->getRoot()->getVar()) {
       PseudotreeNode *p = m_pseudotree->getNode(v)->getParent();
       int p_var = p->getVar();
       const auto* parent_fn = _SubtreeErrorFunctions[p_var];
-      
+
       const set<int>& var_scope = current_fn->getScopeSet();
       const set<int>& p_var_scope = parent_fn->getScopeSet();
 
@@ -2066,7 +2129,7 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
       vector<int> total_scope_vec(total_scope.begin(), total_scope.end());
       val_t* tuple = new val_t[n];
       for (int k = 0; k < n; ++k) {
-        tuple[k] = 0; 
+        tuple[k] = 0;
       }
 
       // These are used to actually get values from the functions

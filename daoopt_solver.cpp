@@ -146,6 +146,8 @@ DEFINE_int32(lookahead_subtree_size_limit, -1,
 DEFINE_int32(lookahead_n_be_abs_error_to_include, INT_MAX,
              "lookahead: number of largest avg abs bucket error variables"
              "to include in LH");
+DEFINE_double(lookahead_starting_probability, 1.0,
+             "initial probability of performing lookahead");
 DEFINE_bool(bee_importance_sampling, false, "use importance sampling for BEE "
     "sampling. the weight is based on exponentiating log costs.");
 
