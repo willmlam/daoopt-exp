@@ -740,7 +740,6 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
 
   // Check if lookahead is possibly relevant
   MBLHSubtree &lhHelper = _Lookahead[var];
-
   if (lhHelper._SubtreeNodes.size() > 0 && lookahead_subtree_updated_) {
     // storage for comparison purposes later
 //    vector<pair<int, double>> no_lh_pairs;
