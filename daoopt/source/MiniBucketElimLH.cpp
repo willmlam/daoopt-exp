@@ -145,6 +145,8 @@ void MiniBucketElimLH::reset(void) {
   _Stats._NumNodesLookahead.resize(m_problem->getN(), 0);
   _Stats._NumNodesLookaheadSkipped.resize(m_problem->getN(), 0);
   lookahead_probability_ = FLAGS_lookahead_starting_probability;
+  count_better_ordering_ = 0;
+  count_lookahead_performed_ = 0;
 
   MiniBucketElim::reset();
 }
