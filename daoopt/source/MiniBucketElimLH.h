@@ -187,13 +187,13 @@ class MiniBucketElimLH : public MiniBucketElim {
 
   // these quantities count a set of lookahead values across a variable's domain
   // as a single unit.
-  int64 count_better_ordering_;
-  int64 count_lookahead_performed_;
+  std::vector<int64> count_better_ordering_;
 
   // Probablility for computing lookahead. This is set to be proprotional to
   // time times that lookahead gives a different ordering (i.e. the ratio
-  // between count_better_ordering_ and count_lookahead_performed_).
-  double lookahead_probability_;
+  // between count_better_ordering_ and _nLHcalls).
+  //  double lookahead_probability_;
+  std::vector<double> lookahead_probability_;
 
   // Flag to note whether ComputeHeuristic was called so getHeur* functions know
   // whether GetHeuristic calls should be made on the lookahead subtree
@@ -328,8 +328,12 @@ class MiniBucketElimLH : public MiniBucketElim {
   void ComputeSubtreeErrors(const std::vector<double> &bucket_error);
   void ComputeSubtreeErrorFns(const std::vector<Function *> &bucket_error_fns);
 
-  double GetLookaheadProbability() const { return lookahead_probability_; }
-  void SetLookaheadProbability(double p) { lookahead_probability_ = p; }
+  double GetLookaheadProbability(int var) const {
+    return lookahead_probability_[var];
+  }
+  void SetLookaheadProbability(int var, double p) {
+    lookahead_probability_[var] = p;
+  }
 
   static bool CompValueHeurPairLess(const std::pair<int, double> &a,
                                     const std::pair<int, double> &b) {
@@ -350,10 +354,7 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem *p, Pseudotree *pt,
       _BucketErrorFnTableSizes_Ignored(-1),
       _nBucketsWithNonZeroBucketError(-1),
       _nBucketsWithMoreThan1MB(-1),
-      max_lookahead_trials_(1000),
-      count_better_ordering_(0),
-      count_lookahead_performed_(0),
-      lookahead_probability_(1.0),
+      max_lookahead_trials_(100),
       lookahead_subtree_updated_(false) {}
 
 inline void MiniBucketElimLH::printExtraStats() const {
@@ -397,11 +398,19 @@ inline void MiniBucketElimLH::printExtraStats() const {
   cout << "Lookahead ratio (AND): " << double(total_lookahead_and) /
                                            total_calls_and << endl;
   cout << "Variables w/ lookahead: " << count_var_lookahead << endl;
-  cout << "Better orderings w/ lookahead: " << count_better_ordering_ << endl;
-  cout << "Better orderings w/ lookahead (ratio): "
-       << static_cast<double>(count_better_ordering_) / total_lookahead_calls
-       << endl;
-  cout << "Final lookahead probability: " << lookahead_probability_ << endl;
+  cout << "Better orderings w/ lookahead: " << endl;
+  cout << count_better_ordering_ << endl;
+  cout << "Better orderings w/ lookahead (ratio): " << endl;
+  for (int i = 0; i < m_problem->getN(); ++i) {
+    double ratio =
+        _nLHcalls[i] > 0
+            ? static_cast<double>(count_better_ordering_[i]) / _nLHcalls[i]
+            : 0.0;
+    cout << " " << ratio;
+  }
+  cout << endl;
+  cout << "Final lookahead probabilities: " << endl;
+  cout << lookahead_probability_ << endl;
 }
 
 inline MiniBucketElimLH::~MiniBucketElimLH(void) { this->reset(); }
@@ -823,7 +832,8 @@ class MiniBucketElimLHError {
         if (!IsSubtreeMBEfunction(*fn)) funs.push_back(fn);
       }
     }
-    /*		// fill in a list of relevant functions of the node[v] = all IF/AF
+    /*		// fill in a list of relevant functions of the node[v] = all
+    IF/AF
     in
     [v] that came from relevant descendant buckets
     this code has bug; for all MB output FNs we should check if it is in [v]
@@ -1127,7 +1137,8 @@ class MiniBucketElimLHheuristic {
         _IntermediateSubtreeFunctions.push_back(fn);
     }
 
-    /*		// fill in a list of relevant functions of the node[v] = all IF/AF
+    /*		// fill in a list of relevant functions of the node[v] = all
+    IF/AF
     in
     [v] that came from relevant descendant buckets
     this code has bug; for all MB output FNs we should check if it is in [v]

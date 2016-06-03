@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Oct 10, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -75,6 +75,16 @@ ostream& operator <<(ostream& os, const vector<int>& s) {
 ostream& operator <<(ostream& os, const vector<unsigned int>& s) {
   os << '[';
   for (vector<unsigned int>::const_iterator it = s.begin(); it != s.end(); ) {
+    os << *it;
+    if (++it != s.end()) os << ',';
+  }
+  os << ']';
+  return os;
+}
+
+ostream& operator <<(ostream& os, const vector<int64>& s) {
+  os << '[';
+  for (vector<int64>::const_iterator it = s.begin(); it != s.end(); ) {
     os << *it;
     if (++it != s.end()) os << ',';
   }
@@ -184,4 +194,3 @@ double mylog10(bigint a) {
 #endif
 
 }  // namespace daoopt
-

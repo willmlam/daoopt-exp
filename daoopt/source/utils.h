@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Oct 10, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -61,6 +61,7 @@ void err_txt(std::string s);
 
 ostream& operator <<(ostream& os, const vector<int>& s);
 ostream& operator <<(ostream& os, const vector<unsigned int>& s);
+ostream& operator <<(ostream& os, const vector<int64>& s);
 
 ostream& operator <<(ostream& os, const vector<signed short>& s);
 ostream& operator <<(ostream& os, const vector<signed char>& s);
