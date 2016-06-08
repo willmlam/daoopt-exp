@@ -30,6 +30,7 @@ DECLARE_bool(bee_importance_sampling);
 DECLARE_bool(aobf_subordering_use_relative_error);
 DECLARE_double(lookahead_starting_probability);
 DECLARE_bool(lookahead_fix_probability);
+DECLARE_bool(lookahead_always_perform_if_better_once);
 
 using namespace std::chrono;
 
@@ -636,6 +637,8 @@ void MiniBucketElimLH::noteOrNodeExpansionBeginning(
   MBLHSubtree &lhHelper = _Lookahead[var];
   if (lhHelper._SubtreeNodes.size() > 0) {
     if (_nLHcalls[var] < max_lookahead_trials_ ||
+        (FLAGS_lookahead_always_perform_if_better_once &&
+          count_better_ordering_[var] > 0) ||
         rand::next_unif() <= lookahead_probability_[var]) {
       ++_nLHcalls[var];
       lhHelper.ComputeHeuristic(assignment);
