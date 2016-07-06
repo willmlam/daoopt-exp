@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Oct 10, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -98,12 +98,14 @@ public:
   void replaceFunctions(const vector<Function*>& newFunctions, bool asCopy=false);
 
   bool hasDummy() const { return m_hasDummy; }
-  
+
   size_t getSize() const;
 
 public:
 
   /* parses a UAI format input file */
+  bool parseUAI16(char* prob, size_t probN, char* evid, size_t evidN,
+                bool collapse=false);
   bool parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
                 bool collapse=false);
 //  bool parseUAI(const string& prob, const string& evid, bool collapse=false);
@@ -129,7 +131,7 @@ public:
   /* note that this does not re-index the variables */
   void condition(const map<int,val_t> &cond);
 
-   
+
 
   /* retrieve the current optimal solution */
   double getSolutionCost() const { return m_curCost; }
@@ -252,4 +254,3 @@ inline Problem::~Problem() {
 }  // namespace daoopt
 
 #endif /* PROBLEM_H_ */
-

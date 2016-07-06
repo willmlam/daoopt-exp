@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Oct 10, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -30,6 +30,7 @@
 
 #include "UAI2012.h"
 
+#define DEBUG
 
 namespace daoopt {
 
@@ -54,7 +55,7 @@ void Problem::condition(const map<int,val_t> &cond) {
   cout << "Conditioning: " << cond << endl;
   cout << "Before: " << endl;
   for (unsigned i = 0; i < m_functions.size(); ++i) {
-    cout << *(m_functions[i]) << endl; 
+    cout << *(m_functions[i]) << endl;
   }
   */
   vector<Function*>::iterator fi = m_functions.begin();
@@ -81,7 +82,7 @@ void Problem::condition(const map<int,val_t> &cond) {
   /*
   cout << "After: " << endl;
   for (unsigned i = 0; i < m_functions.size(); ++i) {
-    cout << i << "\t" << *(m_functions[i]) << endl; 
+    cout << i << "\t" << *(m_functions[i]) << endl;
   }
   */
 
@@ -453,13 +454,262 @@ void Problem::saveOrdering(const string& file, const vector<int>& elim) const {
 
 }
 
+// supports comments and "sparseuai" format.
+bool Problem::parseUAI16(char* prob, size_t probN, char* evid, size_t evidN,
+                         bool collapse) {
+  assert(prob && probN > 0);
+  assert(!evid || evidN > 0);
+
+  _membuf probBuf(prob, prob+probN);
+
+  istream in(&probBuf);
+
+  cout << "Reading problem with parseUAI16..." << endl;
+
+  bool read_sparse = false;
+  vector<int> arity;
+  vector<vector<int>> scopes;
+  string s;
+  int x;
+  int y;
+  val_t xs;
+  unsigned int z;
+
+  string line;
+  while(m_task == UNKNOWN && std::getline(in, s)) {
+    // Skip comment lines
+    cout << s << endl;
+    if (s[0] == 'c' || s.length() == 0) {
+      continue;
+    }
+    if (s == "BAYES") {
+      m_task = TASK_MAX;
+      m_prob = PROB_MULT;
+    } else if (s == "MARKOV") {
+      m_task = TASK_MAX;
+      m_prob = PROB_MULT;
+    } else if (s == "SPARSEBAYES") {
+      m_task = TASK_MAX;
+      m_prob = PROB_MULT;
+      read_sparse = true;
+    } else if (s == "SPARSEMARKOV") {
+      m_task = TASK_MAX;
+      m_prob = PROB_MULT;
+      read_sparse = true;
+    } else {
+      cerr << "Unsupported problem type \"" << s << "\", aborting." << endl;
+      return false;
+    }
+  }
+
+  in >> x; // No. of variables
+  m_n = x;
+  m_domains.resize(m_n,UNKNOWN);
+#ifndef NO_ASSIGNMENT
+//  m_curSolution.resize(m_n,UNKNOWN);
+#endif
+  m_k = -1;
+  for (int i=0; i<m_n; ++i) { // Domain sizes
+    in >> x; // read into int first
+    if (x > numeric_limits<val_t>::max()) {
+      cerr << "Domain size " << x << " out of range for internal representation.\n"
+           << "(Recompile with different type for variable values.)" << endl;
+      return false;
+    }
+    xs = (val_t)x;
+    m_domains[i] = xs;
+    m_k = max(m_k,xs);
+  }
+
+  in >> x; // No. of functions
+  m_c = x;
+  scopes.reserve(m_c);
+
+  // Scope information for functions
+  m_r = -1;
+  for (int i = 0; i < m_c; ++i)
+  {
+    vector<int> scope;
+    in >> x; // arity
+
+    m_r = max(m_r, x);
+    for (int j=0; j<x; ++j) {
+      in >> y; // the actual variables in the scope
+      if(y>=m_n) {
+        cerr << "Variable index " << y << " out of range." << endl;
+        return false;
+      }
+      scope.push_back(y); // preserve order from file
+    }
+    scopes.push_back(scope);
+  }
+
+  // Read functions
+  for (int i = 0; i < m_c; ++i) {
+    size_t tab_size = 1;
+
+    for (vector<int>::iterator it=scopes[i].begin(); it!=scopes[i].end(); ++it) {
+      tab_size *= m_domains[*it];
+    }
+    // create set version of the scope (ordered)
+    set<int> scopeSet(scopes[i].begin(), scopes[i].end());
+    unsigned int scope_size = scopeSet.size();
+
+    // compute reindexing map from specified scope to ordered, internal one
+    map<int,int> mapping;
+    int k = 0;
+    for (vector<int>::const_iterator it=scopes[i].begin(); it!=scopes[i].end(); ++it) {
+      mapping[*it] = k++;
+    }
+    vector<int> reidx(scope_size);
+    vector<int>::iterator itr = reidx.begin();
+    for (set<int>::iterator it=scopeSet.begin(); itr!=reidx.end(); ++it, ++itr) {
+      *itr = mapping[*it];
+    }
+
+    if (!read_sparse) {
+      in >> z; // No. of entries
+      assert(tab_size==z); // product of domain sizes matches no. of entries
+
+      // read the full table into an temp. array (to allow reordering)
+      vector<double> temp(tab_size);
+      for (size_t j=0; j<tab_size;) {
+        in >> s ;
+        // check sparse-factor encoding "(x:n)" where x is real number and n is an int. meaning of this is, next entries in the table equal x.
+        if ('(' == s[0] && ')' == s[s.length()-1]) {
+          s.erase(0,1) ; s.erase(s.length()-1, 1) ;
+          std::string::size_type pos = s.find(':') ;
+          if (std::string::npos == pos)
+          return false ;
+          string sX = s.substr(0, pos) ;
+          if (0 == sX.length()) return false ;
+          string sN = s.substr(pos+1, s.length() - pos - 1) ;
+          if (0 == sN.length()) return false ;
+          double x = atof(sX.c_str()) ;
+          size_t nEntriesLeft = tab_size - j ;
+          size_t nEntries = atoi(sN.c_str()) ;
+          if (nEntries <= 0 || nEntries > nEntriesLeft)
+          return false ;
+          for (int ni = 0 ; ni < nEntries ; ni++)
+          temp[j++] = x ;
+        }
+        // else token is a table entry
+        else {
+          temp[j++] = atof(s.c_str()) ;
+        }
+        //      in >> temp[j];
+      }
+
+      // get the variable domain sizes
+      vector<val_t> limit; limit.reserve(scope_size);
+      for (vector<int>::const_iterator it=scopes[i].begin(); it!=scopes[i].end(); ++it)
+      limit.push_back(m_domains[*it]);
+      vector<val_t> tuple(scope_size, 0);
+
+      // create the new table (with reordering)
+      double* table = new double[tab_size];
+      for (size_t j=0; j<tab_size; ) {
+        size_t pos=0, offset=1;
+        // j is the index in the temp. table
+        for (k = scope_size - 1; k >= 0; --k) { // k goes backwards through the ordered scope
+          pos += tuple[reidx[k]] * offset;
+          offset *= m_domains[scopes[i][reidx[k]]];
+        }
+        table[pos] = ELEM_ENCODE( temp[j] );
+        increaseTuple(j,tuple,limit);
+      }
+
+      Function* f = new FunctionBayes(i,this,scopeSet,table,tab_size);
+      m_functions.push_back(f);
+    } else {
+      // Read sparse factor
+      double value;
+      int num_non_default_entries;
+      in >> value;
+      in >> num_non_default_entries;
+
+      double* table = new double[tab_size];
+      // Fill table with default value first
+      for (size_t k = 0; k < tab_size; ++k) {
+        table[k] = ELEM_ENCODE(value);
+      }
+      vector<val_t> tuple(scope_size, 0);
+      for (int j = 0; j < num_non_default_entries; ++j) {
+        for (int k = 0; k < scope_size; ++k) {
+          in >> xs;
+          tuple[reidx[k]] = xs;
+        }
+        size_t pos = 0;
+        size_t offset = 1;
+        for (int k = scope_size - 1; k >= 0; --k) {
+          pos += tuple[k] * offset;
+          offset *= m_domains[scopes[i][reidx[k]]];
+        }
+        in >> value;
+        table[pos] = ELEM_ENCODE(value);
+      }
+      Function* f = new FunctionBayes(i, this, scopeSet, table, tab_size);
+      m_functions.push_back(f);
+    }
+  } // All function tables read
+
+#ifdef DEBUG
+  for (Function* f : m_functions) {
+    cout << *f << endl;
+  }
+  cout << endl;
+#endif
+
+
+  if (collapse) collapseFunctions();
+
+  // Read evidence?
+  if (!evid) {
+    m_e = 0;
+    cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
+    return true; // No evidence, return
+  }
+
+  cout << "Reading evidence..." << endl;
+
+  _membuf evidBuf(evid, evid+evidN);
+
+  istream in2(&evidBuf);
+
+  /*
+  in >> x; // Number of evidence samples
+  if (x > 1) {
+      myerror("Warning: Ignoring all but one evidence sample.\n");
+  }
+  */
+
+    in2 >> x;
+    m_e = x; // Number of evidence variables
+
+    for (int i=0; i<m_e; ++i) {
+        in2 >> x; // Variable index
+        in2 >> y; // Variable value
+        xs = (val_t) y;
+        if (xs >= m_domains[x]) {
+        cout << "Variable " << x << " has domain size " << (int) m_domains[x]
+            << ", evidence value " << y << " out of range." << endl;
+        return false;
+        }
+        m_evidence.insert(make_pair(x,xs));
+    }
+
+
+  cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
+  return true;
+}
+
 
 
 //bool Problem::parseUAI(const string& prob, const string& evid, bool collapse) {
 bool Problem::parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
-                       bool collapse) {
-  assert(prob && probN > 0);
-  assert(!evid || evidN > 0);
+                     bool collapse) {
+assert(prob && probN > 0);
+assert(!evid || evidN > 0);
 
   _membuf probBuf(prob, prob+probN);
 
@@ -562,7 +812,7 @@ bool Problem::parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
 		if ('(' == s[0] && ')' == s[s.length()-1]) {
 			s.erase(0,1) ; s.erase(s.length()-1, 1) ;
 			std::string::size_type pos = s.find(':') ;
-			if (std::string::npos == pos) 
+			if (std::string::npos == pos)
 				return false ;
 			string sX = s.substr(0, pos) ;
 			if (0 == sX.length()) return false ;
@@ -571,9 +821,9 @@ bool Problem::parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
 			double x = atof(sX.c_str()) ;
 			size_t nEntriesLeft = tab_size - j ;
 			size_t nEntries = atoi(sN.c_str()) ;
-			if (nEntries <= 0 || nEntries > nEntriesLeft) 
+			if (nEntries <= 0 || nEntries > nEntriesLeft)
 				return false ;
-			for (int ni = 0 ; ni < nEntries ; ni++) 
+			for (int ni = 0 ; ni < nEntries ; ni++)
 				temp[j++] = x ;
 			}
 		// else token is a table entry
@@ -606,7 +856,7 @@ bool Problem::parseUAI(char* prob, size_t probN, char* evid, size_t evidN,
     m_functions.push_back(f);
 
   } // All function tables read
-  
+
 
   if (collapse) collapseFunctions();
 
@@ -882,7 +1132,7 @@ void Problem::resetSolution() {
 void Problem::updateUpperBound(double bound, const SearchStats* nodestats,
     bool output) {
   if (bound < m_curUpperBound) {
-    m_curUpperBound = bound; 
+    m_curUpperBound = bound;
     if (output) {
       oss ss;
       ss << std::setprecision(20);
@@ -953,7 +1203,7 @@ void Problem::addDummy() {
 
 void Problem::replaceFunctions(const vector<Function*>& newFunctions, bool asCopy) {
   // delete current functions
-  for (vector<Function*>::iterator it = m_functions.begin(); 
+  for (vector<Function*>::iterator it = m_functions.begin();
           !m_is_copy && it!= m_functions.end(); ++it) {
     if (*it) delete (*it);
   }

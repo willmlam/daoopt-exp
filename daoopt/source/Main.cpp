@@ -121,7 +121,7 @@ bool Main::loadProblem() {
   }
   //  if (!m_problem->parseUAI(m_options->in_problemFile,
   // m_options->in_evidenceFile, m_options->collapse))
-  if (!m_problem->parseUAI(m_options->problemSpec, m_options->problemSpec_len,
+  if (!m_problem->parseUAI16(m_options->problemSpec, m_options->problemSpec_len,
                            m_options->evidSpec, m_options->evidSpec_len,
                            m_options->collapse))
     return false;
