@@ -30,7 +30,7 @@
 
 #include "UAI2012.h"
 
-#define DEBUG
+#undef DEBUG
 
 namespace daoopt {
 
@@ -477,8 +477,7 @@ bool Problem::parseUAI16(char* prob, size_t probN, char* evid, size_t evidN,
 
   string line;
   while(m_task == UNKNOWN && std::getline(in, s)) {
-    // Skip comment lines
-    cout << s << endl;
+    // Skip comment lines and empty lines
     if (s[0] == 'c' || s.length() == 0) {
       continue;
     }

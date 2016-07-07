@@ -4,7 +4,7 @@
 #include <chrono>
 using namespace std::chrono;
 
-#undef DEBUG
+//#undef DEBUG
 
 namespace daoopt {
 
@@ -13,7 +13,7 @@ extern high_resolution_clock::time_point _time_start; // From Main.cpp
 bool AOStar::solve(size_t nodeLimit) {
   // for when AOStar search runs out of memory
   // allocate 64K memory.
-  char* emergency_memory = new char[65536]; 
+  char* emergency_memory = new char[65536];
 
   bool solved = false;
 
@@ -21,7 +21,7 @@ bool AOStar::solve(size_t nodeLimit) {
   try {
     solved = DoSearch();
   } catch (std::bad_alloc& ba_exception) {
-    delete [] emergency_memory;
+    delete[] emergency_memory;
     emergency_memory = nullptr;
     best_first_limit_reached_ = true;
     solved = false;
@@ -96,13 +96,13 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
 #ifdef DEBUG
     cout << "Revised " << e->ToString() << (change ? " (changed)" : "") << endl;
 #endif
-    
+
     if (change) {
       // Step 12 Nilssons
       if (e->getType() == NODE_AND) {
         assert(e->get_parents().size() == 1);
         BFSearchNode* parent = e->get_parents().front();
-        
+
         // Count children of e still in the revise_set
         // The index will place this node later the more children there are.
         size_t index = 0;
@@ -175,7 +175,7 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
               break;
             }
           }
-        } 
+        }
       }
     }
   }
@@ -288,7 +288,7 @@ bool AOStar::Revise(BFSearchNode* node) {
     double old_value = node->getValue();
     double q_value = -std::numeric_limits<double>::infinity();
     BFSearchNode* best = nullptr;
-    
+
     for (BFSearchNode* child : node->get_children()) {
       int val = child->getVal();
       double w = node->getWeight(val);
@@ -313,8 +313,9 @@ bool AOStar::Revise(BFSearchNode* node) {
       node->set_solved(true);
       node->set_fringe(false);
 
-      BFSearchNode* parent = node->getParent();
-      parent->addSubSolved(node->getValue()); 
+      if (node != search_space_->getRoot()) {
+        node->getParent()->addSubSolved(node->getValue());
+      }
     }
     change = solved || q_value != old_value;
     if (change && node == search_space_->getRoot()) {
