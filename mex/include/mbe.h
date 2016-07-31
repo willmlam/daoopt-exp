@@ -16,8 +16,8 @@
 
 namespace mex {
 
-// Graphical Model Algorithm: Mini-bucket Elimination 
-// 
+// Graphical Model Algorithm: Mini-bucket Elimination
+//
 
 class mbe : public graphModel, public gmAlg, virtual public mxObject {
 public:
@@ -32,7 +32,7 @@ public:
 
   graphModel _gmo;
 
-#ifdef MEX  
+#ifdef MEX
   // MEX Class Wrapper Functions //////////////////////////////////////////////////////////
   //bool        mxCheckValid(const mxArray*);   // check if matlab object is compatible with this object
   //void        mxSet(mxArray*);     // associate with A by reference to data
@@ -41,13 +41,13 @@ public:
   //void        mxDestroy();         // disassociate and delete matlab object
   //void        mxSwap(mbe& gm);     // exchange with another object and matlab identity
   /////////////////////////////////////////////////////////////////////////////////////////
-  bool mxCheckValid(const mxArray* GM) { 
+  bool mxCheckValid(const mxArray* GM) {
     return graphModel::mxCheckValid(GM);              // we must be a graphmodel
     // !!! anything else to check?
   }
   void mxSet(mxArray* GM) {
     if (!mxCheckValid(GM)) throw std::runtime_error("incompatible Matlab object type in mbe");
-    graphModel::mxSet(GM);                            // initialize base components  
+    graphModel::mxSet(GM);                            // initialize base components
     // Check for algorithmic specialization???
   }
   mxArray* mxGet() { if (!mxAvail()) { graphModel::mxGet(); } return M_; }
@@ -132,7 +132,7 @@ public:
         case Property::iBound:  setIBound( atol(asgn[1].c_str()) ); break;
         case Property::sBound:  setSBound( atol(asgn[1].c_str()) ); break;
         //case Property::Order:   _order=_gmo.order(graphModel::OrderMethod(asgn[1].c_str())); break;
-        case Property::Order:   _order.clear(); _parents.clear(); 
+        case Property::Order:   _order.clear(); _parents.clear();
                                 ordMethod=graphModel::OrderMethod(asgn[1].c_str()); break;
         case Property::Distance: distMethod = Factor::Distance(asgn[1].c_str()); _byScope=false; break;
         case Property::DoMplp:  _doMplp  = atol(asgn[1].c_str()); break;
@@ -240,23 +240,23 @@ public:
   void init() {
     _logZ = 0.0;
     if (_order.size()==0) {               // if we need to construct an elimination ordering
-      double tic=timeSystem(); 
-      _order=_gmo.order(ordMethod); 
+      double tic=timeSystem();
+      _order=_gmo.order(ordMethod);
       _parents.clear();                   // (new elim order => need new pseudotree) !!! should do together
       std::cout<<"Order in "<<timeSystem()-tic<<" sec\n";
     }
     if (_parents.size()==0) {             // if we need to construct a pseudo-tree
-      double tic=timeSystem(); 
-      _parents=_gmo.pseudoTree(_order);  
-      std::cout<<"Pseudo in "<<timeSystem()-tic<<" sec\n"; 
+      double tic=timeSystem();
+      _parents=_gmo.pseudoTree(_order);
+      std::cout<<"Pseudo in "<<timeSystem()-tic<<" sec\n";
     }
 
     if (_doMplp) {
-      mplp _mplp(_gmo.factors()); 
+      mplp _mplp(_gmo.factors());
       char niter[16]; sprintf(niter,"StopIter=%d",_doMplp);
       _mplp.setProperties("Schedule=Fixed,Update=Var,StopObj=-1.0,StopMsg=-1.0");
       _mplp.setProperties(niter);
-      _mplp.init(); 
+      _mplp.init();
       _mplp.run();
       //std::cout<<"After Mplp: "<<_mplp.ub()<<"\n";
       _gmo = graphModel(_mplp.beliefs());
@@ -271,8 +271,8 @@ public:
     vector<flist>  vin;
 
     for (size_t i=0;i<_gmo.nvar();++i) vin.push_back(_gmo.withVariable(var(i)));
-    atElim.clear(); atElim.resize(_gmo.nvar()); 
-    atElimNorm.clear(); atElimNorm.resize(_gmo.nvar(),0.0); 
+    atElim.clear(); atElim.resize(_gmo.nvar());
+    atElimNorm.clear(); atElimNorm.resize(_gmo.nvar(),0.0);
     vector<Factor> tmp; if (!_byScope) tmp.resize(_gmo.nFactors());  // temporary factors used in score heuristics
     vector<flist> Orig(_gmo.nFactors());              // origination info: which original factors are
     for (size_t i=0;i<Orig.size();++i) Orig[i]|=i;    //   included for the first time, and which newly
@@ -300,11 +300,11 @@ public:
       for (flistIt i=ids.begin();i!=ids.end();++i) {
         for (flistIt j=ids.begin(); j!=i; ++j) {
           double err = score(fin,VX,*i,*j,tmp); sPair sp(*i,*j);
-          reverseScore[sp]=scores.insert(_INS(err,sp));       // save score 
+          reverseScore[sp]=scores.insert(_INS(err,sp));       // save score
         }
         reverseScore[sPair(*i,*i)]=scores.insert(_INS(-1,sPair(*i,*i)));         // mark self index at -1
       }
-    
+
       //// Run through until no more pairs can be aggregated: ////////////////////
       //   Find the best pair (ii,jj) according to the scoring heuristic and join
       //   them as jj; then remove ii and re-score all pairs with jj
@@ -313,7 +313,7 @@ public:
          //multimap<double,_IDX>::reverse_iterator  last=scores.lower_bound(top->first);  // break ties randomly !!!
         //std::advance(last, randi(std::distance(top,last)));
         //std::cout<<top->first<<" "<<top->second.first<<" "<<top->second.second<<"\n";
-        
+
         if (top->first < 0) break;                            // if can't do any more, quit
         else {
           size_t ii=top->second.first, jj=top->second.second;
@@ -323,18 +323,18 @@ public:
           Norm[jj] += Norm[ii];
           ////double mx = fin[jj].max(); fin[jj]/=mx; mx=std::log(mx); _logZ+=mx; Norm[jj]+=mx;
           erase(vin,ii,fin[ii].vars()); fin[ii]=Factor(0.0);  //   & remove i
-  
+
           Orig[jj] |= Orig[ii]; Orig[ii].clear();      // keep track of list of original factors in this cluster
           New[jj]  |= New[ii];  New[ii].clear();       //   list of new "message" clusters incoming to this cluster
-          
+
           if (!_byScope) tmp[jj] = elim(fin[jj],VX);       // update partially eliminated entry for j
-  
+
           for (flistIt k=ids.begin();k!=ids.end();++k) {     // removing entry i => remove (i,k) for all k
-            scores.erase(reverseScore[sPair(ii,*k)]); 
+            scores.erase(reverseScore[sPair(ii,*k)]);
           }
           ids /= ii;
 
-          for (flistIt k=ids.begin();k!=ids.end();++k) {  // updated j; rescore all pairs (j,k) 
+          for (flistIt k=ids.begin();k!=ids.end();++k) {  // updated j; rescore all pairs (j,k)
             if (*k==jj) continue;
             double err = score(fin,VX,jj,*k,tmp); sPair sp(jj,*k);
             scores.erase(reverseScore[sp]);                        // change score (i,j)
@@ -356,7 +356,7 @@ public:
         if (_doFill) {
           VarSet all=fin[ids[0]].vars(); for (size_t i=1;i<ids.size();i++) all|=fin[ids[i]].vars();
           //reorder all?
-          for (size_t i=0;i<ids.size();i++) { 
+          for (size_t i=0;i<ids.size();i++) {
             VarSet vsi = fin[ids[i]].vars(), orig=fin[ids[i]].vars();
             for (VarSet::const_iterator vj=all.begin();vj!=all.end();++vj) {
               VarSet test = vsi + *vj;
@@ -376,7 +376,7 @@ public:
         }
         fmatch *= (1.0/ids.size());                  // and match each bucket to it
         for (size_t i=0;i<ids.size();i++) fin[ids[i]] += fmatch - ftmp[i];
-        
+
         //beta = addFactor( Factor(fmatch.vars(),1.0) );  // add node to new cluster graph
         //atElim[*x] |= beta;
       }
@@ -385,28 +385,28 @@ public:
       //// Weight heuristic? /////////
       //  Currently, we just take the first bucket; !!! add heuristics from matlab code
       size_t select = ids[0];
-    
+
       //// Eliminate individually within buckets /////////////////////////////////
       //   currently does not use weights except 0/1; !!! add sumPower alternatives from matlab code
       vector<findex> alphas;
       //std::cout<<"Table sizes: ";
       for (flistIt i=ids.begin();i!=ids.end();++i) {
-        // 
+        //
         // Create new cluster alpha over this set of variables; save function parameters also
         findex alpha = findex(-1), alpha2 = findex(-1);
         if (_doJG) { alpha=addFactor(fin[*i]); alphas.push_back(alpha); }
 
         //std::cout<<fin[*i].numel()<<" ";
-    
+
         //if (*i==select) fin[*i] = elim     (fin[*i],VX);
-        //else            fin[*i] = elimBound(fin[*i],VX);  
+        //else            fin[*i] = elimBound(fin[*i],VX);
         if (*i==select) { Factor FE = elim     (fin[*i],VX); fin[*i].swap(FE); }
         else            { Factor FE = elimBound(fin[*i],VX); fin[*i].swap(FE); }
-        
+
         if (_doJG) _factors[alpha] -= fin[*i];
-  
+
         if (_doHeur) alpha2 = addFactor(fin[*i]);          /// !!! change to adding a message not a factor?
-        
+
         //if (_doJG && _doMatch && ids.size()>1) addEdge(alpha,beta);
         if (_doJG) for (size_t j=0;j<alphas.size()-1;++j) addEdge(alpha,alphas[j]);
         if (_doJG) for (flistIt j=New[*i].begin();j!=New[*i].end();++j) addEdge(*j,alpha);
@@ -452,7 +452,7 @@ public:
 
   void tighten(size_t nIter, double stopTime=-1, double stopObj=-1, bool verbose=true) {
     const mex::vector<EdgeID>& elist = edges();
-    double startTime=timeSystem(); 
+    double startTime=timeSystem();
     double print = startTime+1;
     size_t n = _iter % edges().size();
     size_t stopIter = nIter*edges().size();
@@ -463,7 +463,7 @@ public:
       if (++n == edges().size()) n=0;
       size_t nn=n; if (((size_t)iter())%2 == 0) nn=edges().size()-nn-1;
 
-      findex a,b; a=elist[nn].first; b=elist[nn].second; 
+      findex a,b; a=elist[nn].first; b=elist[nn].second;
       if (a>b) continue;
       VarSet both = _factors[a].vars() & _factors[b].vars();
       double delta=-(factor(a).max()+factor(b).max());
@@ -471,7 +471,7 @@ public:
       _factors[b] += fratio; _factors[a] -= fratio;
       delta+=factor(a).max()+factor(b).max();
       _bound+=delta; _dObjCurr+=delta;
-      
+
       if (verbose && timeSystem()>print) {
         print = timeSystem()+1;
         std::cout<<"["<<timeSystem()-startTime<<"] jglp "<<_bound<<"; d="<<dObj()<<"\n";
@@ -503,10 +503,10 @@ public:
     VarSet condition = (cond==NULL) ? VarSet() : *cond;
     vector<VarSet> fin; for (size_t f=0;f<_gmo.nFactors();++f) fin.push_back(_gmo.factor(f).vars() - condition);
     vector<flist>  vin; for (size_t i=0;i<_gmo.nvar();++i)     vin.push_back(_gmo.withVariable(var(i)));
-    for (size_t i=0;i<condition.size();++i) vin[condition[i].label()]=flist(); 
+    for (size_t i=0;i<condition.size();++i) vin[condition[i].label()]=flist();
 
     vector<VarSet> _factors;
-    size_t MemUsed=0;   for (size_t f=0;f<fin.size();++f)      MemUsed += fin[f].nrStates(); 
+    size_t MemUsed=0;   for (size_t f=0;f<fin.size();++f)      MemUsed += fin[f].nrStates();
     size_t MemMax = MemUsed;
     bool   localExact;  if (isExact==NULL) isExact=&localExact;  *isExact=true;
 
@@ -527,11 +527,11 @@ public:
       for (flistIt i=ids.begin();i!=ids.end();++i) {
         for (flistIt j=ids.begin(); j!=i; ++j) {
           double err = scoreSim(fin,VX,*i,*j); sPair sp(*i,*j);
-          reverseScore[sp]=scores.insert(_INS(err,sp));       // save score 
+          reverseScore[sp]=scores.insert(_INS(err,sp));       // save score
         }
         reverseScore[sPair(*i,*i)]=scores.insert(_INS(-1,sPair(*i,*i)));         // mark self index at -1
       }
-    
+
       //// Run through until no more pairs can be aggregated: ////////////////////
       for(;;) {
         std::multimap<double,sPair>::reverse_iterator top = scores.rbegin();
@@ -546,13 +546,13 @@ public:
           MemMax   = std::max(MemMax,MemUsed);
           MemUsed -= tmp;
           erase(vin,ii,fin[ii]); fin[ii]=VarSet();  //   & remove i
-  
+
           for (flistIt k=ids.begin();k!=ids.end();++k) {     // removing entry i => remove (i,k) for all k
-            scores.erase(reverseScore[sPair(ii,*k)]); 
+            scores.erase(reverseScore[sPair(ii,*k)]);
           }
           ids /= ii;
 
-          for (flistIt k=ids.begin();k!=ids.end();++k) {  // updated j; rescore all pairs (j,k) 
+          for (flistIt k=ids.begin();k!=ids.end();++k) {  // updated j; rescore all pairs (j,k)
             if (*k==jj) continue;
             double err = scoreSim(fin,VX,jj,*k); sPair sp(jj,*k);
             scores.erase(reverseScore[sp]);                        // change score (i,j)
@@ -565,7 +565,7 @@ public:
       if (_doMatch && ids.size()>1) {
         if (_doFill) {  // if filling, we increase the size of the buckets
           VarSet all=fin[ids[0]]; for (size_t i=1;i<ids.size();i++) all|=fin[ids[i]];
-          for (size_t i=0;i<ids.size();i++) { 
+          for (size_t i=0;i<ids.size();i++) {
             VarSet vsi = fin[ids[i]], orig=fin[ids[i]];
             for (VarSet::const_iterator vj=all.begin();vj!=all.end();++vj) {
               VarSet test = vsi + *vj;
@@ -581,7 +581,7 @@ public:
           }
         }
         // matching step:
-        VarSet var = fin[ids[0]]; 
+        VarSet var = fin[ids[0]];
         for (size_t i=1;i<ids.size();i++) var &= fin[ids[i]];
         MemUsed += var.nrStates() * (ids.size()+2);           // temporary storage (+1 for possible temp var)
         MemMax   = std::max(MemMax,MemUsed);
@@ -612,7 +612,7 @@ public:
         if (elimOp == ElimOp::SumUpper || elimOp == ElimOp::SumLower) MemUsed-=fin[*i].nrStates();
         MemUsed -= tmp;
         //MemUsed -= tmp + fin[*i].nrStates();
-        if (_doHeur) { 
+        if (_doHeur) {
           _factors.push_back( fin[*i] );
           MemUsed += fin[*i].nrStates();        // create cluster alpha2
         }
@@ -620,7 +620,7 @@ public:
 
         insert(vin,*i,fin[*i]);                	// recompute and update adjacency
       }
-   
+
       if (MemMax > MemCutoff) return MemMax;		// if exceeds memory cut-off, fail out & return
     }
     /// end for: variable elim order /////////////////////////////////////////////////////////
@@ -657,5 +657,3 @@ MPLP (1) "by variable" for any graphical model
 //////////////////////////////////////////////////////////////////////////////////////////////
 }       // namespace mex
 #endif  // re-include
-
-

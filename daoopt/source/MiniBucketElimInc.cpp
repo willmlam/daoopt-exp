@@ -10,7 +10,7 @@ namespace daoopt {
 
 		this->reset();
 		// keep track of total memory consumption for MBEMM
-		size_t memSize = 0; 
+		size_t memSize = 0;
 
 		switch (task) {
 			case 0:
@@ -245,7 +245,7 @@ namespace daoopt {
 						m_augmented.clear();
 						m_intermediate.clear();*/
 					}
-				
+
 			}
 			default:
 				break;
@@ -280,7 +280,7 @@ namespace daoopt {
 			_jglp.setIBound(m_options->jglpi);
 			_jglp.setProperties("DoMatch=1,DoFill=1,DoJG=1,DoMplp=0");
 			_jglp.init();
-
+			
 			//_jglp.tighten(m_options->jglp > 0 ? m_options->jglp : 100, m_options->jglps);
 			time_t before_tighten, after_tighten;
 			time(&before_tighten);
@@ -290,7 +290,7 @@ namespace daoopt {
 			time(&after_tighten);
 			m_jglps_inc = m_jglps_inc - difftime(after_tighten, before_tighten);
 			//cout << "JGLP inc @2 :: " << jglps_inc << endl;
-			RewriteFactors(_jglp.factors());
+			RewriteFactors(_jglp.factors(), _jglp.logZ());
 			changed_functions = true;
 		}
 

@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 8, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -69,8 +69,8 @@ double MiniBucketElim::getHeur(int var, vector<val_t>& assignment, SearchNode* n
 
 double MiniBucketElim::getHeurPerIndSubproblem(int var, std::vector<val_t> & assignment, SearchNode* node, double label, std::vector<double> & subprobH)
 {
-	/* note : 
-		union of augmented/intermediate functions in this bucket = 
+	/* note :
+		union of augmented/intermediate functions in this bucket =
 			union of intermediate functions of each child bucket + union of output functions of minibuckets of each child bucket.
 		this allows breacking the h into components, one from each child bucket.
 	*/
@@ -85,7 +85,7 @@ double MiniBucketElim::getHeurPerIndSubproblem(int var, std::vector<val_t> & ass
 		double & hSubproblem = subprobH[i] ; hSubproblem = ELEM_ONE ;
 		// iterate over subproblem intermediate functions; add to subproblem h
 		vector<Function*>::const_iterator itF = m_intermediate[child].begin(), itFend = m_intermediate[child].end() ;
-		for (; itF != itFend ; ++itF) 
+		for (; itF != itFend ; ++itF)
 			hSubproblem OP_TIMESEQ (*itF)->getValue(assignment) ;
 		// iterate over subproblem MB output functions; add to subproblem h
 		vector<MiniBucket> & minibuckets = _MiniBuckets[child] ;
@@ -146,7 +146,7 @@ double MiniBucketElim::getOrderingHeur(int var, std::vector<val_t>& assignment,
 
 void MiniBucketElim::reset() {
 
-  for (vector<MiniBucket> & mb : _MiniBuckets) 
+  for (vector<MiniBucket> & mb : _MiniBuckets)
 	  mb.clear() ;
   _MiniBuckets.clear() ;
 
@@ -298,7 +298,7 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
     for (MiniBucket& mini_bucket : minibuckets) {
       Function* new_function;
       if (!computeTables || !m_options->match || minibuckets.size() <= 1) {
-        new_function = mini_bucket.eliminate(computeTables); 
+        new_function = mini_bucket.eliminate(computeTables);
       } else {
         new_function = mini_bucket.eliminateMM(computeTables,
                                                max_marginals[bucket_idx++],
@@ -373,7 +373,7 @@ bool MiniBucketElim::DoJGLP() {
     mex::VarOrder parents(m_problem->getN() - 1); // copy pseudotree information
     for (int i = 0; i < m_problem->getN() - 1; ++i) {
       int parent_var = m_pseudotree->getNode(i)->getParent()->getVar();
-      parents[i] = parent_var == m_pseudotree->getRoot()->getVar() 
+      parents[i] = parent_var == m_pseudotree->getRoot()->getVar()
                    ? -1 : parent_var;
     }
     _jglp.setPseudotree(parents);
@@ -383,7 +383,7 @@ bool MiniBucketElim::DoJGLP() {
 
     _jglp.tighten(m_options->jglp > 0 ? m_options->jglp : 100,
                   m_options->jglps);
-    RewriteFactors(_jglp.factors());
+    RewriteFactors(_jglp.factors(), _jglp.logZ());
     changed_functions = true;
   }
   return changed_functions;
@@ -398,7 +398,8 @@ mex::vector<mex::Factor> MiniBucketElim::CopyFactors() {
   return functions;
 }
 
-void MiniBucketElim::RewriteFactors(const vector<mex::Factor>& factors) {
+void MiniBucketElim::RewriteFactors(const vector<mex::Factor>& factors,
+                                    double global_constant = 0.0) {
   vector<Function*> new_functions;
   for (size_t function_idx = 0; function_idx < factors.size(); ++function_idx) {
     const mex::Factor& factor = factors[function_idx];
@@ -414,15 +415,25 @@ void MiniBucketElim::RewriteFactors(const vector<mex::Factor>& factors) {
     new_functions.push_back(
         new FunctionBayes(function_idx, m_problem, scope, table_ptr,
                           factor.nrStates()));
-    // Current Mex code leaves factors in log form
+    // Current Mex code leaves factors in log form.
     new_functions.back()->fromFactor(factor);
   }
+
+  // Mex code treats the global constant separate from factors, so we manually
+  // add it back in here.
+  double *table_ptr = new double[1];
+  table_ptr[0] = global_constant;
+  new_functions.push_back(
+    new FunctionBayes(
+      factors.size(), m_problem, std::set<int>(), table_ptr, 1));
+
   // Replace the problem definition with the new functions.
   m_problem->replaceFunctions(new_functions);
 
   cout << "Rewrote factors, problem size (MB) now: " <<
                  m_problem->getSize() * sizeof(double) /
-                     (1024 * 1024.0) << endl;
+                     (1024 * 1024.0)
+       << ", with " << m_problem->getC() << " factors." << endl;
 }
 
 void MiniBucketElim::LPReparameterization() {
@@ -482,7 +493,7 @@ size_t MiniBucketElim::limitSize(size_t memlimit, const vector<val_t> * assignme
 	  ibound = m_options->jglpi; // set ibound = induced width
 	  m_options->jglpi = 0; // reset jglpi to be 0 (jglpi used to pass induced width)
   }
-  
+
   cout << "Adjusting mini bucket i-bound..." << endl;
   this->setIbound(ibound);
   size_t mem = this->build(assignment, false);

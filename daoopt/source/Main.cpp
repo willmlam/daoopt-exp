@@ -488,7 +488,9 @@ Heuristic* Main::newHeuristic(Problem* p, Pseudotree* pt, ProgramOptions* po) {
   }
 
   if (po->lookaheadDepth > 0 || po->lookaheadSubtreeSizeLimit > 0 ||
-     po->aobf_subordering == "static_be" || po->aobf_subordering == "sampled_be") {
+      po->aobf_subordering == "static_be" ||
+      po->aobf_subordering == "sampled_be" ||
+      po->aobf_subordering == "sampled_st_be") {
     return new MiniBucketElimLH(p, pt, po, po->ibound);
   }
   if (po->incrementalJG)  // default value of the incrementalJG is false

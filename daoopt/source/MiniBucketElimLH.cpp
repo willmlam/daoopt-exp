@@ -1384,17 +1384,6 @@ int MiniBucketElimLH::computeLocalErrorTableSlice(
     avgError = 0.0;
     errorFn =
         new FunctionBayes(-var, m_problem, scope_slice, newTable, TableSize);
-
-    // DEBUG
-    /*
-    newTable = new double[TableSize];
-    for (int j = 0; j < TableSize; ++j) {
-      newTable[j] = 0.0;
-    }
-    _TrueSlicedBucketErrorFunctions[var] =
-      new FunctionBayes(-var, m_problem, scope_slice, newTable,
-        TableSize);
-        */
     return 0;
   }
 
@@ -1832,6 +1821,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
       // results in a table with more entries than the table limit parameter.
       double current_table_size_log = 0.0;
       set<int> output_scope(_BucketScopes[v]);
+      cout << "bvar:" << v << " | " << _BucketScopes[v] << endl;
       for (int v : output_scope) {
         current_table_size_log += log10(m_problem->getDomainSize(v));
       }
@@ -1844,7 +1834,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
       // we must keep the bucket variable however.
       if (m_options->bee_slice_sample_closest_first) {
         for (auto itV = elim_order.rbegin(); itV != elim_order.rend(); ++itV) {
-          if (output_scope.size() <= target_scope_size - 1 &&
+          if (output_scope.size() <= target_scope_size &&
               current_table_size_log <= table_size_actual_limit) {
             break;
           }
@@ -1854,7 +1844,7 @@ int MiniBucketElimLH::computeLocalErrorTables(
         }
       } else {  // farthest first
         for (auto itV = elim_order.begin(); itV != elim_order.end(); ++itV) {
-          if (output_scope.size() <= target_scope_size - 1 &&
+          if (output_scope.size() <= target_scope_size &&
               current_table_size_log <= table_size_actual_limit) {
             break;
           }
@@ -2082,12 +2072,9 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
     const std::vector<Function *> &bucket_error_functions) {
   _SubtreeErrorFunctions.resize(m_problem->getN());
   for (int i = 0; i < _SubtreeErrorFunctions.size(); ++i) {
-    const auto *current_fn = bucket_error_functions[i];
-    if (!current_fn) {
-      // set up a
-    }
+    const auto* current_fn = bucket_error_functions[i];
     int64 table_size = current_fn->getTableSize();
-    double *new_table = new double[table_size];
+    double* new_table = new double[table_size];
     for (int j = 0; j < table_size; ++j) {
       new_table[j] = 0.0;
     }
@@ -2095,14 +2082,14 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
         -i, m_problem, current_fn->getScopeSet(), new_table, table_size);
   }
   for (int v : m_pseudotree->getElimOrder()) {
-    const auto *current_fn = _SubtreeErrorFunctions[v];
+    const auto* current_fn = _SubtreeErrorFunctions[v];
     int n_children = m_pseudotree->getNode(v)->getChildren().size();
     if (!current_fn) {
       continue;
     }
     int64 table_size = current_fn->getTableSize();
-    double *table = current_fn->getTable();
-    double *be_table = bucket_error_functions[v]->getTable();
+    double* table = current_fn->getTable();
+    double* be_table = bucket_error_functions[v]->getTable();
     for (int64 j = 0; j < table_size; ++j) {
       table[j] += be_table[j] / (n_children + 1);
     }
@@ -2130,14 +2117,18 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
         tuple[k] = 0;
       }
 
+      set<int> v_only_scope = setminus(var_scope, p_var_scope);
+      cout << "var:" << v << " | " << var_scope << "-" << p_var_scope << "="
+           << v_only_scope << endl;
+
       // These are used to actually get values from the functions
-      vector<val_t *> idx_map_v_var;
-      vector<val_t *> idx_map_p_var;
+      vector<val_t*> idx_map_v_var;
+      vector<val_t*> idx_map_p_var;
 
       // These are used to iterate over the combination in the correct manner
-      vector<val_t *> idx_map_intersect;
-      vector<val_t *> idx_map_v_only_var;
-      vector<val_t *> idx_map_p_only_var;
+      vector<val_t*> idx_map_intersect;
+      vector<val_t*> idx_map_v_only_var;
+      vector<val_t*> idx_map_p_only_var;
 
       vector<val_t> intersecting_domains;
       vector<val_t> v_only_var_domains;
