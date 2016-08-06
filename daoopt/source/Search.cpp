@@ -25,14 +25,21 @@
 
 #include "Search.h"
 #include "ProgramOptions.h"
+
+#include <chrono>
+#include <gflags/gflags.h>
 #include <iomanip>
 
 //#define DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 // Note: We will later refactor AOBB specific parts into BranchAndBound.
 // i.e. caching
 
-#include <chrono>
 using namespace std::chrono;
+using namespace minisat;
+
+
+// NONE, UNIT, FULL (not yet implemented).
+DECLARE_string(cp_type);
 
 namespace daoopt {
 
@@ -61,6 +68,7 @@ Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h,
 
 
 SearchNode* Search::initSearch() {
+  DoConstraintPropagation();
   if (!m_space->root) {
     // Create root OR node (dummy variable)
     PseudotreeNode* ptroot = m_pseudotree->getRoot();
@@ -181,6 +189,7 @@ bool Search::doPruning(SearchNode* node) {
 #if defined PARALLEL_DYNAMIC
       node->setSubLeaves(1);
 #endif
+      node->setValue(ELEM_ZERO);
     } else { // NODE_OR
       if ( ISNAN(node->getValue()) ) // value could be set by LDS
         node->setValue(ELEM_ZERO);
@@ -221,13 +230,14 @@ SearchNode* Search::nextLeaf() {
       cout << "Timed out at " << time_elapsed << " seconds." << endl;
       cout << "Stats at timeout: " << endl;
       cout << "================= " << endl;
-      cout << "OR nodes:      " << m_space->stats.numExpOR << endl;
-      cout << "AND nodes:     " << m_space->stats.numExpAND << endl;
-      cout << "OR processed:  " << m_space->stats.numProcOR << endl;
-      cout << "AND processed: " << m_space->stats.numProcAND << endl;
-      cout << "Leaf nodes:    " << m_space->stats.numLeaf << endl;
-      cout << "Pruned nodes:  " << m_space->stats.numPruned << endl;
-      cout << "Deadend nodes: " << m_space->stats.numDead << endl;
+      cout << "OR nodes:           " << m_space->stats.numExpOR << endl;
+      cout << "AND nodes:          " << m_space->stats.numExpAND << endl;
+      cout << "OR processed:       " << m_space->stats.numProcOR << endl;
+      cout << "AND processed:      " << m_space->stats.numProcAND << endl;
+      cout << "Leaf nodes:         " << m_space->stats.numLeaf << endl;
+      cout << "Pruned nodes:       " << m_space->stats.numPruned << endl;
+      cout << "Deadend nodes:      " << m_space->stats.numDead << endl;
+      cout << "Deadend nodes (CP): " << m_space->stats.numDeadCP << endl;
       exit(0);
     }
   }
@@ -238,10 +248,43 @@ SearchNode* Search::nextLeaf() {
 bool Search::canBePruned(SearchNode* n) const {
   DIAG(oss ss; ss << std::setprecision(20) << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
 
+
   n->PruningGap() = DBL_MAX ;
 
   // never prune the root node (is there a better solution maybe?)
   if (n->getDepth() < 0) return false;
+
+  // use constraint propagation
+  if (n->getType() == NODE_AND) {
+    if (FLAGS_cp_type == "FULL") {
+      vector<int> sat_vars;
+
+      SearchNode* cur = n;
+      SearchNode* parent = cur->getParent();
+      for (;;) {
+        int vvar = cur->getVar();
+        int vval = cur->getVal();
+        sat_vars.push_back(var2sat_[vvar][vval]);
+
+        cur = parent->getParent();
+        if (cur) break;
+        parent = cur->getParent();
+      }
+
+      if (!DoSATPropagate(sat_vars)) {
+        ++m_space->stats.numDeadCP;
+        return true;
+      }
+    }
+    else if (FLAGS_cp_type == "UNIT") {
+      zchaff_solver_.dlevel()++;
+      if (!DoCPLookahead(n->getVar(), n->getVal(), n->changes(),
+          m_pseudotree->getNode(n->getVar())->getSubprobVars())) {
+        ++m_space->stats.numDeadCP;
+        return true;
+      }
+    }
+  }
 
       // heuristic is upper bound, prune if zero
   if (n->getHeur() == ELEM_ZERO)
@@ -432,6 +475,8 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 #ifdef NO_HEURISTIC
     // compute label value for new child node
     m_assignment[var] = i;
+
+
     double d = ELEM_ONE;
     const list<Function*>& funs = m_pseudotree->getFunctions(var);
     for (list<Function*>::const_iterator it = funs.begin(); it != funs.end(); ++it)
@@ -444,6 +489,7 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 #endif
       continue; // label=0 -> skip
     }
+
     SearchNodeAND* c = new SearchNodeAND(n, i, d);
 #else
     // early pruning if heuristic is zero (since it's an upper bound)
@@ -453,6 +499,11 @@ bool Search::generateChildrenOR(SearchNode* n, vector<SearchNode*>& chi) {
 #if defined PARALLEL_DYNAMIC
       n->addSubLeaves(1);
 #endif
+      continue;
+    }
+
+    // Found inconsistent by constriant propagation
+    if (!current_domains_.empty() && !current_domains_[var][i]) {
       continue;
     }
     SearchNodeAND* c = new SearchNodeAND(n, i, heur[2*i+1]); // uses cached label
@@ -519,7 +570,7 @@ double Search::assignCostsOR(SearchNode* n)
   for (int i = 0; i < vDomain; ++i) dv[2*i+1] = ELEM_ONE;
   for (int i = 0; i < vDomain; ++i) ordering_cache[i] = 0;
   double h = ELEM_ZERO; // the new OR nodes h value
-  int argmax_h = -1;
+  int argmax_h = 0; // Initialize the first as max since they may all be zero.
   m_heuristic->noteOrNodeExpansionBeginning(v, m_assignment, n) ;
 
 #ifdef GET_VALUE_BULK
@@ -539,6 +590,7 @@ double Search::assignCostsOR(SearchNode* n)
   }
 
   for (int i=0; i<vDomain; ++i) {
+    m_assignment[v] = i;
     dv[2*i] = dv[2*i+1] OP_TIMES dv[2*i];
     if (dv[2*i] > h) {
       argmax_h = i;
@@ -1059,6 +1111,250 @@ bool Search::propHeuristic(SearchNode* node) {
     return true;
   }
   return false;
+}
+
+void Search::DoConstraintPropagation() {
+  if (FLAGS_cp_type == "FULL") {
+    vec<Lit> lits;
+
+    // create SAT problem
+    var2sat_.resize(m_problem->getN());
+    for (int var = 0; var < m_problem->getN(); ++var) {
+      var2sat_[var].resize(m_problem->getDomainSize(var));
+      for (int val = 0; val < m_problem->getDomainSize(var); ++val) {
+        Var vid = minisat_solver_.newVar();
+        var2sat_[var][val] = vid;
+      }
+    }
+
+    vector<val_t> assignment;
+    assignment.resize(m_problem->getN(), UNKNOWN);
+
+    // add nogoods
+    for (const Function* f : m_problem->getFunctions()) {
+      const vector<int>& scope_vars = f->getScopeVec();
+      int scope_size = scope_vars.size();
+      if (scope_size == 0) continue;
+      vector<int> values(scope_size, 0);
+      values.back() = -1;
+
+      int i;
+      for (;;) {
+        for (i = scope_size - 1; i >= 0; --i) {
+          int a = scope_vars[i];
+          int last = m_problem->getDomainSize(a) - 1;
+          if (values[i] < last) break;
+          values[i] = 0;
+        }
+
+        if (i < 0) break;
+        ++values[i];
+
+        for (int a = 0; a < scope_size; ++a) {
+          assignment[scope_vars[a]] = values[a];
+        }
+
+        double val = f->getValue(assignment);
+        if (val == ELEM_ZERO) {
+          lits.clear();
+          for (int a = 0; a < scope_size; ++a) {
+            int vid = var2sat_[scope_vars[a]][values[a]];
+            lits.push(~mkLit(vid));
+          }
+          minisat_solver_.addClause_(lits);
+        }
+      }
+      assignment.resize(m_problem->getN(), UNKNOWN);
+    }
+
+    // at-most-one clauses
+    for (int var = 0; var < m_problem->getN(); ++var) {
+      int domain_size = m_problem->getDomainSize(var);
+      for (int v1 = 0; v1 < domain_size - 1; ++v1) {
+        for (int v2 = v1 + 1; v2 < domain_size; ++v2) {
+          int v1sat = var2sat_[var][v1];
+          int v2sat = var2sat_[var][v2];
+
+          lits.clear();
+          lits.push(~mkLit(v1sat));
+          lits.push(~mkLit(v2sat));
+          minisat_solver_.addClause_(lits);
+        }
+      }
+    }
+
+    // at-least-one clauses
+    for (int var = 0; var < m_problem->getN(); ++var) {
+      lits.clear();
+      for (int val = 0; val < m_problem->getDomainSize(var); ++val) {
+        lits.push(mkLit(var2sat_[var][val]));
+      }
+      minisat_solver_.addClause_(lits);
+    }
+
+    minisat_solver_.simplify();
+    cout << "Created SAT (minisat) instance with " << minisat_solver_.nVars()
+         << " variables and " << minisat_solver_.nClauses() << " clauses"
+         << endl;
+    bool ok = minisat_solver_.solve();
+    if (ok) {
+      cout << "Initial SAT instance is satisfiable." << endl;
+    } else {
+      cout << "Initial SAT instance is not satisfiable." << endl;
+    }
+  }
+  else if (FLAGS_cp_type == "UNIT") {
+    int var_id = 1;
+    int n_sat_vars = 0;
+    for (int i = 0; i < m_problem->getN(); ++i) {
+      n_sat_vars += m_problem->getDomainSize(i);
+    }
+
+    // Create SAT problem
+    var2sat_.resize(m_problem->getN());
+    sat2var_.resize(n_sat_vars + 1, std::make_pair(-1, -1));
+    zchaff_solver_.set_variable_number(n_sat_vars);
+    for (int i = 0; i < m_problem->getN(); ++i) {
+      int domain_size = m_problem->getDomainSize(i);
+      var2sat_[i].resize(domain_size, 0);
+      for (int k = 0; k < domain_size; ++k, ++var_id) {
+        var2sat_[i][k] = var_id;
+        sat2var_[var_id] = std::make_pair(i, k);
+      }
+    }
+
+    zchaff_solver_.set_var_maps(var2sat_, sat2var_);
+
+    // Create clauses for 0 probability tuples
+    int num_cl = 0;
+    for (const Function* f : m_problem->getFunctions()) {
+      int arity = f->getArity();
+      if (arity == 0) continue;
+      int* scope_vars = new int[arity];
+      int l = 0;
+      for (int v : f->getScopeSet()) {
+        scope_vars[l++] = v;
+      }
+
+      int* values = new int[arity];
+      for (int i = 0 ; i < arity - 1; ++i) {
+        values[i] = 0;
+      }
+      values[arity - 1] = -1;
+
+      // Enumerate instantiations
+      vector<val_t> assignment(m_problem->getN(), -1);
+      int i;
+      for (;;) {
+        for (i = arity - 1; i >= 0; --i) {
+          int a = scope_vars[i];
+          int last = m_problem->getDomainSize(a) - 1;
+          if (values[i] < last) break;
+          values[i] = 0;
+        }
+        if (i < 0) break;
+        ++values[i];
+
+        for (int a = 0; a < arity; ++a) {
+          assignment[scope_vars[a]] = values[a];
+        }
+
+        // Nogood clause if assignment is 0
+        if (f->getValue(assignment) == ELEM_ZERO) {
+          zchaff_solver_.add_nogood_clause(arity, scope_vars, values);
+          ++num_cl;
+        }
+      }
+
+      // Reset assignment
+      assignment.resize(m_problem->getN(), -1);
+      delete[] values;
+      delete[] scope_vars;
+    }
+
+    // Add at-most-one clauses for domain values
+    // (assignment exclusivity constraint)
+    for (int i = 0; i < m_problem->getN(); ++i) {
+      int domain_size = m_problem->getDomainSize(i);
+      for (int v1 = 0; v1 < domain_size - 1; ++v1) {
+        for (int v2 = v1 + 1; v2 < domain_size; ++v2) {
+          zchaff_solver_.add_atmostone_clause(i, v1, v2);
+          ++num_cl;
+        }
+      }
+    }
+
+    // Add at-least-one clauses to ensure something is assigned
+    for (int i = 0; i < m_problem->getN(); ++i) {
+      int domain_size = m_problem->getDomainSize(i);
+      zchaff_solver_.add_atleastone_clause(i, domain_size);
+      ++num_cl;
+    }
+
+    zchaff_solver_.init_solve();
+    zchaff_solver_.preprocess();
+
+    cout << "Created SAT (zchaff) instance with "
+         << zchaff_solver_.num_variables() << " variables and "
+         << zchaff_solver_.num_clauses() << " clauses" << endl;
+
+    current_domains_.resize(m_problem->getN());
+    for (int i = 0; i < m_problem->getN(); ++i) {
+      current_domains_[i].resize(m_problem->getDomainSize(i), true);
+    }
+
+    list<pair<int, int>> changes;
+    zchaff_solver_.update_domains(current_domains_, changes);
+
+    m_prop->setSatSolver(&zchaff_solver_);
+  } else {
+    m_prop->setSatSolver(nullptr);
+    assert(current_domains_.empty());
+  }
+}
+
+bool Search::DoSATPropagate(const vector<int>& vars) {
+  assert(FLAGS_cp_type == "FULL");
+
+  vec<Lit> lits;
+  for (int v : vars) {
+    lits.push(mkLit(v));
+  }
+
+  return minisat_solver_.solve(lits);
+}
+
+bool Search::DoCPLookahead(int var, int val, list<pair<int, int>>& changes,
+                           const vector<int>& subtree) {
+  assert(FLAGS_cp_type == "UNIT");
+
+  // Unit resolution
+  int res = zchaff_solver_.propagate(var, val);
+  zchaff_solver_.update_domains(current_domains_, changes);
+  if (res == zchaff::CONFLICT) {
+    return false;
+  }
+//  return true;
+
+  // Future empty domain in a subproblem?
+  for (int desc : subtree) {
+    if (var == desc) {
+      continue;
+    }
+
+    vector<bool>& domain = current_domains_[desc];
+    size_t sz = domain.size();
+    size_t pruned = 0;
+    for (size_t j = 0; j < sz; ++j) {
+      if (!domain[j]) {
+        ++pruned;
+      }
+    }
+    if (pruned == sz) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace daoopt

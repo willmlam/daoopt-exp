@@ -379,7 +379,7 @@ bool AOStar::FindBestPartialTree() {
 
 void AOStar::ArrangeTipNodes() {
   std::sort(tip_nodes_.begin(), tip_nodes_.end(),
-      CompNodeOrderingHeurDesc());
+            comp_node_ordering_heur_desc_fn);
 }
 
 BFSearchNode* AOStar::ChooseTipNode() {
@@ -446,6 +446,7 @@ AOStar::AOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
 : Search(p, pt, space, heur, prop, po), global_search_index_(0) {
   search_space_ = dynamic_cast<BFSearchSpace*>(space);
   this->initSearch();
+  comp_node_ordering_heur_desc_fn = NodeOrderingHeurDesc();
 }
 
 }  // namespace daoopt

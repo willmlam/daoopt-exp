@@ -74,6 +74,10 @@ protected:
 
   vector<val_t> m_curSolution;       // Current best solution
 
+  unsigned int num_zero_tuples_;  // Number of zero tuples
+  unsigned int num_tuples_;  // Number of tuples
+  double determinism_ratio_; // ratio of above two numbers
+
 public:
   void setCopy(bool isCopy = true) { m_is_copy = isCopy; }
 

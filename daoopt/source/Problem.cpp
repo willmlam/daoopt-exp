@@ -628,6 +628,7 @@ bool Problem::parseUAI16(char* prob, size_t probN, char* evid, size_t evidN,
       in >> num_non_default_entries;
 
       double* table = new double[tab_size];
+
       // Fill table with default value first
       for (size_t k = 0; k < tab_size; ++k) {
         table[k] = ELEM_ENCODE(value);
@@ -697,8 +698,23 @@ bool Problem::parseUAI16(char* prob, size_t probN, char* evid, size_t evidN,
         m_evidence.insert(make_pair(x,xs));
     }
 
+  // Compute determinism ratio
+  num_tuples_ = 0;
+  num_zero_tuples_ = 0;
+  for (const Function *f : m_functions) {
+    num_tuples_ += f->getTableSize();
+    for (int k = 0; k < f->getTableSize(); ++k) {
+      if (f->getTable()[k] == ELEM_ZERO) {
+        ++num_zero_tuples_;
+      }
+    }
+  }
+  determinism_ratio_ = (double) num_zero_tuples_ / num_tuples_;
 
   cout << "Problem size (MB): " << (getSize()*sizeof(double) / (1024*1024.0)) << endl;
+  cout << "Number of tuples:  " << num_tuples_ << endl;
+  cout << "Number of zeros:   " << num_zero_tuples_ << endl;
+  cout << "Determinism ratio: " << determinism_ratio_ << endl;
   return true;
 }
 

@@ -16,12 +16,12 @@ static MTRand RNG ;
 
 int ARE::ARP::GetFilename(const std::string & Dir, std::string & fn)
 {
-	if (0 == _Name.length()) 
+	if (0 == _Name.length())
 		return 1 ;
-	if (0 == Dir.length()) 
+	if (0 == Dir.length())
 		return 1 ;
 	fn = Dir ;
-	if ('\\' != fn[fn.length()-1]) 
+	if ('\\' != fn[fn.length()-1])
 		fn += '\\' ;
 	fn += _Name ;
 //	fn += ".xml" ;
@@ -31,17 +31,17 @@ int ARE::ARP::GetFilename(const std::string & Dir, std::string & fn)
 
 int ARE::ARP::SaveUAI08(const std::string & Dir)
 {
-	if (NULL == _K) 
+	if (NULL == _K)
 		return 1 ;
 
 	std::string fn ;
-	if (0 != GetFilename(Dir, fn)) 
+	if (0 != GetFilename(Dir, fn))
 		return 1 ;
-	if (0 == fn.length()) 
+	if (0 == fn.length())
 		return 1 ;
 	fn += ".uai" ;
 	FILE *fp = fopen(fn.c_str(), "w") ;
-	if (NULL == fp) 
+	if (NULL == fp)
 		return 1 ;
 
 	char s[1024] ;
@@ -54,9 +54,9 @@ int ARE::ARP::SaveUAI08(const std::string & Dir)
 
 	fwrite("\n", 1, 1, fp) ;
 	for (i = 0 ; i < _nVars ; i++) {
-		if (i > 0) 
+		if (i > 0)
 			sprintf(s, " %d", (int) _K[i]) ;
-		else 
+		else
 			sprintf(s, "%d", (int) _K[i]) ;
 		fwrite(s, 1, strlen(s), fp) ;
 		}
@@ -82,7 +82,7 @@ int ARE::ARP::SaveUAI08(const std::string & Dir)
 
 	for (i = 0 ; i < _nFunctions ; i++) {
 		ARE::Function *f = _Functions[i] ;
-		if (NULL == f) 
+		if (NULL == f)
 			continue ;
 		FunctionTableBlock *ftb = f->Table() ;
 		if (NULL == ftb) {
@@ -97,7 +97,7 @@ int ARE::ARP::SaveUAI08(const std::string & Dir)
 		sprintf(s, "\n\n%I64d", ts) ;
 		fwrite(s, 1, strlen(s), fp) ;
 		__int64 kN = 1, kR = _K[f->Argument(f->N()-1)] ;
-		for (j = 0 ; j < f->N() - 1 ; j++) 
+		for (j = 0 ; j < f->N() - 1 ; j++)
 			kN *= _K[f->Argument(j)] ;
 		// note that ts=kN*kR
 		__int64 k, l, K = 0 ;
@@ -118,13 +118,13 @@ int ARE::ARP::SaveUAI08(const std::string & Dir)
 int ARE::ARP::SaveXML(const std::string & Dir)
 {
 	std::string fn ;
-	if (0 != GetFilename(Dir, fn)) 
+	if (0 != GetFilename(Dir, fn))
 		return 1 ;
-	if (0 == fn.length()) 
+	if (0 == fn.length())
 		return 1 ;
 	fn += ".xml" ;
 	FILE *fp = fopen(fn.c_str(), "w") ;
-	if (NULL == fp) 
+	if (NULL == fp)
 		return 1 ;
 
 	char s[1024] ;
@@ -139,7 +139,7 @@ int ARE::ARP::SaveXML(const std::string & Dir)
 		// check if all domains are the same size
 		int k = _K[0] ;
 		for (i = 1 ; i < _nVars ; i++) {
-			if (k != _K[i]) 
+			if (k != _K[i])
 				break ;
 			}
 		if (i >= _nVars) {
@@ -152,7 +152,7 @@ int ARE::ARP::SaveXML(const std::string & Dir)
 			temp += " domainsizelist=\"" ;
 			for (i = 0 ; i < _nVars ; i++) {
 				sprintf(s, "%d", _K[i]) ;
-				if (i > 0) 
+				if (i > 0)
 					temp += ';' ;
 				temp += s ;
 				}
@@ -168,7 +168,7 @@ int ARE::ARP::SaveXML(const std::string & Dir)
 			ARE::Function *f = _Functions[i] ;
 			if (NULL == f) continue ;
 			temp = "\n" ;
-			if (0 == f->SaveXMLString(" ", "function", Dir, temp)) 
+			if (0 == f->SaveXMLString(" ", "function", Dir, temp))
 				fwrite(temp.c_str(), 1, temp.length(), fp) ;
 /*
 if (CheckFunctions()) {
@@ -192,7 +192,7 @@ int error = 1 ;
 			temp += "\" list=\"" ;
 			for (i = 0 ; i < _nVars ; i++) {
 				sprintf(s, "%d", _VarOrdering_VarList[i]) ;
-				if (i > 0) 
+				if (i > 0)
 					temp += ';' ;
 				temp += s ;
 				}
@@ -229,7 +229,7 @@ int ARE::fileload_getnexttoken(const char * & buf, int & L, const char * & B, in
 	for (i = 0 ; i < L ; i++) { if ('\r' != buf[i] && '\n' != buf[i] && ' ' != buf[i] && '\t' != buf[i]) break ; }
 	buf += i ;
 	L -= i ;
-	if (L <= 0) 
+	if (L <= 0)
 		return 1 ;
 	if (IncludeSpecialSymbols) {
 		bool token_is_special_symbol = '(' == *buf || ':' == *buf || ')' == *buf ;
@@ -247,7 +247,7 @@ int ARE::fileload_getnexttoken(const char * & buf, int & L, const char * & B, in
 		if ('\r' == buf[l] || '\n' == buf[l] || ' ' == buf[l] || '\t' == buf[l]) break ;
 		if (IncludeSpecialSymbols) {
 			bool token_is_special_symbol = '(' == buf[l] || ':' == buf[l] || ')' == buf[l] ;
-			if (token_is_special_symbol) 
+			if (token_is_special_symbol)
 				break ;
 			}
 		}
@@ -310,7 +310,7 @@ int ARE::ARP::LoadFromBuffer(const char *format, const char *buf, int L)
 			}
 		if (0 != i) {
 			fprintf(ARE::fpLOG, "\nLoad failed; res = %d", i) ;
-			if (i < ERRORCODE_generic) 
+			if (i < ERRORCODE_generic)
 				i = ERRORCODE_generic ;
 			return i ;
 			}
@@ -337,12 +337,12 @@ int ARE::ARP::LoadFromBuffer_Evidence(const char *format, const char *buf, int L
 	if (0 == stricmp("UAI", format)) {
 		i = LoadUAIFormat_Evidence(buf, L, nEvidenceVars) ;
 		if (0 != i) {
-			if (NULL != ARE::fpLOG) 
+			if (NULL != ARE::fpLOG)
 				fprintf(ARE::fpLOG, "\nLoad evidence failed; res = %d", i) ;
 			return ERRORCODE_generic ;
 			}
 		}
-	else 
+	else
 		return ERRORCODE_problem_type_unknown ;
 
 	return 0 ;
@@ -355,15 +355,15 @@ int ARE::ARP::LoadFromFile(const std::string & FileName)
 	int i = FileName.length() - 1 ;
 	for (; i >= 0 ; i--) {
 #ifdef LINUX
-		if ('\\' == FileName[i] || '/' == FileName[i]) 
+		if ('\\' == FileName[i] || '/' == FileName[i])
 #else
-		if ('\\' == FileName[i] || '//' == FileName[i]) 
+		if ('\\' == FileName[i] || '//' == FileName[i])
 #endif
 			break ;
 		}
 	std::string fn(FileName.substr(i+1)) ;
 
-	if (NULL != ARE::fpLOG) 
+	if (NULL != ARE::fpLOG)
 		fprintf(ARE::fpLOG, "\nWill load problem from %s", FileName.c_str()) ;
 	FILE *fp = fopen(FileName.c_str(), "r") ;
 	if (NULL == fp) {
@@ -401,7 +401,7 @@ int ARE::ARP::LoadFromFile(const std::string & FileName)
 
 int ARE::ARP::LoadUAIFormat(const char *buf, int L)
 {
-	if (NULL == buf) 
+	if (NULL == buf)
 		return 1 ;
 
 	int ret = 1, i, j ;
@@ -415,69 +415,69 @@ int ARE::ARP::LoadUAIFormat(const char *buf, int L)
 	const char *token = NULL ;
 	int l = 0 ;
 /*
-	if (0 != fileload_getnexttoken(buf, L, token, l)) 
+	if (0 != fileload_getnexttoken(buf, L, token, l))
 		goto done ;
-	if (5 != l ? true : 0 != memcmp(token, "BAYES", l)) 
+	if (5 != l ? true : 0 != memcmp(token, "BAYES", l))
 		goto done ;
 */
 	// get # of variables
-	if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+	if (0 != fileload_getnexttoken(buf, L, token, l, false))
 		goto done ;
 	int N = atoi(token) ;
-	if (N < 1) 
+	if (N < 1)
 		goto done ;
 
 	// get domain size of each variable
 	K = new int[N] ;
 	if (NULL == K) goto done ;
 	for (i = 0 ; i < N ; i++) {
-		if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+		if (0 != fileload_getnexttoken(buf, L, token, l, false))
 			goto done ;
 		K[i] = atoi(token) ;
-		if (K[i] < 0 || K[i] > MAX_NUM_VALUES_PER_VAR_DOMAIN) 
+		if (K[i] < 0 || K[i] > MAX_NUM_VALUES_PER_VAR_DOMAIN)
 			{ ret = ERRORCODE_VarDomainSizeTooLarge ; goto done ; }
 		}
-	if (0 != SetN(N)) 
+	if (0 != SetN(N))
 		goto done ;
-	if (0 != SetK(K)) 
+	if (0 != SetK(K))
 		goto done ;
 
 	// get # of functions
-	if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+	if (0 != fileload_getnexttoken(buf, L, token, l, false))
 		goto done ;
 	_nFunctions = atoi(token) ;
-	if (_nFunctions < 1) 
+	if (_nFunctions < 1)
 		{ _nFunctions = 0 ; ret = 0 ; goto done ; }
 	_Functions = new ARE::Function*[_nFunctions] ;
-	if (NULL == _Functions) 
+	if (NULL == _Functions)
 		goto done ;
-	for (i = 0 ; i < _nFunctions ; i++) 
+	for (i = 0 ; i < _nFunctions ; i++)
 		_Functions[i] = NULL ;
 
 	// read in function signatures
 	int A[MAX_NUM_ARGUMENTS_PER_FUNCTION] ;
 	for (i = 0 ; i < _nFunctions ; i++) {
-		if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+		if (0 != fileload_getnexttoken(buf, L, token, l, false))
 			goto done ;
 		int nA = atoi(token) ;
 // 2014-11-09 KK : allow const functions; a function with nA==0 is a const fn.
-//		if (0 == nA) 
+//		if (0 == nA)
 //			// this means function is missing essentially
 //			continue ;
-		if (nA < 0) 
+		if (nA < 0)
 			goto done ;
 		_Functions[i] = new ARE::Function(NULL, this, i) ;
-		if (NULL == _Functions[i]) 
+		if (NULL == _Functions[i])
 			goto done ;
 		_Functions[i]->SetType(ARE_Function_Type_BayesianCPT) ;
 		for (j = 0 ; j < nA ; j++) {
-			if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+			if (0 != fileload_getnexttoken(buf, L, token, l, false))
 				goto done ;
 			A[j] = atoi(token) ;
-			if (A[j] < 0 || A[j] >= _nVars) 
+			if (A[j] < 0 || A[j] >= _nVars)
 				goto done ;
 			}
-		if (0 != _Functions[i]->SetArguments(nA, A, -1)) 
+		if (0 != _Functions[i]->SetArguments(nA, A, -1))
 			goto done ;
 		}
 
@@ -488,9 +488,9 @@ int ARE::ARP::LoadUAIFormat(const char *buf, int L)
 		f->AllocateInMemoryAsSingleTableBlock() ;
 		ARE::FunctionTableBlock *ftb = f->Table() ;
 		if (NULL == ftb) {
-			if (f->TableSize() > 0) 
+			if (f->TableSize() > 0)
 				goto done ;
-			else 
+			else
 				continue ;
 			}
 		ARE_Function_TableType *data = ftb->Data() ;
@@ -507,38 +507,38 @@ int ARE::ARP::LoadUAIFormat(const char *buf, int L)
 		ARE_Function_TableType *data = ftb->Data() ;
 		if (NULL == data) goto done ;
 		// load # of entries
-		if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+		if (0 != fileload_getnexttoken(buf, L, token, l, false))
 			goto done ;
 		int n = atoi(token) ;
-		if (n != f->TableSize()) 
+		if (n != f->TableSize())
 			goto done ;
 		for (j = 0 ; j < n ;) {
-			if (0 != fileload_getnexttoken(buf, L, token, l, true)) 
+			if (0 != fileload_getnexttoken(buf, L, token, l, true))
 				goto done ;
 			// check sparse-factor encoding "(x:n)" where x is real number and n is an int. meaning of this is, next entries in the table equal x.
 			if (1 == l && '(' == *token) {
 				// next token is x
-				if (0 != fileload_getnexttoken(buf, L, token, l, true)) 
+				if (0 != fileload_getnexttoken(buf, L, token, l, true))
 					goto done ;
 				double x = atof(token) ;
 				// next token is ":"
-				if (0 != fileload_getnexttoken(buf, L, token, l, true)) 
+				if (0 != fileload_getnexttoken(buf, L, token, l, true))
 					goto done ;
-				if (1 != l || ':' != *token) 
+				if (1 != l || ':' != *token)
 					goto done ;
 				// next token is n
-				if (0 != fileload_getnexttoken(buf, L, token, l, true)) 
+				if (0 != fileload_getnexttoken(buf, L, token, l, true))
 					goto done ;
 				int nEntriesLeft = n - j ;
 				int nEntries = atoi(token) ;
-				if (nEntries <= 0 || nEntries > nEntriesLeft) 
+				if (nEntries <= 0 || nEntries > nEntriesLeft)
 					goto done ;
 				// next token is ")"
-				if (0 != fileload_getnexttoken(buf, L, token, l, true)) 
+				if (0 != fileload_getnexttoken(buf, L, token, l, true))
 					goto done ;
-				if (1 != l || ')' != *token) 
+				if (1 != l || ')' != *token)
 					goto done ;
-				for (int ni = 0 ; ni < nEntries ; ni++) 
+				for (int ni = 0 ; ni < nEntries ; ni++)
 					data[j++] = x ;
 				}
 			else {
@@ -555,11 +555,11 @@ int ARE::ARP::LoadUAIFormat(const char *buf, int L)
 
 done :
 
-	if (NULL != BUF) 
+	if (NULL != BUF)
 		delete [] BUF ;
-	if (NULL != K) 
+	if (NULL != K)
 		delete [] K ;
-	if (0 != ret) 
+	if (0 != ret)
 		Destroy() ;
 
 	return ret ;
@@ -576,7 +576,7 @@ int ARE::ARP::LoadFromFile_Evidence(const std::string & FileName, int & nEvidenc
 	int *K = NULL ;
 
 	FILE *fp = fopen(FileName.c_str(), "r") ;
-	if (NULL == fp) 
+	if (NULL == fp)
 		return 1 ;
 
 	// get file size
@@ -602,7 +602,7 @@ int ARE::ARP::LoadFromFile_Evidence(const std::string & FileName, int & nEvidenc
 		}
 
 	int res = LoadUAIFormat_Evidence(BUF, L, nEvidenceVars) ;
-	if (0 == res) 
+	if (0 == res)
 		_EvidenceFileName = FileName ;
 	delete [] BUF ;
 	return res ;
@@ -627,36 +627,36 @@ int ARE::ARP::LoadUAIFormat_Evidence(const char *BUF, int L, int & nEvidenceVars
 	int *val_loaded = NULL ;
 
 	// need _K and _Value arrays to exist
-	if (NULL == _K || NULL == _Value) 
+	if (NULL == _K || NULL == _Value)
 		goto done ;
 
 	{
 
 	// get # of evidence
 	buf = BUF ;
-	if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+	if (0 != fileload_getnexttoken(buf, L, token, l, false))
 		goto done ;
 	int N = atoi(token) ;
-	if (N < 1) 
+	if (N < 1)
 		goto doneok ;
 
 	var_loaded = new int[N] ;
 	val_loaded = new int[N] ;
-	if (NULL == var_loaded || NULL == val_loaded) 
+	if (NULL == var_loaded || NULL == val_loaded)
 		goto done ;
 
 	// read in evidence
 	int n = 0 ;
 	for (i = 0 ; i < N ; i++) {
-		if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+		if (0 != fileload_getnexttoken(buf, L, token, l, false))
 			goto done ;
 		int var = atoi(token) ;
-		if (0 != fileload_getnexttoken(buf, L, token, l, false)) 
+		if (0 != fileload_getnexttoken(buf, L, token, l, false))
 			goto done ;
 		int val = atoi(token) ;
-		if (var < 0 || var >= _nVars) 
+		if (var < 0 || var >= _nVars)
 			goto done ;
-		if (val < 0 || val >= _K[var]) 
+		if (val < 0 || val >= _K[var])
 			goto done ;
 		var_loaded[n] = var ;
 		val_loaded[n] = val ;
@@ -668,25 +668,25 @@ int ARE::ARP::LoadUAIFormat_Evidence(const char *BUF, int L, int & nEvidenceVars
 		}
 	}
 
-doneok : 
+doneok :
 	ret = 0 ;
 done :
-	if (NULL != val_loaded) 
+	if (NULL != val_loaded)
 		delete [] val_loaded ;
-	if (NULL != var_loaded) 
+	if (NULL != var_loaded)
 		delete [] var_loaded ;
 	return ret ;
 }
 
 
-int ARE::ARP::PerformPostConstructionAnalysis(void) 
+int ARE::ARP::PerformPostConstructionAnalysis(void)
 {
 	int i = 0 ;
-	if (0 == i) 
+	if (0 == i)
 		i = ComputeAdjFnList(false) ;
-	if (0 == i) 
+	if (0 == i)
 		i = ComputeAdjVarList() ;
-	if (0 == i) 
+	if (0 == i)
 		i = ComputeConnectedComponents() ;
 	return i ;
 }
@@ -701,7 +701,7 @@ __int64 ARE::ARP::ComputeFunctionSpace(void)
 		ARE::Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
 		n = f->ComputeTableSpace() ;
-		if (n > 0) 
+		if (n > 0)
 			_FunctionsSpace += n ;
 		}
 
@@ -711,12 +711,12 @@ __int64 ARE::ARP::ComputeFunctionSpace(void)
 
 int ARE::ARP::ConvertFunctionsToLogScale(void)
 {
-	if (_FunctionsAreConvertedToLogScale) 
+	if (_FunctionsAreConvertedToLogScale)
 		return 0 ;
 	_FunctionsAreConvertedToLogScale = true ;
 	for (int i = 0 ; i < nFunctions() ; i++) {
 		ARE::Function *f = getFunction(i) ;
-		if (NULL != f) 
+		if (NULL != f)
 			f->ConvertTableToLogScale() ;
 		}
 	return 0 ;
@@ -728,7 +728,7 @@ int ARE::ARP::CheckFunctions(void)
 	for (int i = 0 ; i < _nFunctions ; i++) {
 		ARE::Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
-		if (f->CheckTable()) 
+		if (f->CheckTable())
 			return 1 ;
 		}
 	return 0 ;
@@ -740,14 +740,14 @@ int ARE::ARP::FillInFunctionTables(void)
 	for (int i = 0 ; i < _nFunctions ; i++) {
 		ARE::Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
-		if (f->ComputeTableSize() <= 0) 
+		if (f->ComputeTableSize() <= 0)
 			// this function does not have a table
 			continue ;
 		FunctionTableBlock *ftb = f->Table() ;
-		if (NULL != ftb) 
+		if (NULL != ftb)
 			// this function already has a table
 			continue ;
-		if (0 != f->FillInRandomBayesianTable()) 
+		if (0 != f->FillInRandomBayesianTable())
 			return 2 ;
 		}
 
@@ -761,43 +761,43 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 
 	int i, j, k ;
 
-	if (0 != VarElimOp && 1 != VarElimOp) 
+	if (0 != VarElimOp && 1 != VarElimOp)
 		return 1 ;
 
 	double neutral_value = (0 == CombinationOp) ? 1.0 : 0.0 ;
 
-	if (NULL != ARE::fpLOG) 
+	if (NULL != ARE::fpLOG)
 		fprintf(ARE::fpLOG, "\nARP::ComputeQueryRelevance_VarElimination() combination_type=%d VarElimOp=%d neutral_value=%g", (int) CombinationOp, (int) VarElimOp, neutral_value) ;
 
 	_nFunctionsIrrelevant = 0 ;
 	for (i = 0 ; i < _nFunctions ; i++) {
-		if (NULL != _Functions[i]) 
+		if (NULL != _Functions[i])
 			_Functions[i]->MarkAsQueryRelevant() ;
 		}
 
-	if (_nFunctions < 1 || _nVars < 1) 
+	if (_nFunctions < 1 || _nVars < 1)
 		return 0 ;
 
 	int nLeaves = 0 ;
 //	ARE::Function **FNs = new ARE::Function*[_nFunctions] ;
 	int *Leaves = new int[_nVars] ;
-	if (NULL == Leaves) 
+	if (NULL == Leaves)
 		return 1 ;
 	char *VarIsInQueue = new char [_nVars] ;
-	if (NULL == VarIsInQueue) 
+	if (NULL == VarIsInQueue)
 		{ delete [] Leaves ; return 1 ; }
-	for (i = 0 ; i < _nVars ; i++) 
+	for (i = 0 ; i < _nVars ; i++)
 		VarIsInQueue[i] = 0 ; // 0=not in queue 1=in queue
 
 	// construct an initial list of variables that participate in 1 fn only
 	for (i = 0 ; i < _nVars ; i++) {
-		if (1 != nAdjFunctions(i)) 
+		if (1 != nAdjFunctions(i))
 			continue ;
 /*		ARPGraphNode & adj = _GraphAdjacencyMatrix[i] ;
-		if (adj.nAdjacentFunctions() > 1) 
+		if (adj.nAdjacentFunctions() > 1)
 			// cannot be a leaf if more than 1 adj function
 			continue ;
-		if (adj.nAdjacentFunctions() < 1) 
+		if (adj.nAdjacentFunctions() < 1)
 			// this is a singleton variable; ignore it.
 			continue ;*/
 		Leaves[nLeaves++] = i ;
@@ -809,7 +809,7 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 		VarIsInQueue[var] = 0 ;
 //		ARPGraphNode & adj = _GraphAdjacencyMatrix[var] ;
 		if (1 != nAdjacentFunctions_QueryReleventFunctionsOnly(var)) {
-			if (NULL != ARE::fpLOG) 
+			if (NULL != ARE::fpLOG)
 				fprintf(ARE::fpLOG, "\nWARNING : var %d is being analyzed for adj-fn query relevance, and 1 != adj.nAdjacentFunctions_QueryReleventFunctionsOnly()", var) ;
 			continue ;
 			}
@@ -818,7 +818,7 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 
 		ARE::Function *f = AdjacentFunction_QueryRelevantFunctionsOnly(var, 0) ;
 		ARE::FunctionTableBlock *ftb = f->Table() ;
-		if (NULL == ftb) 
+		if (NULL == ftb)
 			goto dump_table ;
 
 		// check that if we eliminated 'var' from this fn, all entries would be the same (some const value).
@@ -831,22 +831,22 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 		for (i = n = 0 ; i < f->N() ; i++) {
 			Val[i] = val[i] = 0 ;
 			int u = f->Argument(i) ;
-			if (var == u) 
+			if (var == u)
 				{ iVar = i ; continue ; }
 			Var[n++] = u ;
 			size *= _K[u] ;
 			}
 		bool fn_is_relevant = false ;
 		for (idx = 0 ; idx < size ; idx++) {
-			for (i = 0 ; i < n ; i++) 
+			for (i = 0 ; i < n ; i++)
 				val[i + (i < iVar ? 0 : 1)] = Val[i] ;
 			double v = 0.0 ;
 			for (k = 0 ; k < _K[var] ; k++, idx++) {
 				val[iVar] = k ;
 				idx = ComputeFnTableAdr(f->N(), f->Arguments(), val, _K) ;
-				if (0 == VarElimOp) 
+				if (0 == VarElimOp)
 					v += ftb->Entry(idx) ;
-				else if (1 == VarElimOp) 
+				else if (1 == VarElimOp)
 					{ if (ftb->Entry(idx) > v) v = ftb->Entry(idx) ; }
 				}
 			if (elim_value < 0.0) {
@@ -862,12 +862,12 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 		ARE::Function *f = GetCPT(var) ;
 		if (NULL == f) {
 			// this is an error
-			if (NULL != ARE::fpLOG) 
+			if (NULL != ARE::fpLOG)
 				fprintf(ARE::fpLOG, "\nERROR : var %d is being analyzed for adj-fn query relevance, and it has no CPT", var) ;
 			continue ;
 			}
 		ARE::FunctionTableBlock *ftb = f->Table() ;
-		if (NULL == ftb) 
+		if (NULL == ftb)
 			goto dump_table ;
 		__int64 n = f->TableSize() ;
 		int cVar = f->BayesianCPTChildVariable() ;
@@ -875,7 +875,7 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 		bool fn_is_relevant = false ;
 		for (idx = 0 ; idx < n ; idx++) {
 			double sum = 0.0 ;
-			for (k = 0 ; k < _K[var] ; k++, idx++) 
+			for (k = 0 ; k < _K[var] ; k++, idx++)
 				sum += ftb->Entry(idx) ;
 			if (fabs(sum - 1.0) > 0.000001) {
 				fn_is_relevant = true ;
@@ -883,37 +883,37 @@ int ARE::ARP::ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Fact
 				}
 			}
 */
-		if (fn_is_relevant) 
+		if (fn_is_relevant)
 			continue ;
 		}
 
 dump_table :
 		if (f->IsQueryIrrelevant()) {
 			// this is an error
-			if (NULL != ARE::fpLOG) 
+			if (NULL != ARE::fpLOG)
 				fprintf(ARE::fpLOG, "\nERROR : var %d is being analyzed for adj-fn query relevance, and its CPT %d is already marked as irrelevant", var, f->IDX()) ;
 			}
 		else {
-			if (NULL != ARE::fpLOG) 
+			if (NULL != ARE::fpLOG)
 				fprintf(ARE::fpLOG, "\nARP::ComputeQueryRelevance_VarElimination() fn=%d", (int) f->IDX()) ;
 			f->MarkAsQueryIrrelevant() ;
 			++_nFunctionsIrrelevant ;
 			if (fabs(elim_value - neutral_value) > 0.000001) {
-				if (0 == CombinationOp) 
+				if (0 == CombinationOp)
 					Factor *= elim_value ;
-				else if (1 == CombinationOp) 
+				else if (1 == CombinationOp)
 					Factor += elim_value ;
 				}
 			}
 		// check if other variables in the fn need checking
 		for (k = 0 ; k < f->N() ; k++) {
 			int u = f->Argument(k) ;
-			if (u == var) 
+			if (u == var)
 				continue ;
-			if (0 != VarIsInQueue[u]) 
+			if (0 != VarIsInQueue[u])
 				continue ;
 //			ARPGraphNode & u_adj = _GraphAdjacencyMatrix[u] ;
-			if (1 != nAdjacentFunctions_QueryReleventFunctionsOnly(u)) 
+			if (1 != nAdjacentFunctions_QueryReleventFunctionsOnly(u))
 				continue ;
 			Leaves[nLeaves++] = u ;
 			VarIsInQueue[u] = 1 ;
@@ -926,9 +926,9 @@ static int E = 0 ;
 j = 0 ;
 for (i = 0 ; i < _nFunctions ; i++) {
 	ARE::Function *f = _Functions[i] ;
-	if (! f->IsQueryIrrelevant()) 
+	if (! f->IsQueryIrrelevant())
 		continue ;
-	if (j < S || j > E) 
+	if (j < S || j > E)
 		f->MarkAsQueryRelevant() ;
 	++j ;
 	}
@@ -950,7 +950,7 @@ int ARE::ARP::ComputeBayesianAncestors(int V, int *AncestorFlags, int *Workspace
 {
 	int i, j ;
 
-	for (i = 0 ; i < _nVars ; i++) 
+	for (i = 0 ; i < _nVars ; i++)
 		AncestorFlags[i] = 0 ;
 
 	Workspace[0] = V ;
@@ -958,21 +958,21 @@ int ARE::ARP::ComputeBayesianAncestors(int V, int *AncestorFlags, int *Workspace
 	while (n > 0) {
 		int v = Workspace[0] ;
 		Workspace[0] = Workspace[--n] ;
-		if (0 != AncestorFlags[v]) 
+		if (0 != AncestorFlags[v])
 			continue ;
 		AncestorFlags[v] = 1 ;
 		ARE::Function *f = GetCPT(v) ;
-		if (NULL == f) 
+		if (NULL == f)
 			continue ;
 		for (i = f->N() - 2 ; i >= 0 ; i--) {
 			int u = f->Argument(i) ;
-			if (0 != AncestorFlags[u]) 
+			if (0 != AncestorFlags[u])
 				continue ;
 			for (j = 0 ; j < n ; j++) {
-				if (Workspace[j] == u) 
+				if (Workspace[j] == u)
 					break ;
 				}
-			if (j >= n) 
+			if (j >= n)
 				Workspace[n++] = u ;
 			}
 		}
@@ -1000,10 +1000,10 @@ int ARE::ARP::GenerateRandomUniformBayesianNetworkStructure(int N, int K, int P,
 
 	_nVars = N ;
 	_K = new int[_nVars] ;
-	if (NULL == _K) 
+	if (NULL == _K)
 		goto failed ;
 	_Value = new int[_nVars] ;
-	if (NULL == _Value) 
+	if (NULL == _Value)
 		goto failed ;
 	for (i = 0 ; i < _nVars ; i++) {
 		_K[i] = K ;
@@ -1012,17 +1012,17 @@ int ARE::ARP::GenerateRandomUniformBayesianNetworkStructure(int N, int K, int P,
 	_nFunctions = 0 ;
 	_Functions = new ARE::Function*[_nVars] ;
 	if (NULL == _Functions) goto failed ;
-	for (i = 0 ; i < _nVars ; i++) 
+	for (i = 0 ; i < _nVars ; i++)
 		_Functions[i] = NULL ;
 
 	if (1 == ProblemCharacteristic) {
 		int ret = 1 ;
 		int *space = new int[4*_nVars] ;
-		if (NULL == space) 
+		if (NULL == space)
 			goto failed ;
-		// idea : 
+		// idea :
 		// 1) maintain a set of current-priors ; i.e. variables that are parents of a CPT such that these variables themselves have no CPT
-		// 2) recursively, pick a var from the set of current-priors, and then generate parent as follows: 
+		// 2) recursively, pick a var from the set of current-priors, and then generate parent as follows:
 		//    pick a var, randomly among all variables, and check if current child is an ancestor of this picked var;
 		//    if yes, this picked var is no good.
 		int *L = space ; // L is the set of leaves
@@ -1044,12 +1044,12 @@ int ARE::ARP::GenerateRandomUniformBayesianNetworkStructure(int N, int K, int P,
 			for (i = 0 ; i < _nVars ; i++) {
 				if (child == i) continue ;
 				ComputeBayesianAncestors(i, A, W) ;
-				if (0 == A[child]) 
+				if (0 == A[child])
 					PL[nPL++] = i ;
 				}
 			// PL is now a list of potential parents; generate actual parents
 			int args[MAX_NUM_ARGUMENTS_PER_FUNCTION] ;
-			if (nPL < P) 
+			if (nPL < P)
 				goto probchar1_done ;
 			else if (nPL == P) {
 				for (i = 0 ; i < P ; i++) args[i] = PL[i] ;
@@ -1070,16 +1070,16 @@ int ARE::ARP::GenerateRandomUniformBayesianNetworkStructure(int N, int K, int P,
 			_Functions[child] = f ;
 			++_nFunctions ;
 			args[P] = child ;
-			if (0 != f->SetArguments(P+1, args)) 
+			if (0 != f->SetArguments(P+1, args))
 				goto probchar1_done ;
 
 			// add arguments of f to L
 			for (i = 0 ; i < P ; i++) {
 				int v = args[i] ;
-				if (NULL != _Functions[v]) 
+				if (NULL != _Functions[v])
 					continue ;
 				for (j = 0 ; j < nL ; j++) { if (v == L[j]) break ; }
-				if (j >= nL) 
+				if (j >= nL)
 					L[nL++] = v ;
 				}
 			}
@@ -1087,7 +1087,7 @@ int ARE::ARP::GenerateRandomUniformBayesianNetworkStructure(int N, int K, int P,
 		ret = 0 ;
 probchar1_done :
 		delete [] space ;
-		if (0 != ret) 
+		if (0 != ret)
 			goto failed ;
 		}
 	else {
@@ -1149,16 +1149,16 @@ int ARE::ARP::DestroyAdjFnList(void)
 
 int ARE::ARP::ComputeAdjFnList(bool IgnoreIrrelevantFunctions)
 {
-	if (0 != DestroyAdjFnList()) 
+	if (0 != DestroyAdjFnList())
 		return 1 ;
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
 
 	int i, j, n = 0 ;
 	for (i = 0 ; i < _nFunctions ; i++) {
 		Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
-		if (IgnoreIrrelevantFunctions && f->IsQueryIrrelevant()) 
+		if (IgnoreIrrelevantFunctions && f->IsQueryIrrelevant())
 			continue ;
 		n += f->N() ;
 		}
@@ -1176,14 +1176,14 @@ int ARE::ARP::ComputeAdjFnList(bool IgnoreIrrelevantFunctions)
 		_AdjFunctions[i] = -1 ;
 		}
 
-	if (_nFunctions < 1) 
+	if (_nFunctions < 1)
 		return 0 ;
 
 	// compute num adj FNs for each var
 	for (i = 0 ; i < _nFunctions ; i++) {
 		Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
-		if (IgnoreIrrelevantFunctions && f->IsQueryIrrelevant()) 
+		if (IgnoreIrrelevantFunctions && f->IsQueryIrrelevant())
 			continue ;
 		for (j = 0 ; j < f->N() ; j++) {
 			int var = f->Argument(j) ;
@@ -1204,7 +1204,7 @@ int ARE::ARP::ComputeAdjFnList(bool IgnoreIrrelevantFunctions)
 	for (i = 0 ; i < _nFunctions ; i++) {
 		Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
-		if (IgnoreIrrelevantFunctions && f->IsQueryIrrelevant()) 
+		if (IgnoreIrrelevantFunctions && f->IsQueryIrrelevant())
 			continue ;
 		for (j = 0 ; j < f->N() ; j++) {
 			int var = f->Argument(j) ;
@@ -1218,7 +1218,7 @@ int ARE::ARP::ComputeAdjFnList(bool IgnoreIrrelevantFunctions)
 		int nFNs = 0 ;
 		for (j = 0 ; j < nAdjFunctions(i) ; j++) {
 			ARE::Function *f = AdjFunction(i, j) ;
-			if (NULL == f) 
+			if (NULL == f)
 				continue ;
 			++nFNs ;
 			}
@@ -1253,9 +1253,9 @@ int ARE::ARP::DestroyAdjVarList(void)
 
 int ARE::ARP::ComputeAdjVarList(void)
 {
-	if (0 != DestroyAdjVarList()) 
+	if (0 != DestroyAdjVarList())
 		return 1 ;
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
 
 	_nSingletonVariables = 0 ;
@@ -1298,9 +1298,9 @@ int ARE::ARP::ComputeAdjVarList(void)
 			if (NULL == f) continue ;
 			for (k = 0 ; k < f->N() ; k++) {
 				int v = f->Argument(k) ;
-				if (v == i) 
+				if (v == i)
 					continue ;
-				if (n >= UBvarlistsize) 
+				if (n >= UBvarlistsize)
 					{ DestroyAdjVarList() ; return ERRORCODE_VarDegreeTooLarge ; }
 				vars[n++] = v ;
 				}
@@ -1313,14 +1313,14 @@ int ARE::ARP::ComputeAdjVarList(void)
 		QuickSortLong2(vars, n, left, right) ;
 		k = 0 ;
 		for (j = 1 ; j < n ; j++) {
-			if (vars[k] == vars[j]) 
+			if (vars[k] == vars[j])
 				continue ;
 			vars[++k] = vars[j] ;
 			}
 		// fill in adj var list
 		_Degree[i] = ++k ;
 		_AdjVars[i] = idxStaticVarTotalList ;
-		for (j = 0 ; j < k ; j++, idxStaticVarTotalList++) 
+		for (j = 0 ; j < k ; j++, idxStaticVarTotalList++)
 			_StaticVarTotalList[idxStaticVarTotalList] = vars[j] ;
 		}
 	delete [] vars ;
@@ -1331,14 +1331,14 @@ int ARE::ARP::ComputeAdjVarList(void)
 
 int ARE::ARP::ComputeConnectedComponents(void)
 {
-	if (_nVars <= 0) 
+	if (_nVars <= 0)
 		return 0 ;
 
 	int i, j ;
 
 	_nConnectedComponents = 0 ;
 	int *temp = new int[3*_nVars] ;
-	if (NULL == temp) 
+	if (NULL == temp)
 		return ERRORCODE_memory_allocation_failure ;
 	for (i = 0 ; i < _nVars ; i++) temp[i] = 0 ;
 	for (i = 0 ; i < _nVars ; i++) {
@@ -1379,7 +1379,7 @@ void ARE::ARP::DestroyGraph(void)
 int ARE::ARP::ComputeGraph(void)
 {
 	DestroyGraph() ;
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
 
 	int i, j ;
@@ -1395,12 +1395,12 @@ int ARE::ARP::ComputeGraph(void)
 		for (j = 0 ; j < _nFunctions ; j++) {
 			ARE::Function *f = _Functions[j] ;
 			if (NULL == f) continue ;
-			if (f->ContainsVariable(i)) 
+			if (f->ContainsVariable(i))
 				n++ ;
 			}
 		// allocate function list
 		ARPGraphNode & node = _GraphAdjacencyMatrix[i] ;
-		if (0 != node.SetN(n)) 
+		if (0 != node.SetN(n))
 			goto failed ;
 		node.SetV(i) ;
 		n = 0 ;
@@ -1408,7 +1408,7 @@ int ARE::ARP::ComputeGraph(void)
 		for (j = 0 ; j < _nFunctions ; j++) {
 			ARE::Function *f = _Functions[j] ;
 			if (NULL == f) continue ;
-			if (f->ContainsVariable(i)) 
+			if (f->ContainsVariable(i))
 				node.SetFunction(n++, f) ;
 			}
 		// finish
@@ -1429,7 +1429,7 @@ int ARE::ARP::ComputeGraph(void)
 		if (node.Degree() < 0) {
 			int error = 1 ;
 			}
-		else if (0 == node.Degree()) 
+		else if (0 == node.Degree())
 			_nSingletonVariables++ ;
 		}
 
@@ -1486,9 +1486,9 @@ int ARE::ARP::GetVarElimOrdering(std::vector<int> & Order, int & induced_width)
 {
 	Order.clear() ;
 	induced_width = -1 ;
-	if (NULL == _VarOrdering_VarList) 
+	if (NULL == _VarOrdering_VarList)
 		return 0 ;
-	for (int i = _nVars - 1 ; i >= 0 ; i--) 
+	for (int i = _nVars - 1 ; i >= 0 ; i--)
 		Order.push_back(_VarOrdering_VarList[i]) ;
 	induced_width = _VarOrdering_InducedWidth ;
 	return 0 ;
@@ -1501,9 +1501,9 @@ int ARE::ARP::SetVarElimOrdering(const int *VarListInElimOrder, int induced_widt
 		DestroyVarOrdering() ;
 		return 0 ;
 		}
-	if (NULL == _VarOrdering_VarList) 
+	if (NULL == _VarOrdering_VarList)
 		_VarOrdering_VarList = new int[_nVars] ;
-	if (NULL == _VarOrdering_VarPos) 
+	if (NULL == _VarOrdering_VarPos)
 		_VarOrdering_VarPos = new int[_nVars] ;
 	if (NULL == _VarOrdering_VarList || NULL == _VarOrdering_VarPos) {
 		DestroyVarOrdering() ;
@@ -1513,13 +1513,13 @@ int ARE::ARP::SetVarElimOrdering(const int *VarListInElimOrder, int induced_widt
 		_VarOrdering_VarList[i] = _VarOrdering_VarPos[i] = -1 ;
 		}
 	for (int i = 0, j = _nVars-1 ; i < _nVars ; i++, j--) {
-		if (VarListInElimOrder[j] < 0 || VarListInElimOrder[j] >= _nVars) 
+		if (VarListInElimOrder[j] < 0 || VarListInElimOrder[j] >= _nVars)
 			return ERRORCODE_InvalidInputData ;
 		_VarOrdering_VarList[i] = VarListInElimOrder[j] ;
 		_VarOrdering_VarPos[_VarOrdering_VarList[i]] = i ;
 		}
 	for (int i = 0 ; i < _nVars ; i++) {
-		if (_VarOrdering_VarList[i] < 0 || _VarOrdering_VarList[i] >= _nVars) 
+		if (_VarOrdering_VarList[i] < 0 || _VarOrdering_VarList[i] >= _nVars)
 			{ DestroyVarOrdering() ; return ERRORCODE_InvalidInputData ; }
 		}
 	_VarOrdering_InducedWidth = induced_width ;
@@ -1533,9 +1533,9 @@ int ARE::ARP::SetVarBTOrdering(const int *VarListInBTOrder, int induced_width)
 		DestroyVarOrdering() ;
 		return 0 ;
 		}
-	if (NULL == _VarOrdering_VarList) 
+	if (NULL == _VarOrdering_VarList)
 		_VarOrdering_VarList = new int[_nVars] ;
-	if (NULL == _VarOrdering_VarPos) 
+	if (NULL == _VarOrdering_VarPos)
 		_VarOrdering_VarPos = new int[_nVars] ;
 	if (NULL == _VarOrdering_VarList || NULL == _VarOrdering_VarPos) {
 		DestroyVarOrdering() ;
@@ -1545,13 +1545,13 @@ int ARE::ARP::SetVarBTOrdering(const int *VarListInBTOrder, int induced_width)
 		_VarOrdering_VarList[i] = _VarOrdering_VarPos[i] = -1 ;
 		}
 	for (int i = 0 ; i < _nVars ; i++) {
-		if (VarListInBTOrder[i] < 0 || VarListInBTOrder[i] >= _nVars) 
+		if (VarListInBTOrder[i] < 0 || VarListInBTOrder[i] >= _nVars)
 			return ERRORCODE_InvalidInputData ;
 		_VarOrdering_VarList[i] = VarListInBTOrder[i] ;
 		_VarOrdering_VarPos[_VarOrdering_VarList[i]] = i ;
 		}
 	for (int i = 0 ; i < _nVars ; i++) {
-		if (_VarOrdering_VarList[i] < 0 || _VarOrdering_VarList[i] >= _nVars) 
+		if (_VarOrdering_VarList[i] < 0 || _VarOrdering_VarList[i] >= _nVars)
 			{ DestroyVarOrdering() ; return ERRORCODE_InvalidInputData ; }
 		}
 	_VarOrdering_InducedWidth = induced_width ;
@@ -1561,16 +1561,16 @@ int ARE::ARP::SetVarBTOrdering(const int *VarListInBTOrder, int induced_width)
 
 int ARE::ARP::LoadVariableOrderingFromBuffer(int OrderType, const char *SerializedVarListInElimOrder)
 {
-	if (_nVars <= 0) 
+	if (_nVars <= 0)
 		return 0 ;
 	const char *s = SerializedVarListInElimOrder ;
 	// find '{'
 	for (; 0 != *s && '{' != *s ; s++) ;
-	if (0 == *s) 
+	if (0 == *s)
 		return ERRORCODE_InvalidInputData ;
 	int n = 0 ;
 	int *vars = new int[_nVars] ;
-	if (NULL == vars) 
+	if (NULL == vars)
 		return ERRORCODE_memory_allocation_failure ;
 	const char *sB = ++s ;
 	char stemp[32] ;
@@ -1590,7 +1590,7 @@ int ARE::ARP::LoadVariableOrderingFromBuffer(int OrderType, const char *Serializ
 		stemp[l] = 0 ;
 		vars[n++] = atoi(stemp) ;
 		}
-	if (n != _nVars) 
+	if (n != _nVars)
 		{ delete [] vars ; return ERRORCODE_InvalidInputData ; }
 	int res = (1 == OrderType) ? SetVarBTOrdering(vars, -1) : SetVarElimOrdering(vars, -1) ;
 	delete [] vars ;
@@ -1604,9 +1604,9 @@ int ARE::ARP::TestVariableOrdering(const int *VarList, const int *Var2PosMap)
 
 	// check no var/pos is out of bounds
 	for (i = 0 ; i < _nVars ; i++) {
-		if (VarList[i] < 0 || VarList[i] >= _nVars) 
+		if (VarList[i] < 0 || VarList[i] >= _nVars)
 			return 1 ;
-		if (Var2PosMap[i] < 0 || Var2PosMap[i] >= _nVars) 
+		if (Var2PosMap[i] < 0 || Var2PosMap[i] >= _nVars)
 			return 2 ;
 		}
 
@@ -1617,9 +1617,9 @@ int ARE::ARP::TestVariableOrdering(const int *VarList, const int *Var2PosMap)
 		m += Var2PosMap[i] ;
 		}
 	int test = (_nVars*(_nVars-1)) >> 1 ;
-	if (n != test) 
+	if (n != test)
 		return 3 ;
-	if (m != test) 
+	if (m != test)
 		return 3 ;
 
 	return 0 ;
@@ -1644,7 +1644,7 @@ int ARE::ARP::EliminateEvidence(void)
 	int i, nEvidVars = 0 ;
 	for (i = 0 ; i < N() ; i++) {
 		int val = Value(i) ;
-		if (val < 0) 
+		if (val < 0)
 			continue ;
 		EliminateEvidenceVariable(i, val) ;
 		++nEvidVars ;
@@ -1690,7 +1690,7 @@ int ARE::ARP::EliminateSingletonDomainVariables(void)
 		for (j = 0 ; j < nAdjFunctions(i) ; j++) {
 			ARE::Function *f = AdjFunction(i, j) ;
 			if (NULL == f) continue ;
-			// since it is singleton domain, we don't have to do anything (e.g. change fn table), 
+			// since it is singleton domain, we don't have to do anything (e.g. change fn table),
 			// just remove the variable from the scope.
 #ifdef _DEBUG
 			if (NULL != ARE::fpLOG) {
@@ -1707,9 +1707,9 @@ int ARE::ARP::EliminateSingletonDomainVariables(void)
 					fflush(ARE::fpLOG) ;
 					}
 #endif
-				if (NULL != f->Table()) 
+				if (NULL != f->Table())
 					f->ConstValue() = f->Table()->Entry(0) ;
-				else 
+				else
 					f->ConstValue() = 1.0 ;
 				}
 //			f->RemoveEvidenceVariable(i, _K[i]) ;
@@ -1733,9 +1733,9 @@ int ARE::ARP::EliminateSingletonDomainVariables(void)
 int ARE::ARP::ComputeMinDegreeOrdering(void)
 {
 	DestroyMinDegreeOrdering() ;
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
-	if (NULL == _GraphAdjacencyMatrix) 
+	if (NULL == _GraphAdjacencyMatrix)
 		return 1 ;
 
 	int i, j, k ;
@@ -1743,7 +1743,7 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 	// we will keep track, for each variable, which variables are its neighbors.
 	// given i and j (i < j) will keep track of if i and j are neighbors.
 	// adj info for i is kept as a list of adj variables.
-	// head of the list is stored in '_MinDegreeOrdering_VarPos' -> if starts at m, then we store -(m+2); 
+	// head of the list is stored in '_MinDegreeOrdering_VarPos' -> if starts at m, then we store -(m+2);
 	// if _MinDegreeOrdering_VarPos[n] >= 0, then that var is already in the ordering.
 //	int adj_space_size = 30000 ;
 //	int adj_space_size = 16384 ;
@@ -1768,7 +1768,7 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 	// initialize the space
 	int empty_adj_space = 0 ;
 	int number_of_empty_cells = adj_space_size >> 1 ;
-	for (i = 1 ; i < adj_space_size - 2 ; i += 2) 
+	for (i = 1 ; i < adj_space_size - 2 ; i += 2)
 		adj_space[i] = i + 1 ;
 	// NIL at the end
 	adj_space[adj_space_size - 1] = -1 ;
@@ -1783,7 +1783,7 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 		}
 
 	// count degrees
-	for (i = 0 ; i < _nVars ; i++) 
+	for (i = 0 ; i < _nVars ; i++)
 		degrees[i] = 0 ;
 
 	// fill in initial graph
@@ -1795,7 +1795,7 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 			if (number_of_empty_cells < 2) {
 				int new_size = adj_space_size + ORD_COMP_ADJ_SPACE_SIZE ;
 				int *new_adj_space = new int[new_size] ;
-				if (NULL == new_adj_space) 
+				if (NULL == new_adj_space)
 					goto failed ;
 				memcpy(new_adj_space, adj_space, adj_space_size*sizeof(int)) ;
 				// generate structure for new space
@@ -1820,9 +1820,9 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 			--number_of_empty_cells ;
 			adj_space[cell] = j ;
 			// check if i has nothing
-			if (-1 == _MinDegreeOrdering_VarPos[i]) 
+			if (-1 == _MinDegreeOrdering_VarPos[i])
 				adj_space[cell + 1] = -1 ;
-			else 
+			else
 				adj_space[cell + 1] = -(_MinDegreeOrdering_VarPos[i] + 2) ;
 			_MinDegreeOrdering_VarPos[i] = -(cell + 2) ;
 			// count degree
@@ -1835,9 +1835,9 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 			--number_of_empty_cells ;
 			adj_space[cell] = i ;
 			// check if j has nothing
-			if (-1 == _MinDegreeOrdering_VarPos[j]) 
+			if (-1 == _MinDegreeOrdering_VarPos[j])
 				adj_space[cell + 1] = -1 ;
-			else 
+			else
 				adj_space[cell + 1] = -(_MinDegreeOrdering_VarPos[j] + 2) ;
 			_MinDegreeOrdering_VarPos[j] = -(cell + 2) ;
 			// count degree
@@ -1864,9 +1864,9 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 				}
 			}
 		// check if nothing left
-		if (min_degree_var < 0) 
+		if (min_degree_var < 0)
 			break ; // no variable found
-		if (max_degree < min_degree_value) 
+		if (max_degree < min_degree_value)
 			max_degree = min_degree_value ;
 
 		// remove all references from others to this
@@ -1930,9 +1930,9 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 				--number_of_empty_cells ;
 				adj_space[cell] = v ;
 				// check if u has nothing
-				if (-1 == _MinDegreeOrdering_VarPos[u]) 
+				if (-1 == _MinDegreeOrdering_VarPos[u])
 					adj_space[cell + 1] = -1 ;
-				else 
+				else
 					adj_space[cell + 1] = -_MinDegreeOrdering_VarPos[u] - 2 ;
 				_MinDegreeOrdering_VarPos[u] = -(cell + 2) ;
 				// count degree
@@ -1945,9 +1945,9 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 				--number_of_empty_cells ;
 				adj_space[cell] = u ;
 				// check if v has nothing
-				if (-1 == _MinDegreeOrdering_VarPos[v]) 
+				if (-1 == _MinDegreeOrdering_VarPos[v])
 					adj_space[cell + 1] = -1 ;
-				else 
+				else
 					adj_space[cell + 1] = -_MinDegreeOrdering_VarPos[v] - 2 ;
 				_MinDegreeOrdering_VarPos[v] = -(cell + 2) ;
 				// count degree
@@ -1997,9 +1997,9 @@ int ARE::ARP::ComputeMinDegreeOrdering(void)
 	}
 
 failed :
-	if (NULL != degrees) 
+	if (NULL != degrees)
 		delete [] degrees ;
-	if (NULL != adj_space) 
+	if (NULL != adj_space)
 		delete [] adj_space ;
 	DestroyMinDegreeOrdering() ;
 	return 1 ;
@@ -2008,7 +2008,7 @@ failed :
 
 int ARE::ARP::ComputeMinFillOrdering(int nRandomTries, int BestKnownWidth)
 {
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
 	if (nRandomTries < 2) {
 		ComputeMinFillOrdering() ;
@@ -2018,16 +2018,16 @@ int ARE::ARP::ComputeMinFillOrdering(int nRandomTries, int BestKnownWidth)
 	// run n tries; save the best
 	{
 	int *VarList = new int[_nVars] ;
-	if (NULL == VarList) 
+	if (NULL == VarList)
 		return 1 ;
 	int w = INT_MAX ;
 	for (int i = 0 ; i < nRandomTries ; i++) {
-		if (0 != ComputeMinFillOrdering()) 
+		if (0 != ComputeMinFillOrdering())
 			continue ;
 		if (_MinFillOrdering_InducedWidth < w) {
 			w = _MinFillOrdering_InducedWidth ;
 			for (int j = 0 ; j < _nVars ; j++) VarList[j] = _MinFillOrdering_VarList[j] ;
-			if (w <= BestKnownWidth) 
+			if (w <= BestKnownWidth)
 				break ;
 			}
 		}
@@ -2061,9 +2061,9 @@ done :
 int ARE::ARP::ComputeMinFillOrdering(void)
 {
 	DestroyMinFillOrdering() ;
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
-	if (NULL == _GraphAdjacencyMatrix) 
+	if (NULL == _GraphAdjacencyMatrix)
 		return 1 ;
 
 	int i, j, k, l ;
@@ -2071,7 +2071,7 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 	// we will keep track, for each variable, which variables are its neighbors.
 	// given i and j (i < j) will keep track of if i and j are neighbors.
 	// adj info for i is kept as a list of adj variables.
-	// head of the list is stored in '_MinFillOrdering_VarPos' -> if starts at m, then we store -(m+2); 
+	// head of the list is stored in '_MinFillOrdering_VarPos' -> if starts at m, then we store -(m+2);
 	// if _MinFillOrdering_VarPos[n] >= 0, then that var is already in the ordering.
 //	int adj_space_size = 30000 ;
 //	int adj_space_size = 16384 ;
@@ -2105,13 +2105,13 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 	// initialize the space
 	int empty_adj_space = 0 ;
 	int number_of_empty_cells = adj_space_size >> 1 ;
-	for (i = 1 ; i < adj_space_size - 2 ; i += 2) 
+	for (i = 1 ; i < adj_space_size - 2 ; i += 2)
 		adj_space[i] = i + 1 ;
 	// NIL at the end
 	adj_space[adj_space_size - 1] = -1 ;
 
 	// count degrees
-	for (i = 0 ; i < _nVars ; i++) 
+	for (i = 0 ; i < _nVars ; i++)
 		degrees[i] = 0 ;
 
 	// fill in initial graph
@@ -2123,7 +2123,7 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 			if (number_of_empty_cells < 2) {
 				int new_size = adj_space_size + ORD_COMP_ADJ_SPACE_SIZE ;
 				int *new_adj_space = new int[new_size] ;
-				if (NULL == new_adj_space) 
+				if (NULL == new_adj_space)
 					goto failed ;
 				memcpy(new_adj_space, adj_space, adj_space_size*sizeof(int)) ;
 				// generate structure for new space
@@ -2148,9 +2148,9 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 			--number_of_empty_cells ;
 			adj_space[cell] = j ;
 			// check if i has nothing
-			if (-1 == _MinFillOrdering_VarPos[i]) 
+			if (-1 == _MinFillOrdering_VarPos[i])
 				adj_space[cell + 1] = -1 ;
-			else 
+			else
 				adj_space[cell + 1] = -(_MinFillOrdering_VarPos[i] + 2) ;
 			_MinFillOrdering_VarPos[i] = -(cell + 2) ;
 			// count degree
@@ -2163,9 +2163,9 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 			--number_of_empty_cells ;
 			adj_space[cell] = i ;
 			// check if j has nothing
-			if (-1 == _MinFillOrdering_VarPos[j]) 
+			if (-1 == _MinFillOrdering_VarPos[j])
 				adj_space[cell + 1] = -1 ;
-			else 
+			else
 				adj_space[cell + 1] = -(_MinFillOrdering_VarPos[j] + 2) ;
 			_MinFillOrdering_VarPos[j] = -(cell + 2) ;
 			// count degree
@@ -2194,7 +2194,7 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 						for (l = -_MinFillOrdering_VarPos[u] - 2 ; -1 != l ; l = adj_space[l+1]) {
 							if (adj_space[l] == v) break ;
 							}
-						if (l < 0) 
+						if (l < 0)
 							// not connected
 							fillinvalue++ ;
 						}
@@ -2213,7 +2213,7 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 				}
 			}
 		// check if nothing left
-		if (min_fillin_var < 0) 
+		if (min_fillin_var < 0)
 			break ; // no variable found
 
 		// remove all references from others to this
@@ -2277,9 +2277,9 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 				--number_of_empty_cells ;
 				adj_space[cell] = v ;
 				// check if u has nothing
-				if (-1 == _MinFillOrdering_VarPos[u]) 
+				if (-1 == _MinFillOrdering_VarPos[u])
 					adj_space[cell + 1] = -1 ;
-				else 
+				else
 					adj_space[cell + 1] = -_MinFillOrdering_VarPos[u] - 2 ;
 				_MinFillOrdering_VarPos[u] = -(cell + 2) ;
 				// count degree
@@ -2292,9 +2292,9 @@ int ARE::ARP::ComputeMinFillOrdering(void)
 				--number_of_empty_cells ;
 				adj_space[cell] = u ;
 				// check if v has nothing
-				if (-1 == _MinFillOrdering_VarPos[v]) 
+				if (-1 == _MinFillOrdering_VarPos[v])
 					adj_space[cell + 1] = -1 ;
-				else 
+				else
 					adj_space[cell + 1] = -_MinFillOrdering_VarPos[v] - 2 ;
 				_MinFillOrdering_VarPos[v] = -(cell + 2) ;
 				// count degree
@@ -2337,7 +2337,7 @@ failed :
 }
 */
 
-static int mark_two_variables_as_adj_in_induced_width_computation(int i, int j, int **adj_matrix, int *adj_list_length, int adj_list_initial_length) 
+static int mark_two_variables_as_adj_in_induced_width_computation(int i, int j, int **adj_matrix, int *adj_list_length, int adj_list_initial_length)
 {
 	int k, l ;
 
@@ -2386,10 +2386,10 @@ int ARE::ARP::ComputeInducedWidth(const int *VarList, const int *Var2PosMap, int
 	InducedWidth = -1 ;
 
 	// check that the number of variables is positive
-	if (_nVars < 1) 
+	if (_nVars < 1)
 		return 0 ;
 	// check that an ordering is given
-	if (NULL == VarList || NULL == Var2PosMap) 
+	if (NULL == VarList || NULL == Var2PosMap)
 		return 1 ;
 
 	int return_value = 1 ;
@@ -2421,9 +2421,9 @@ int ARE::ARP::ComputeInducedWidth(const int *VarList, const int *Var2PosMap, int
 	for (i = 0 ; i < _nVars ; i++) {
 		for (k = 0 ; k < nAdjFunctions(i) ; k++) {
 			Function *f = this->AdjFunction(i, k) ;
-			if (NULL == f) 
+			if (NULL == f)
 				continue ;
-			if (f->IsQueryIrrelevant()) 
+			if (f->IsQueryIrrelevant())
 				continue ;
 			for (j = 0 ; j < f->N() ; j++) {
 				if (j == i) continue ;
@@ -2532,7 +2532,7 @@ int ARE::ARP::ComputeSingletonConsistency(int & nNewSingletonDomainVariables)
 	for (int i = 0 ; i < _nVars ; i++) {
 		int old_k = _K[i] ;
 		for (int j = _K[i] - 1 ; j >= 0 ; j--) {
-			if (is_consistent[i][j]) 
+			if (is_consistent[i][j])
 				continue ;
 			// assignment variable[i] = value[j] is inconsistent with the rest of the problem; eliminate this value from the domain of the variable.
 			for (int k = 0 ; k < nAdjFunctions(i) ; k++) {
@@ -2546,10 +2546,10 @@ int ARE::ARP::ComputeSingletonConsistency(int & nNewSingletonDomainVariables)
 				}
 			// remove this value from the domain
 			// check if domain size became 0
-			if (--_K[i] < 1) 
+			if (--_K[i] < 1)
 				return -1 ;
 			}
-		if (old_k > 1 && 1 == _K[i]) 
+		if (old_k > 1 && 1 == _K[i])
 			nNewSingletonDomainVariables++ ;
 		}
 
@@ -2563,24 +2563,25 @@ int ARE::ARP::ComputeSingletonConsistency(int & nNewSingletonDomainVariables)
 
 void ARE::ARP::SingletonConsistencyHelper(vector<vector<bool> > & is_consistent)
 {
+	using namespace minisat;
 	int i, j, k ;
 
 	// Constructing the CNF for singleton consistency
 	// We have \sum_{i=1}^{N} #values(X_i) Boolean variables, namely a variable for each variable-value pair
-	
+
 	// minisat solver
-	Solver S ;
+	minisat::Solver S ;
 
 	// The vector stores mapping from variable-value pairs to Boolean variables
 	vector<vector<int> > var2cnfvar(_nVars) ;
 	int count = 0 ;
 	for (i = 0 ; i < _nVars ; i++) {
 		var2cnfvar[i] = vector<int>(_K[i]) ;
-		for (j = 0 ; j < _K[i] ; j++) 
+		for (j = 0 ; j < _K[i] ; j++)
 			var2cnfvar[i][j] = count++ ;
 		}
 	// Initialize the variables of minisat
-	for (i = 0 ; i < count ; i++) 
+	for (i = 0 ; i < count ; i++)
 		S.newVar() ;
 
 	// Each solution of the CNF corresponds to a unique consistent assignment to the variables.
@@ -2588,15 +2589,15 @@ void ARE::ARP::SingletonConsistencyHelper(vector<vector<bool> > & is_consistent)
 	for (i = 0 ; i < _nVars ; i++) {
 		vec<Lit> lits ;
 		// For each variable, we have a clause which ensures that each variable takes at least one value
-		for (j = 0 ; j < _K[i] ; j++) 
-			lits.push(Lit(var2cnfvar[i][j])) ;
+		for (j = 0 ; j < _K[i] ; j++)
+			lits.push(mkLit(var2cnfvar[i][j])) ;
 		S.addClause(lits) ;
 		// We have K[i]*(K[i]-1)/2 clauses which ensure that each variable takes at most one value
 		for (j = 0 ; j < _K[i] ; j++) {
 			for (k = j + 1 ; k < _K[i] ; k++) {
 				lits.clear() ;
-				lits.push(~Lit(var2cnfvar[i][j])) ;
-				lits.push(~Lit(var2cnfvar[i][k])) ;
+				lits.push(~mkLit(var2cnfvar[i][j])) ;
+				lits.push(~mkLit(var2cnfvar[i][k])) ;
 				S.addClause(lits) ;
 				}
 			}
@@ -2607,7 +2608,7 @@ void ARE::ARP::SingletonConsistencyHelper(vector<vector<bool> > & is_consistent)
 	for (i = 0 ; i < _nFunctions ; i++) {
 		ARE::Function *f = _Functions[i] ;
 		if (NULL == f) continue ;
-		if (0 != f->nTableBlocks()) 
+		if (0 != f->nTableBlocks())
 			continue ; // error; this fn stored externally, cannot use it here.
 		FunctionTableBlock *table = f->Table() ;
 		vec<Lit> lits ;
@@ -2620,8 +2621,8 @@ void ARE::ARP::SingletonConsistencyHelper(vector<vector<bool> > & is_consistent)
 				// E.g. If the tuple is (X=2,Y=3), then add a clause !X2 V !Y3 where X2 and Y3 are Boolean variables
 				// corresponding to X=2 and Y=3 respectively
 				// This will ensure that X=2 and Y=3 never occur together in a solution
-				for (k = 0 ; k < f->N() ; k++) 
-					lits.push(~Lit(var2cnfvar[f->Arguments()[k]][value_assignment[k]])) ;
+				for (k = 0 ; k < f->N() ; k++)
+					lits.push(~mkLit(var2cnfvar[f->Arguments()[k]][value_assignment[k]])) ;
 				S.addClause(lits) ;
 				}
 			}
@@ -2634,7 +2635,7 @@ void ARE::ARP::SingletonConsistencyHelper(vector<vector<bool> > & is_consistent)
 		is_consistent[i] = vector<bool>(_K[i]) ;
 		for (j = 0 ; j < _K[i] ; j++) {
 			assumps.clear() ;
-			assumps.push(Lit(var2cnfvar[i][j])) ;
+			assumps.push(mkLit(var2cnfvar[i][j])) ;
 			if (S.solve(assumps))
 				is_consistent[i][j] = true ;
 			}
@@ -2642,4 +2643,3 @@ void ARE::ARP::SingletonConsistencyHelper(vector<vector<bool> > & is_consistent)
 
 	// done
 }
-

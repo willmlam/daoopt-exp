@@ -170,6 +170,10 @@ DEFINE_bool(bee_slice_sample_closest_first, false,
 DEFINE_bool(aobf_subordering_use_relative_error, false, "use relative error "
     "for AOBF subproblem ordering heuristic.");
 
+// Constraint propagation
+DEFINE_string(cp_type, "NONE", "use constraint propagation "
+              "(options: UNIT (zchaff))");
+
 DEFINE_string(pst_file, "", "path to output the pseudotree to, for plotting");
 DEFINE_string(supplemental_log_file, "", "path to supplmental log file");
 

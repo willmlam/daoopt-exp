@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Apr 25, 2010
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -149,7 +149,7 @@ bool LimitedDiscrepancy::doCompleteProcessing(SearchNode* n) {
 bool LimitedDiscrepancy::solve(size_t nodeLimit) {
   SearchNode* n = this->nextLeaf();
   while(n) {
-    m_prop->propagate(n, true); // true = report solution
+    m_prop->propagate(n, current_domains_, true); // true = report solution
     n = this->nextLeaf();
   }
   return !n ? true : false;

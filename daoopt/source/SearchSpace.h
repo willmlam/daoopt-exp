@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 4, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -83,18 +83,19 @@ struct SearchStats {
   size_t numLeaf;             // number of leaf nodes
   size_t numPruned;           // number of nodes pruned by the heuristic
   size_t numDead;             // number of "dead end" nodes (probability 0)
+  size_t numDeadCP;           // number of "dead end" nodes found by CP 
   SearchStats() :
     numExpOR(0), numExpAND(0), numProcOR(0), numProcAND(0),
 #ifdef PARALLEL_STATIC
     numORext(0), numANDext(0),
 #endif
-    numLeaf(0), numPruned(0), numDead(0) {}
+    numLeaf(0), numPruned(0), numDead(0), numDeadCP(0) {}
   SearchStats(const SearchStats& ns) :
     numExpOR(ns.numExpOR), numExpAND(ns.numExpAND), numProcOR(ns.numProcOR), numProcAND(ns.numProcAND),
 #ifdef PARALLEL_STATIC
     numORext(ns.numORext), numANDext(ns.numANDext),
 #endif
-    numLeaf(ns.numLeaf), numPruned(ns.numPruned), numDead(ns.numDead) {}
+    numLeaf(ns.numLeaf), numPruned(ns.numPruned), numDead(ns.numDead), numDeadCP(ns.numDeadCP) {}
 };
 
 

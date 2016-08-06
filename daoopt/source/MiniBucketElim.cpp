@@ -318,6 +318,10 @@ size_t MiniBucketElim::build(const vector<val_t> * assignment, bool computeTable
       m_augmented[n->getVar()].push_back(new_function);
     }
     // all minibuckets processed and resulting functions placed
+    for (int i = 0; i < max_marginals.size(); ++i) {
+      delete max_marginals[i];
+    }
+    max_marginals.clear();
   }
 
 #ifdef DEBUG

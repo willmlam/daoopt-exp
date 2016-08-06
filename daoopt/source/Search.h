@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 3, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -32,6 +32,9 @@
 #include "ProgramOptions.h"
 #include "Pseudotree.h"
 #include "utils.h"
+
+#include "minisat/Solver.h"
+#include "zchaff/zchaff_solver.h"
 
 #ifdef PARALLEL_DYNAMIC
 #include "SubproblemHandler.h"
@@ -72,6 +75,16 @@ protected:
   vector<double>      m_costTmp; // Reusable vector for cost calculations
 
   bool m_foundFirstPartialSolution;       // Used to know if some lower bound exists for some part of the problem
+
+  // For constraint propagation
+  minisat::Solver minisat_solver_;
+  zchaff::CSolver zchaff_solver_;
+
+  vector<vector<int>> var2sat_;
+  vector<pair<int,int>> sat2var_;
+  vector<vector<bool>> current_domains_;
+
+
 
 #ifdef PARALLEL_DYNAMIC
   /* keeps tracks up lower/upper bound on first OR node generated for
@@ -140,6 +153,11 @@ public:
   /* Solves the problem from the current state */
   virtual bool solve(size_t nodeLimit) = 0;
 
+  void DoConstraintPropagation();
+  bool DoCPLookahead(int var, int val, list<pair<int, int>>& changes,
+     const vector<int>& subtree);
+  bool DoSATPropagate(const vector<int>& vars);
+
 #ifndef NO_HEURISTIC
   /* call right before actually starting to search (since heuristic is not
    * available during initSearch) */
@@ -199,7 +217,7 @@ protected:
    * solution tree, in case of conditioned subproblems) */
   double lowerBound(const SearchNode*) const;
 
-  /* propagate the heuristic, returns true if search should stop due to 
+  /* propagate the heuristic, returns true if search should stop due to
    * early termination: LB >= UB */
   bool propHeuristic(SearchNode* node);
 
@@ -220,7 +238,7 @@ protected:
 
 protected:
   virtual bool isMaster() const = 0;
-  Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h, 
+  Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h,
       BoundPropagator* prop, ProgramOptions* po);
 public:
   virtual ~Search() {}

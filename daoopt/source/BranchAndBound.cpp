@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 4, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -133,7 +133,7 @@ bool BranchAndBound::solve(size_t nodeLimit) {
   size_t limit = nodeLimit > 0 ? nodeLimit : 0;
   SearchNode* n = this->nextLeaf();
   while(n && (nodeLimit == 0 || limit-- > 0)) {
-    m_prop->propagate(n, true); // true = report solutions
+    m_prop->propagate(n, current_domains_, true); // true = report solutions
     if (nodeLimit == 0 || limit > 0) {
       n = this->nextLeaf();
     }
@@ -142,8 +142,8 @@ bool BranchAndBound::solve(size_t nodeLimit) {
 }
 
 
-BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt, 
-    SearchSpace* space, Heuristic* heur, BoundPropagator* prop, 
+BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt,
+    SearchSpace* space, Heuristic* heur, BoundPropagator* prop,
     ProgramOptions *po) :
    Search(prob,pt,space,heur,prop,po) {
 #ifndef NO_CACHING
@@ -159,4 +159,3 @@ BranchAndBound::BranchAndBound(Problem* prob, Pseudotree* pt,
 }
 
 }  // namespace daoopt
-

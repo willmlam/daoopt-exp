@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 7, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -31,6 +31,8 @@
 #include "Statistics.h"
 #endif
 
+#include "zchaff/zchaff_solver.h"
+
 namespace daoopt {
 
 class BoundPropagator {
@@ -40,6 +42,8 @@ protected:
   bool m_doCaching;
   Problem*     m_problem;
   SearchSpace* m_space;
+
+  zchaff::CSolver* zchaff_solver_;
 
 #ifdef PARALLEL_STATIC
   count_t m_subCountCache;
@@ -67,7 +71,13 @@ public:
    * @n: the search node to be propagated
    * @reportSolution: should root updates be reported to problem instance?
    */
-  SearchNode* propagate(SearchNode* n, bool reportSolution = false, SearchNode* upperLimit = NULL);
+  SearchNode* propagate(SearchNode* n,
+                        vector<vector<bool>>& currentDomains,
+                        bool reportSolution = false, SearchNode* upperLimit = NULL);
+
+  inline setSatSolver(zchaff::CSolver* zc) {
+    zchaff_solver_ = zc;
+  }
 
 #ifdef PARALLEL_STATIC
   const SubproblemStats& getSubproblemStatsCache() const { return m_subStatsCache; }
@@ -93,7 +103,7 @@ protected:
 
 public:
   BoundPropagator(Problem* p, SearchSpace* s, bool doCaching = true)
-    : m_doCaching(doCaching), m_problem(p), m_space(s)
+    : m_doCaching(doCaching), m_problem(p), m_space(s), zchaff_solver_(nullptr)
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   , m_subCountCache(0)
 #endif

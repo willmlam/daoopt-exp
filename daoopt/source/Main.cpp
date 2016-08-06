@@ -1041,21 +1041,22 @@ bool Main::outputStats() const {
   m_search->printStats();
 
   cout << endl << "--------- Search done ---------" << endl;
-  cout << "Problem name:  " << m_options->problemName << endl;
+  cout << "Problem name:       " << m_options->problemName << endl;
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
-  cout << "Condor jobs:   " << m_search->getSubproblemCount() << endl;
+  cout << "Condor jobs:        " << m_search->getSubproblemCount() << endl;
 #endif
-  cout << "OR nodes:      " << m_space->stats.numExpOR << endl;
-  cout << "AND nodes:     " << m_space->stats.numExpAND << endl;
+  cout << "OR nodes:           " << m_space->stats.numExpOR << endl;
+  cout << "AND nodes:          " << m_space->stats.numExpAND << endl;
 #if defined PARALLEL_STATIC
-  cout << "OR external:   " << m_space->stats.numORext << endl;
-  cout << "AND external:  " << m_space->stats.numANDext << endl;
+  cout << "OR external:        " << m_space->stats.numORext << endl;
+  cout << "AND external:       " << m_space->stats.numANDext << endl;
 #endif
-  cout << "OR processed:  " << m_space->stats.numProcOR << endl;
-  cout << "AND processed: " << m_space->stats.numProcAND << endl;
-  cout << "Leaf nodes:    " << m_space->stats.numLeaf << endl;
-  cout << "Pruned nodes:  " << m_space->stats.numPruned << endl;
-  cout << "Deadend nodes: " << m_space->stats.numDead << endl;
+  cout << "OR processed:       " << m_space->stats.numProcOR << endl;
+  cout << "AND processed:      " << m_space->stats.numProcAND << endl;
+  cout << "Leaf nodes:         " << m_space->stats.numLeaf << endl;
+  cout << "Pruned nodes:       " << m_space->stats.numPruned << endl;
+  cout << "Deadend nodes:      " << m_space->stats.numDead << endl;
+  cout << "Deadend nodes (CP): " << m_space->stats.numDeadCP << endl;
 
 #ifdef PARALLEL_STATIC
   if (m_options->par_preOnly && m_solved) {
@@ -1068,12 +1069,12 @@ bool Main::outputStats() const {
   high_resolution_clock::time_point time_end = high_resolution_clock::now();
   double time_passed =
       duration_cast<duration<double>>(time_end - _time_start).count();
-  cout << "Time elapsed:  " << time_passed << " seconds" << endl;
+  cout << "Time elapsed:       " << time_passed << " seconds" << endl;
   time_passed =
       duration_cast<duration<double>>(_time_pre - _time_start).count();
-  cout << "Preprocessing: " << time_passed << " seconds" << endl;
+  cout << "Preprocessing:      " << time_passed << " seconds" << endl;
   time_passed = duration_cast<duration<double>>(time_end - _time_pre).count();
-  cout << "Search:        " << time_passed << " seconds" << endl;
+  cout << "Search:             " << time_passed << " seconds" << endl;
   cout << "-------------------------------" << endl;
 
   cout << endl;

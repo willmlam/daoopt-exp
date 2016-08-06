@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Nov 7, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -28,7 +28,9 @@
 
 namespace daoopt {
 
-SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, SearchNode* upperLimit) {
+SearchNode* BoundPropagator::propagate(SearchNode* n,
+                                       vector<vector<bool>>& currentDomains,
+                                       bool reportSolution, SearchNode* upperLimit) {
 
   // these two pointers move upward in the search space, always one level
   // apart s.t. cur is the parent node of prev
@@ -37,6 +39,9 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
   // Keeps track of the highest node to be deleted during cleanup,
   // where .second will be deleted as a child of .first
   pair<SearchNode*,SearchNode*> highestDelete(NULL,NULL);
+
+  int numBacktracks = 0;
+  list<pair<SearchNode*, SearchNode*>> backtracks;
 
   // 'prop' signals whether we are still propagating values in this call
   bool prop = true;
@@ -158,7 +163,7 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
 
       if (prop) {
         double d = prev->getValue() OP_TIMES prev->getLabel(); // getValue includes subSolved
-        DIAG( ostringstream ss; ss << "value to prop : " 
+        DIAG( ostringstream ss; ss << "value to prop : "
                 << prev->getValue() << " + " << prev->getLabel() << " = " << d << endl; myprint(ss.str()); )
 #ifdef LIKELIHOOD
         if ( ISNAN( cur->getValue() ) || cur->getValue() == ELEM_ZERO )
@@ -185,6 +190,11 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
       if (del) {
         if (prev->getChildCountAct() <= 1) { // prev has no or one children?
           highestDelete = make_pair(cur,prev);
+
+          if (cur->getType() == NODE_OR && prev->getType() == NODE_AND) {
+            ++numBacktracks;
+            backtracks.push_back(make_pair(cur, prev));
+          }
 #ifdef PARALLEL_STATIC
           subCount += prev->getSubCount();
 #endif
@@ -267,6 +277,22 @@ SearchNode* BoundPropagator::propagate(SearchNode* n, bool reportSolution, Searc
     parent->addSubLeaves(subLeaves);
     parent->addSubLeafD(subLeafD);
 #endif
+    // Backtrack the SAT solver
+    if (numBacktracks > 0) {
+      assert(numBacktracks == (int)backtracks.size());
+      for (auto backtrack_node_pairs : backtracks) {
+        if (zchaff_solver_) {
+          if (!currentDomains.empty()) {
+            for (auto p : backtrack_node_pairs.second->changes()) {
+              currentDomains[p.first][p.second] = true;
+            }
+          }
+          zchaff_solver_->release_assignments();
+          zchaff_solver_->dlevel()--;
+        }
+      }
+    }
+
     // finally clean up, delete subproblem with unnecessary nodes from memory
     parent->eraseChild(child);
   }

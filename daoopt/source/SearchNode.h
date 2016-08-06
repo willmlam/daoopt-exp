@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with DAOOPT.  If not, see <http://www.gnu.org/licenses/>.
- *  
+ *
  *  Created on: Oct 9, 2008
  *      Author: Lars Otten <lotten@ics.uci.edu>
  */
@@ -73,6 +73,8 @@ protected:
   CHILDLIST m_children;              // Child nodes
   size_t m_childCountFull;           // Number of total child nodes (initial count)
   size_t m_childCountAct;            // Number of remaining active child nodes
+
+  std::list<std::pair<int, int>> changes_;
 
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC || TRUE
   count_t m_subCount;                // number of nodes expanded below this node
@@ -187,9 +189,13 @@ public:
   virtual void setOrderingHeurCache(double* d) = 0;
   virtual double* getOrderingHeurCache() const = 0;
   virtual void clearOrderingHeurCache() = 0;
-  
-  virtual const unique_ptr<ExtraNodeInfo> &getExtraNodeInfo() const { return m_eInfo;}
+
+  virtual const unique_ptr<ExtraNodeInfo> &getExtraNodeInfo() const {
+    return m_eInfo;
+  }
   virtual void setExtraNodeInfo(ExtraNodeInfo *inf) { m_eInfo.reset(inf); }
+
+  inline std::list<std::pair<int, int>>& changes() { return changes_; }
 
 protected:
   SearchNode(SearchNode* parent);
@@ -212,10 +218,10 @@ protected:
 
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
   // heuristic estimate of the node's value, broken down per each independent subproblem;
-  // size of this array is nChildren; this array is allocated by (and belongs to) parent OR node. 
+  // size of this array is nChildren; this array is allocated by (and belongs to) parent OR node.
   // the sum over this array should equal to h of this node (not including label or original functions of this node).
-  // this array is computed when the h of the parent OR node is computed; when computing parent OR node's h, we represent it as the sum 
-  // of h's from all its (independent) children (child buckets in the bucket tree). 
+  // this array is computed when the h of the parent OR node is computed; when computing parent OR node's h, we represent it as the sum
+  // of h's from all its (independent) children (child buckets in the bucket tree).
   // this number comes handy when checking/observing how the h changes when moving from parent to child (as the h becomes more accurate).
   double *_heurValueForEachIndSubproblem ;
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
@@ -370,7 +376,7 @@ ostream& operator << (ostream&, const SearchNode&);
 
 /* Inline definitions */
 inline SearchNode::SearchNode(SearchNode* parent) :
-    m_flags(0), m_parent(parent), m_nodeValue(ELEM_NAN), m_heurValue(INFINITY), _PruningGap(DBL_MAX), 
+    m_flags(0), m_parent(parent), m_nodeValue(ELEM_NAN), m_heurValue(INFINITY), _PruningGap(DBL_MAX),
     m_children(NULL), m_childCountFull(0), m_childCountAct(0)
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   , m_subCount(0)
@@ -447,9 +453,9 @@ inline void SearchNodeOR::clearOrderingHeurCache() {
 
 
 inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label) :
-    SearchNode(parent), m_val(val), m_nodeLabel(label) 
+    SearchNode(parent), m_val(val), m_nodeLabel(label)
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
-	, _heurValueForEachIndSubproblem(NULL) 
+	, _heurValueForEachIndSubproblem(NULL)
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
 	, m_subSolved(ELEM_ONE)
 {
@@ -460,7 +466,7 @@ inline SearchNodeAND::SearchNodeAND(SearchNode* parent, val_t val, double label)
 inline SearchNodeOR::SearchNodeOR(SearchNode* parent, int var, int depth) :
   SearchNode(parent), m_var(var), m_depth(depth), m_heurCache(nullptr)
 #ifdef DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
-  , _heurValueOfParentFromThisNode(DBL_MAX) 
+  , _heurValueOfParentFromThisNode(DBL_MAX)
 #endif // DECOMPOSE_H_INTO_INDEPENDENT_SUBPROBLEMS
     //, m_cacheContext(NULL)
 #if defined PARALLEL_STATIC || defined PARALLEL_DYNAMIC || TRUE

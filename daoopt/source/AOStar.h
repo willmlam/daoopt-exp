@@ -11,6 +11,17 @@ class NodeComp {
     return a->getHeur() < b->getHeur();
   }
 };
+
+class NodeOrderingHeurDesc {
+ public:
+  bool operator()(const SearchNode* x, const SearchNode* y) const {
+    if (x->getOrderingHeur() == y->getOrderingHeur()) {
+      return x->getHeur() > y->getHeur();
+    }
+    return x->getOrderingHeur() > y->getOrderingHeur();
+  }
+};
+
 class AOStar : virtual public Search {
  public:
   AOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
@@ -43,7 +54,7 @@ class AOStar : virtual public Search {
       return x->getHeur() > y->getHeur();
     }
   };
-  
+
   struct CompNodeIndexAsc : public std::binary_function<BFSearchNode*,
     BFSearchNode*, bool> {
     bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
@@ -57,11 +68,11 @@ class AOStar : virtual public Search {
     bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
       if (x->getOrderingHeur() == y->getOrderingHeur()) {
         return x->getHeur() > y->getHeur();
-      } 
+      }
       return x->getOrderingHeur() > y->getOrderingHeur();
     }
   };
-  
+
   void reset(SearchNode* p);
   SearchNode* nextNode();
 
@@ -81,6 +92,10 @@ class AOStar : virtual public Search {
   double solution_cost_;
   double heuristic_bound_;
   double prev_reported_time_;
+
+  // function objects
+  std::function<bool(const SearchNode*, const SearchNode*)>
+      comp_node_ordering_heur_desc_fn;
 };
 
 

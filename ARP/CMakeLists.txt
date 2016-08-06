@@ -4,7 +4,7 @@ include_directories(
   ./CVO
   ./Problem
   ./Utils
-  ../miniSAT
+  ../minisat
 )
 
 add_library(ARP OBJECT

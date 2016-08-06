@@ -78,7 +78,10 @@ add_subdirectory(daoopt)
 add_subdirectory(mex)
 
 # MiniSAT
-add_subdirectory(miniSAT)
+add_subdirectory(minisat)
+
+# zchaff
+add_subdirectory(zchaff)
 
 # Main executable
 add_executable(daoopt_solver daoopt_solver.cpp
@@ -88,7 +91,9 @@ add_executable(daoopt_solver daoopt_solver.cpp
   $<TARGET_OBJECTS:mex>
   $<TARGET_OBJECTS:Minisat>
   $<TARGET_OBJECTS:Sls4mpe>
-  $<TARGET_OBJECTS:Zlib>)
+  $<TARGET_OBJECTS:Zchaff>
+  $<TARGET_OBJECTS:Zlib>
+)
 if(DAOOPT_LINK_STATIC)
   SET_TARGET_PROPERTIES(daoopt_solver PROPERTIES LINK_SEARCH_START_STATIC 1)
   SET_TARGET_PROPERTIES(daoopt_solver PROPERTIES LINK_SEARCH_END_STATIC 1)
