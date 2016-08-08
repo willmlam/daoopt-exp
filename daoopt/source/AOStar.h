@@ -32,7 +32,7 @@ class AOStar : virtual public Search {
   virtual SearchNode* initSearch();
   bool DoSearch();
   void ExpandAndRevise(BFSearchNode* node);
-  void Expand(BFSearchNode* node);
+  bool Expand(BFSearchNode* node);
   bool Revise(BFSearchNode* node);
   bool FindBestPartialTree();
   void ArrangeTipNodes();

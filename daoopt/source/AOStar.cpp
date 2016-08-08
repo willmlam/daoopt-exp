@@ -188,7 +188,7 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
          tip_nodes_.size() > 0);
 }
 
-void AOStar::Expand(BFSearchNode* node) {
+bool AOStar::Expand(BFSearchNode* node) {
   bool no_children = true;
   int var = node->getVar();
   int depth = node->getDepth();
@@ -336,7 +336,7 @@ bool AOStar::Revise(BFSearchNode* node) {
 }
 
 bool AOStar::FindBestPartialTree() {
-  BFSearchNode* root = search_space_->getRoot();
+  BFSearchNode* root = reinterpret_cast<BFSearchNode*>(search_space_->getRoot());
 
   std::fill(m_assignment.begin(), m_assignment.end(), UNKNOWN);
 
@@ -384,7 +384,7 @@ void AOStar::ArrangeTipNodes() {
 
 BFSearchNode* AOStar::ChooseTipNode() {
   if (!tip_nodes_.empty()) {
-    return *tip_nodes_.begin();
+    return reinterpret_cast<BFSearchNode*>(*tip_nodes_.begin());
   } else {
     return nullptr;
   }

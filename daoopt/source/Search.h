@@ -205,7 +205,7 @@ protected:
   bool generateChildrenOR(SearchNode*, vector<SearchNode*>&);
 
   /* checks if the node can be pruned (only meant for AND nodes) */
-  bool canBePruned(SearchNode*) const;
+  bool canBePruned(SearchNode*);
 
   /* computes the heuristic of a new OR node, which includes precomputing
    * its child AND nodes' heuristic and label values, which are cached

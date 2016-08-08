@@ -75,7 +75,7 @@ public:
                         vector<vector<bool>>& currentDomains,
                         bool reportSolution = false, SearchNode* upperLimit = NULL);
 
-  inline setSatSolver(zchaff::CSolver* zc) {
+  inline void setSatSolver(zchaff::CSolver* zc) {
     zchaff_solver_ = zc;
   }
 

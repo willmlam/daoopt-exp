@@ -245,7 +245,7 @@ SearchNode* Search::nextLeaf() {
 }
 
 
-bool Search::canBePruned(SearchNode* n) const {
+bool Search::canBePruned(SearchNode* n) {
   DIAG(oss ss; ss << std::setprecision(20) << "\tcanBePruned(" << *n << ")" << " h=" << n->getHeur() << endl; myprint(ss.str());)
 
 

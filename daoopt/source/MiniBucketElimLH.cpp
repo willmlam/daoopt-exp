@@ -2097,7 +2097,7 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
     if (v != m_pseudotree->getRoot()->getVar()) {
       PseudotreeNode *p = m_pseudotree->getNode(v)->getParent();
       int p_var = p->getVar();
-      const auto *parent_fn = _SubtreeErrorFunctions[p_var];
+      Function* parent_fn = _SubtreeErrorFunctions[p_var];
 
       const set<int> &var_scope = current_fn->getScopeSet();
       const set<int> &p_var_scope = parent_fn->getScopeSet();
