@@ -1334,7 +1334,6 @@ bool Search::DoCPLookahead(int var, int val, list<pair<int, int>>& changes,
   if (res == zchaff::CONFLICT) {
     return false;
   }
-//  return true;
 
   // Future empty domain in a subproblem?
   for (int desc : subtree) {

@@ -65,6 +65,7 @@ bool AOStar::DoSearch() {
 
   if (root->is_solved()) {
     solution_cost_ = root->getValue();
+    m_problem->updateUpperBound(heuristic_bound_, &(search_space_->stats));
     m_problem->updateSolution(solution_cost_, &(search_space_->stats));
   }
 

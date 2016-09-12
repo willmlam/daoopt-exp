@@ -1146,7 +1146,10 @@ void Problem::resetSolution() {
 
 void Problem::updateUpperBound(double bound, const SearchStats* nodestats,
     bool output) {
-  if (bound < m_curUpperBound) {
+  if (std::isnan(bound)) {
+    return;
+  }
+  if (bound < m_curUpperBound || std::isnan(m_curUpperBound)) {
     m_curUpperBound = bound;
     if (output) {
       oss ss;

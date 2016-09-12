@@ -219,7 +219,8 @@ inline Problem::Problem() :
     m_c(UNKNOWN),
     m_r(UNKNOWN),
     m_globalConstant(ELEM_NAN),
-    m_curCost(ELEM_NAN)
+    m_curCost(ELEM_NAN),
+    m_curUpperBound(ELEM_NAN)
 { /* empty*/ }
 
 // Functions are owned by the copy of the problem
@@ -241,7 +242,8 @@ inline Problem::Problem(Problem *p) :
     m_domains(p->m_domains),
     m_evidence(p->m_evidence),
     m_old2new(p->m_old2new),
-    m_curSolution(p->m_curSolution)
+    m_curSolution(p->m_curSolution),
+    m_curUpperBound(p->m_curUpperBound)
 {
     for (size_t i = 0; i < p->m_functions.size(); ++i) {
         m_functions.push_back(p->m_functions[i]->clone());
