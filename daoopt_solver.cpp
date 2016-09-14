@@ -152,6 +152,8 @@ DEFINE_bool(lookahead_fix_probability, false, "keep the same probabiliy of"
             "performing lookahead");
 DEFINE_bool(lookahead_always_perform_if_better_once, false, "always perform"
             "lookahead as soon as a better ordering is encountered");
+DEFINE_bool(lookahead_always_compute, true, "always perform"
+            "lookahead and skip all adaptive probablity computation");
 DEFINE_bool(bee_importance_sampling, false, "use importance sampling for BEE "
     "sampling. the weight is based on exponentiating log costs.");
 

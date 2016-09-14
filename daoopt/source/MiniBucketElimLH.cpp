@@ -31,6 +31,7 @@ DECLARE_bool(aobf_subordering_use_relative_error);
 DECLARE_double(lookahead_starting_probability);
 DECLARE_bool(lookahead_fix_probability);
 DECLARE_bool(lookahead_always_perform_if_better_once);
+DECLARE_bool(lookahead_always_compute);
 
 using namespace std::chrono;
 
@@ -634,9 +635,12 @@ double MiniBucketElimLH::getHeurPerIndSubproblem(
 
 void MiniBucketElimLH::noteOrNodeExpansionBeginning(
     int var, std::vector<val_t> &assignment, SearchNode *search_node) {
+
   MBLHSubtree &lhHelper = _Lookahead[var];
+  lookahead_subtree_updated_ = false;
   if (lhHelper._SubtreeNodes.size() > 0) {
-    if (_nLHcalls[var] < max_lookahead_trials_ ||
+    if (FLAGS_lookahead_always_compute ||
+        _nLHcalls[var] < max_lookahead_trials_ ||
         (FLAGS_lookahead_always_perform_if_better_once &&
           count_better_ordering_[var] > 0) ||
         rand::next_unif() <= lookahead_probability_[var]) {
@@ -645,7 +649,6 @@ void MiniBucketElimLH::noteOrNodeExpansionBeginning(
       lookahead_subtree_updated_ = true;
     } else {
       ++_nLHcallsSkipped[var];
-      lookahead_subtree_updated_ = false;
     }
   }
 }
@@ -745,57 +748,47 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
   // Check if lookahead is possibly relevant
   MBLHSubtree &lhHelper = _Lookahead[var];
   if (lhHelper._SubtreeNodes.size() > 0 && lookahead_subtree_updated_) {
-    // storage for comparison purposes later
-    //    vector<pair<int, double>> no_lh_pairs;
-    //    vector<pair<int, double>> lh_pairs;
-    int no_lh_argmax = -1;
-    double no_lh_max = ELEM_ZERO;
-    int lh_argmax = -1;
-    double lh_max = ELEM_ZERO;
+    if (!FLAGS_lookahead_always_compute) {
+      // storage for comparison purposes later
+      //    vector<pair<int, double>> no_lh_pairs;
+      //    vector<pair<int, double>> lh_pairs;
+      int no_lh_argmax = -1;
+      double no_lh_max = ELEM_ZERO;
+      int lh_argmax = -1;
+      double lh_max = ELEM_ZERO;
 
-    // Overwrite non-lh values, but store them first for comparison
-    for (val_t i = 0; i < var_domain_size; ++i) {
-      assignment[var] = i;
-      if (out[i] > no_lh_max) {
-        no_lh_argmax = i;
-        no_lh_max = out[i];
+      // Overwrite non-lh values, but store them first for comparison
+      for (val_t i = 0; i < var_domain_size; ++i) {
+        assignment[var] = i;
+        if (out[i] > no_lh_max) {
+          no_lh_argmax = i;
+          no_lh_max = out[i];
+        }
+        //      no_lh_pairs.push_back(make_pair(i, out[i]));
+        out[i] = lhHelper.GetHeuristic(assignment);
+        if (out[i] > lh_max) {
+          lh_argmax = i;
+          lh_max = out[i];
+        }
+        //      lh_pairs.push_back(make_pair(i, out[i]));
       }
-      //      no_lh_pairs.push_back(make_pair(i, out[i]));
-      out[i] = lhHelper.GetHeuristic(assignment);
-      if (out[i] > lh_max) {
-        lh_argmax = i;
-        lh_max = out[i];
-      }
-      //      lh_pairs.push_back(make_pair(i, out[i]));
-    }
 
-    // Faster approximation based only on the max
-    // Update count and probability
-    if (no_lh_argmax != lh_argmax) {
-      ++count_better_ordering_[var];
-      if (!FLAGS_lookahead_fix_probability) {
-        lookahead_probability_[var] =
-            max(0.1, static_cast<double>(count_better_ordering_[var]) /
-                         _nLHcalls[var]);
-      }
-    }
-
-    /*
-    std::sort(no_lh_pairs.begin(), no_lh_pairs.end(), CompValueHeurPairLess);
-    std::sort(lh_pairs.begin(), lh_pairs.end(), CompValueHeurPairLess);
-
-    // Find out if the ordering for lookahead is different (therefore better)
-    for (int i = 0; i < var_domain_size; ++i) {
+      // Faster approximation based only on the max
       // Update count and probability
-      if (no_lh_pairs[i].first != lh_pairs[i].first) {
-        ++count_better_ordering_;
-        lookahead_probability_ =
-          static_cast<double>(count_better_ordering_) /
-          count_lookahead_performed_;
-        break;
+      if (no_lh_argmax != lh_argmax) {
+        ++count_better_ordering_[var];
+        if (!FLAGS_lookahead_fix_probability) {
+          lookahead_probability_[var] =
+              max(0.1, static_cast<double>(count_better_ordering_[var]) /
+                  _nLHcalls[var]);
+        }
+      }
+    } else {
+      for (val_t i = 0; i < var_domain_size; ++i) {
+        assignment[var] = i;
+        out[i] = lhHelper.GetHeuristic(assignment);
       }
     }
-    */
   }
 
   assignment[var] = old_value;
