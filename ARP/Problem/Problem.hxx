@@ -13,6 +13,13 @@ using namespace std ;
 #define stricmp strcasecmp
 #endif
 
+#ifndef ARP_nInfinity
+#define ARP_nInfinity (-std::numeric_limits<double>::infinity())
+#endif // ARP_nInfinity
+#ifndef ARP_pInfinity
+#define ARP_pInfinity (std::numeric_limits<double>::infinity())
+#endif // ARP_pInfinity
+
 namespace ARE // Automated Reasoning Engine
 {
 
@@ -30,7 +37,7 @@ protected :
 public :
 	inline const std::string & FileName(void) const { return _FileName ; }
 	inline const std::string & EvidenceFileName(void) const { return _EvidenceFileName ; }
-	int GetFilename(const std::string & Dir, std::string & fn) ; // filename will not have an extension
+	int32_t GetFilename(const std::string & Dir, std::string & fn) ; // filename will not have an extension
 	inline void SetFileName(const std::string & FileName) { _FileName = FileName ; }
 
 protected :
@@ -39,18 +46,33 @@ public :
 	inline FILE * & fpLOG(void) { return _fpLOG ; }
 
 protected :
-	int _nVars ; // number of variables; indeces run [0,_nVars-1]
-	int *_K ; // domain size of each variable; size of this array is _nVars.
-	int *_Value ; // current value of each variable; for var i, legal values run [0, _K[i]-1].
-	int _nSingletonDomainVariables ; // number of singleton-domain variables in the problem
+	int32_t _nVars ; // number of variables; indeces run [0,_nVars-1]
+	int32_t *_K ; // domain size of each variable; size of this array is _nVars.
+	int32_t *_Value ; // current value of each variable; for var i, legal values run [0, _K[i]-1].
+	int32_t _nSingletonDomainVariables ; // number of singleton-domain variables in the problem
+	ARE_Function_TableType _AssignmentValue ; // value of the current assignment ;
 public :
-	inline int N(void) const { return _nVars ; }
-	inline int K(int IDX) const { return _K[IDX] ; }
-	inline const int *K(void) const { return _K ; }
-	inline int Value(int IDX) const { return _Value[IDX] ; }
-	inline int nSingletonDomainVariables(void) const { return _nSingletonDomainVariables ; }
+	inline int32_t N(void) const { return _nVars ; }
+	inline int32_t K(int32_t IDX) const { return _K[IDX] ; }
+	inline const int32_t *K(void) const { return _K ; }
+	inline int32_t Value(int32_t IDX) const { return _Value[IDX] ; }
+	inline int32_t *ValueArray(void) { return _Value ; }
+	inline int32_t SetValue(int32_t IDX, int32_t v) { _Value[IDX] = v ; }
+	inline int32_t nSingletonDomainVariables(void) const { return _nSingletonDomainVariables ; }
+	inline ARE_Function_TableType & AssignmentValue(void) { return _AssignmentValue ; }
 
-	inline int SetN(int N)
+	int32_t ComputeSumOfDomainSizes(bool IgnoreSingletons)
+	{
+		int32_t sum = 0 ;
+		for (int32_t i = _nVars-1 ; i >= 0 ; i--) {
+			if (IgnoreSingletons && _K[i] < 2) continue ;
+			if (_K[i] > 0) 
+				sum += _K[i] ;
+			}
+		return sum ;
+	}
+
+	inline int32_t SetN(int32_t N)
 	{
 		if (_nVars < 0) 
 			return 1 ;
@@ -60,26 +82,34 @@ public :
 		if (NULL != _K) { delete [] _K ; _K = NULL ; }
 		if (NULL != _Value) { delete [] _Value ; _Value = NULL ; }
 		if (_nVars > 0) {
-			_K = new int[_nVars] ;
-			_Value = new int[_nVars] ;
+			_K = new int32_t[_nVars] ;
+			_Value = new int32_t[_nVars] ;
 			if (NULL == _K || NULL == _Value) {
 				Destroy() ;
 				return 1 ;
 				}
-			for (int i = 0 ; i < _nVars ; i++) {
+			for (int32_t i = 0 ; i < _nVars ; i++) {
 				_K[i] = -1 ;
 				_Value[i] = -1 ;
 				}
 			}
 		return 0 ;
 	}
-	inline int SetK(int *K)
+	inline int32_t SetK(int32_t *K)
 	{
 		if (NULL == _K) 
 			return 1 ;
-		for (int i = 0 ; i < _nVars ; i++) 
+		for (int32_t i = 0 ; i < _nVars ; i++) 
 			_K[i] = K[i] ;
 		return 0 ;
+	}
+	inline int32_t SetK(int32_t K)
+	{
+		if (NULL == _K || K < 0)
+			return 1;
+		for (int32_t i = 0; i < _nVars; i++)
+			_K[i] = K;
+		return 0;
 	}
 
 	// ***************************************************************************************************
@@ -89,31 +119,33 @@ public :
 protected :
 
 	bool _FunctionsAreConvertedToLogScale ;
-	int _nFunctions ; // number of functions in the  problem.
+	int32_t _nFunctions ; // number of functions in the  problem.
 	Function **_Functions ; // a list of  functions.
-	__int64 _FunctionsSpace ; // space, in bytes, taken up by all functions.
-	int _nFunctionsIrrelevant ; // number of functions in the problem not relevent to the query.
+	int64_t _FunctionsSpace ; // space, in bytes, taken up by all functions.
+	int32_t _nFunctionsIrrelevant ; // number of functions in the problem not relevent to the query.
 
 public :
 
 	inline bool FunctionsAreConvertedToLogScale(void) const { return _FunctionsAreConvertedToLogScale ; }
-	inline int nFunctions(void) const { return _nFunctions ; }
-	inline ARE::Function *getFunction(int IDX) const { return _Functions[IDX] ; }
-	inline __int64 FunctionsSpace(void) const { return _FunctionsSpace ; }
-	inline int nFunctionsIrrelevant(void) const { return _nFunctionsIrrelevant ; }
+	inline int32_t nFunctions(void) const { return _nFunctions ; }
+	inline ARE::Function *getFunction(int32_t IDX) const { return _Functions[IDX] ; }
+	inline int64_t FunctionsSpace(void) const { return _FunctionsSpace ; }
+	inline int32_t nFunctionsIrrelevant(void) const { return _nFunctionsIrrelevant ; }
 
 	// in bytes, the space required
-	__int64 ComputeFunctionSpace(void) ;
+	int64_t ComputeFunctionSpace(void) ;
 
-	int ConvertFunctionsToLogScale(void) ;
+	int32_t ConvertFunctionsToLogScale(void) ;
 	
 	// return non-0 iff something is wrong with any of the functions
-	int CheckFunctions(void) ;
+	int32_t CheckFunctions(void) ;
+
+	int32_t DeleteDuplicateFunctions(void) ;
 
 	// find Bayesian CPT for the given variable
-	inline ARE::Function *GetCPT(int V)
+	inline ARE::Function *GetCPT(int32_t V)
 	{
-		for (int i = 0 ; i < _nFunctions ; i++) {
+		for (int32_t i = 0 ; i < _nFunctions ; i++) {
 			ARE::Function *f = _Functions[i] ;
 			if (NULL == f) continue ;
 			if (V != f->BayesianCPTChildVariable()) 
@@ -124,16 +156,16 @@ public :
 	}
 
 	// given a variable, it will compute all ancestors, assuming functions are Bayesian
-	int ComputeBayesianAncestors(int V, int *AncestorFlags, int *Workspace) ;
+	int32_t ComputeBayesianAncestors(int32_t V, int32_t *AncestorFlags, int32_t *Workspace) ;
 
 	// this function checks if all functions have tables; if not, it will fill in the table, checking the type. 
 	// e.g. if the function is a Bayesian CPT, it will fill it in appropriately.
-	int FillInFunctionTables(void) ;
+	int32_t FillInFunctionTables(void) ;
 
 	double ComputeAvgFn0Tightness(void)
 	{
 		double n = 0.0, sum = 0.0 ;
-		for (int i = 0 ; i < _nFunctions ; i++) {
+		for (int32_t i = 0 ; i < _nFunctions ; i++) {
 			ARE::Function *f = _Functions[i] ;
 			if (NULL == f) continue ;
 			double zeroT = f->Compute0Tightness() ;
@@ -149,16 +181,16 @@ public :
 
 protected :
 	Function **_StaticAdjFnTotalList ; // helper list for maitaining adj fn lists for each var; we allocate a static list enough for all vars.
-	int _StaticAdjFnTotalListSize ; // _StaticAdjFnTotalList allocated length.
-	int *_nAdjFunctions ; // for each variable, the number of functions it participates in
-	int *_AdjFunctions ; // for each variable, idx into _StaticAdjFnTotalList[] array where Fn ptrs list (FNs that this var participates in) for that var start; length of list is _nAdjFunctions[].
+	int32_t _StaticAdjFnTotalListSize ; // _StaticAdjFnTotalList allocated length.
+	int32_t *_nAdjFunctions ; // for each variable, the number of functions it participates in
+	int32_t *_AdjFunctions ; // for each variable, idx into _StaticAdjFnTotalList[] array where Fn ptrs list (FNs that this var participates in) for that var start; length of list is _nAdjFunctions[].
 public :
-	inline int nAdjFunctions(int idxVar) { return _nAdjFunctions[idxVar] ; }
-	inline Function *AdjFunction(int idxVar, int idxFn) { return _StaticAdjFnTotalList[_AdjFunctions[idxVar] + idxFn] ; }
-	inline int nAdjacentFunctions_QueryReleventFunctionsOnly(int idxVar) 
+	inline int32_t nAdjFunctions(int32_t idxVar) { return _nAdjFunctions[idxVar] ; }
+	inline Function *AdjFunction(int32_t idxVar, int32_t idxFn) { return _StaticAdjFnTotalList[_AdjFunctions[idxVar] + idxFn] ; }
+	inline int32_t nAdjacentFunctions_QueryReleventFunctionsOnly(int32_t idxVar) 
 	{
-		int n = 0 ;
-		for (int i = 0 ; i < _nAdjFunctions[idxVar] ; i++) {
+		int32_t n = 0 ;
+		for (int32_t i = 0 ; i < _nAdjFunctions[idxVar] ; i++) {
 			Function *f = AdjFunction(idxVar, i) ;
 			if (f->IsQueryIrrelevant()) 
 				continue ;
@@ -166,10 +198,10 @@ public :
 			}
 		return n ;
 	}
-	inline Function *AdjacentFunction_QueryRelevantFunctionsOnly(int idxVar, int idxFn) 
+	inline Function *AdjacentFunction_QueryRelevantFunctionsOnly(int32_t idxVar, int32_t idxFn) 
 	{
-		int n = 0 ;
-		for (int i = 0 ; i < _nAdjFunctions[idxVar] ; i++) {
+		int32_t n = 0 ;
+		for (int32_t i = 0 ; i < _nAdjFunctions[idxVar] ; i++) {
 			Function *f = AdjFunction(idxVar, i) ;
 			if (f->IsQueryIrrelevant()) 
 				continue ;
@@ -179,69 +211,70 @@ public :
 			}
 		return NULL ;
 	}
-	int DestroyAdjFnList(void) ;
-	int ComputeAdjFnList(bool IgnoreIrrelevantFunctions) ;
+	int32_t DestroyAdjFnList(void) ;
+	int32_t ComputeAdjFnList(bool IgnoreIrrelevantFunctions) ;
 
 	// ***************************************************************************************************
 	// problem graph
 	// ***************************************************************************************************
 
 protected :
-	int *_StaticVarTotalList ; // helper list for maitaining adj var for each var; we allocate a static list enough for all vars.
-	int _StaticVarTotalListSize ; // _StaticVarTotalList allocated length.
-	int *_Degree ; // for each variable, its degree in the graph
-	int *_AdjVars ; // for each variable, idx into _StaticVarTotalList[] array where AdjVar list (vars that this var is adj to) for that var start; length of list is _Degree[].
-	int _nSingletonVariables ;
+	int32_t *_StaticVarTotalList ; // helper list for maitaining adj var for each var; we allocate a static list enough for all vars.
+	int32_t _StaticVarTotalListSize ; // _StaticVarTotalList allocated length.
+	int32_t *_Degree ; // for each variable, its degree in the graph
+	int32_t *_AdjVars ; // for each variable, idx into _StaticVarTotalList[] array where AdjVar list (vars that this var is adj to) for that var start; length of list is _Degree[].
+	int32_t _nSingletonVariables ;
 public :
-	inline int Degree(int idxVar) { return _Degree[idxVar] ; }
-	inline int AdjVar(int idxVar, int idxAdjVar) { return _StaticVarTotalList[_AdjVars[idxVar] + idxAdjVar] ; }
-	int DestroyAdjVarList(void) ;
-	int ComputeAdjVarList(void) ; // when computing this, we assume AdjFn[] is computed.
+	inline int32_t Degree(int32_t idxVar) { return _Degree[idxVar] ; }
+	inline int32_t AdjVar(int32_t idxVar, int32_t idxAdjVar) { return _StaticVarTotalList[_AdjVars[idxVar] + idxAdjVar] ; }
+	int32_t DestroyAdjVarList(void) ;
+	int32_t ComputeAdjVarList(void) ; // when computing this, we assume AdjFn[] is computed.
 
 	// assuming variable V is adjacent to U, this fn will remove V from the list of variables adjacent to U.
-	int RemoveAdjVar(int U, int V) ;
+	int32_t RemoveAdjVar(int32_t U, int32_t V) ;
 
 	// ***************************************************************************************************
 	// connected components of the problem (graph)
 	// ***************************************************************************************************
 
 protected :
-	int _nConnectedComponents ;
+	int32_t _nConnectedComponents ;
 public :
-	int ComputeConnectedComponents(void) ; // when computing this, we assume _AdjVars[] is computed.
+	inline int32_t nConnectedComponents(void) const { return _nConnectedComponents ; }
+	int32_t ComputeConnectedComponents(void) ; // when computing this, we assume _AdjVars[] is computed.
 
 	// ***************************************************************************************************
 	// variable ordering
 	// ***************************************************************************************************
 
 protected :
-	int _VarOrdering_InducedWidth ; // width of the ordering.
-	int *_VarOrdering_VarList ; // a list of variables, in the order, [0] is root of bucket tree, for any i, descendants of i must be at indeces >i.
-	int *_VarOrdering_VarPos ; // for each variable, its position in the order.
+	int32_t _VarOrdering_InducedWidth ; // width of the ordering.
+	int32_t *_VarOrdering_VarList ; // a list of variables, in the order, [0] is root of bucket tree, for any i, descendants of i must be at indeces >i.
+	int32_t *_VarOrdering_VarPos ; // for each variable, its position in the order.
 public :
-	inline int VarOrdering_InducedWidth(void) const { return _VarOrdering_InducedWidth ; }
-	inline const int *VarOrdering_VarList(void) const { return _VarOrdering_VarList ; }
-	inline const int *VarOrdering_VarPos(void) const { return _VarOrdering_VarPos ; }
+	inline int32_t VarOrdering_InducedWidth(void) const { return _VarOrdering_InducedWidth ; }
+	inline const int32_t *VarOrdering_VarList(void) const { return _VarOrdering_VarList ; }
+	inline const int32_t *VarOrdering_VarPos(void) const { return _VarOrdering_VarPos ; }
 	void DestroyVarOrdering(void) ;
-	inline int HasVarOrdering(void) const 
+	inline bool HasVarOrdering(void) const 
 		// 2015-05-18 KK : if variable order is provided by the user, we may not know the induced width.
 		{ return /* _VarOrdering_InducedWidth >= 0 && _VarOrdering_InducedWidth < INT_MAX && */ NULL != _VarOrdering_VarList && NULL != _VarOrdering_VarPos ; }
 
 	// get variable order in various formats
-	int GetVarElimOrdering(std::vector<int> & Order, int & induced_width) ;
+	int32_t GetVarElimOrdering(std::vector<int32_t> & Order, int32_t & induced_width) ;
 
 	// set variable elimination order; we assume the order in the input array is elimination order, i.e. var[0] is the first var to be eliminated, etc.
-	int SetVarElimOrdering(const int *VarListInElimOrder, int induced_width) ;
-	int SetVarBTOrdering(const int *VarListInBTOrder, int induced_width) ;
+	int32_t SetVarElimOrdering(const int32_t *VarListInElimOrder, int32_t induced_width) ;
+	int32_t SetVarBTOrdering(const int32_t *VarListInBTOrder, int32_t induced_width) ;
 
 	// load variable order from a string buffer; we assume it is in the format "{var0;var1;...;varN}".
 	// 0=OrderType means variable elimination order.
 	// 1=OrderType means variable bucket-tree order.
-	int LoadVariableOrderingFromBuffer(int OrderType, const char *SerializedVarListInElimOrder) ;
+	int32_t LoadVariableOrderingFromBuffer(int32_t OrderType, const char *SerializedVarListInElimOrder) ;
 
 	// in the following, VarList is order such that [0] is root of the bucket tree, and for any [i], descendants of [i] must be at indeces >i.
-	int ComputeInducedWidth(const int *VarList, const int *Var2PosMap, int & InducedWidth) ;
-	int TestVariableOrdering(const int *VarList, const int *Var2PosMap) ;
+	int32_t ComputeInducedWidth(const int32_t *VarList, const int32_t *Var2PosMap, int32_t & InducedWidth) ;
+	int32_t TestVariableOrdering(const int32_t *VarList, const int32_t *Var2PosMap) ;
 
 	// ***************************************************************************************************
 	// query
@@ -249,19 +282,36 @@ public :
 
 protected :
 
-	int _QueryVariable ; // if this is set, we want to compute a distribution on this var
-	int _FnCombinationType ; // 0 = undef, 1 = product, 2 = sum
-	int _VarElimType ; // 0 = undef, 1 = sum, 2 = max, 3 = min
+	int32_t _QueryVariable ; // if this is set, we want to compute a distribution on this var
+	int32_t _FnCombinationType ; // 0 = undef, 1 = product, 2 = sum
+	int32_t _VarElimType ; // 0 = undef, 1 = sum, 2 = max, 3 = min
 
 public :
 
-	inline int FnCombinationType(void) { return _FnCombinationType ; }
-	inline int VarEliminationType(void) { return _VarElimType ; }
-	inline int QueryVariable(void) { return _QueryVariable ; }
+	inline int32_t FnCombinationType(void) { return _FnCombinationType ; }
+	inline int32_t VarEliminationType(void) { return _VarElimType ; }
+	inline int32_t QueryVariable(void) { return _QueryVariable ; }
+	inline bool IsOptimizationProblem(void) const { return VAR_ELIMINATION_TYPE_MAX == _VarElimType || VAR_ELIMINATION_TYPE_MIN == _VarElimType ; }
 
-	inline void SetQueryVariable(int v) { _QueryVariable = v ; }
-	inline void SetOperators(int FnCombinationType, int VarElimType) { _FnCombinationType = FnCombinationType ; _VarElimType = VarElimType ; }
-	int SetOperators(const char *query)
+	inline void ApplyFnCombinationOperator(ARE_Function_TableType & V, ARE_Function_TableType v)
+	{
+		if (FN_COBINATION_TYPE_PROD == _FnCombinationType) {
+			if (_FunctionsAreConvertedToLogScale) 
+				V += v ;
+			else 
+				V *= v ;
+			}
+		else if (FN_COBINATION_TYPE_SUM == _FnCombinationType) {
+			if (_FunctionsAreConvertedToLogScale) 
+				LOG_OF_SUM_OF_TWO_NUMBERS_GIVEN_AS_LOGS(V, V, v)
+			else 
+				V += v ;
+			}
+	}
+
+	inline void SetQueryVariable(int32_t v) { _QueryVariable = v ; }
+	inline void SetOperators(int32_t FnCombinationType, int32_t VarElimType) { _FnCombinationType = FnCombinationType ; _VarElimType = VarElimType ; }
+	int32_t SetOperators(const char *query)
 	{
 		if (0 == stricmp("product-sum", query)) 
 			{ _FnCombinationType = FN_COBINATION_TYPE_PROD ; _VarElimType = VAR_ELIMINATION_TYPE_SUM ; return 0 ; }
@@ -277,7 +327,7 @@ public :
 			{ _FnCombinationType = FN_COBINATION_TYPE_SUM ; _VarElimType = VAR_ELIMINATION_TYPE_MIN ; return 0 ; }
 		return 1 ;
 	}
-	int SetOperators(const char *combop, const char *elimop)
+	int32_t SetOperators(const char *combop, const char *elimop)
 	{
 		_FnCombinationType = FN_COBINATION_TYPE_NONE ;
 		_VarElimType = VAR_ELIMINATION_TYPE_NONE ;
@@ -298,7 +348,7 @@ public :
 	// VarElimOp=0 means sum, VarElimOp=1 means max.
 	// CombinationOp=0 means product, CombinationOp=1 means sum.
 	// we assume Factor is initialized.
-	int ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Factor, char VarElimOp, char CombinationOp) ;
+	int32_t ComputeQueryRelevance_VarElimination(ARE_Function_TableType & Factor, char VarElimOp, char CombinationOp) ;
 
 	// ***************************************************************************************************
 	// misc
@@ -310,23 +360,23 @@ public :
 	// as input we assume just variables, domains, functions.
 	// e.g. this fn does not compute variable order. 
 	// this fn should run fast.
-	int PerformPostConstructionAnalysis(void) ;
+	int32_t PerformPostConstructionAnalysis(void) ;
 
 	// aliminate all evidence from functions. we assume evidence is set as _Value[var] = value.
-	int EliminateEvidence(void) ;
+	int32_t EliminateEvidence(void) ;
 
 	// given evidence Var=Val, this function will eliminate the evidence variable from all functions, by assigning Var=Val.
 	// If as a result, a fn becomes a const fn, it will add it to 
-	int EliminateEvidenceVariable(int Var, int Val) ;
+	int32_t EliminateEvidenceVariable(int32_t Var, int32_t Val) ;
 
 	// eliminate all variables, whose domain has just one value, from all functions.
 	// all functions that have no arguments left, as the result, will be turned into const functions.
-	int EliminateSingletonDomainVariables(void) ;
+	int32_t EliminateSingletonDomainVariables(void) ;
 
 	// singleton consistency; for probabilistic network, check each domain value against 0-probabilities.
 	// return value  0 means ok.
 	// return value -1 means domain of some variable became empty.
-	int ComputeSingletonConsistency(int & nNewSingletonDomainVariables) ;
+	int32_t ComputeSingletonConsistency(int32_t & nNewSingletonDomainVariables) ;
 	// The following function returns is_consistent[i][j] where i indexes variables and j indexes the domains of variables
 	// is_consistent[i][j] is true if the variable value combination is consistent and false otherwise
 	void SingletonConsistencyHelper(vector<vector<bool>> & is_consistent) ;
@@ -334,23 +384,23 @@ public :
 	// this function generates a random Bayesian network structure, that is it does not generate actual tables, 
 	// just the variables (arguments) for each function (CPT).
 	// tables can be generated by calling FillInFunctionTables().
-	int GenerateRandomUniformBayesianNetworkStructure(int N, int K, int P, int C, int ProblemCharacteristic) ;
+	int32_t GenerateRandomUniformBayesianNetworkStructure(int32_t N, int32_t K, int32_t P, int32_t C, int32_t ProblemCharacteristic) ;
 
 public :
 
-	virtual int SaveXML(const std::string & Dir) ;
-	virtual int SaveUAI08(const std::string & Dir) ;
+	virtual int32_t SaveXML(const std::string & Dir) ;
+	virtual int32_t SaveUAI08(const std::string & Dir) ;
 
 	// load from file/buffer.
-	int LoadFromFile(const std::string & FileName) ;
-	int LoadFromFile_Evidence(const std::string & FileName, int & nEvidenceVars) ;
+	int32_t LoadFromFile(const std::string & FileName) ;
+	int32_t LoadFromFile_Evidence(const std::string & FileName, int32_t & nEvidenceVars) ;
 
 	// this function loads problem from UAI format file; we assume data is already in buf.
-	int LoadFromBuffer(const char *format, const char *buf, int L) ;
-	int LoadFromBuffer_Evidence(const char *format, const char *buf, int L, int & nEvidenceVars) ;
+	int32_t LoadFromBuffer(const char *format, const char *buf, int32_t L) ;
+	int32_t LoadFromBuffer_Evidence(const char *format, const char *buf, int32_t L, int32_t & nEvidenceVars) ;
 
-	int LoadUAIFormat(const char *buf, int L) ;
-	int LoadUAIFormat_Evidence(const char *buf, int L, int & nEvidenceVars) ;
+	int32_t LoadUAIFormat(const char *buf, int32_t L) ;
+	int32_t LoadUAIFormat_Evidence(const char *buf, int32_t L, int32_t & nEvidenceVars) ;
 
 public :
 
@@ -360,7 +410,7 @@ public :
 		DestroyAdjFnList() ;
 		DestroyVarOrdering() ;
 		if (NULL != _Functions) {
-			for (int i = 0 ; i < _nFunctions ; i++) {
+			for (int32_t i = 0 ; i < _nFunctions ; i++) {
 				if (NULL != _Functions[i]) 
 					delete _Functions[i] ;
 				}
@@ -422,7 +472,7 @@ public :
 	}
 } ;
 
-int fileload_getnexttoken(const char * & buf, int & L, const char * & B, int & l, bool IncludeSpecialSymbols) ;
+int32_t fileload_getnexttoken(const char * & buf, int32_t & L, const char * & B, int32_t & l, bool IncludeSpecialSymbols) ;
 
 } // namespace ARE
 

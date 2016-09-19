@@ -135,7 +135,7 @@ protected:
 
 
 inline MTRand::MTRand( const uint32& oneSeed )
-	{ seed(oneSeed); }
+	{ if (0 != oneSeed) seed(oneSeed); else seed(); }
 
 inline MTRand::MTRand( uint32 *const bigSeed, const uint32 seedLength )
 	{ seed(bigSeed,seedLength); }

@@ -10,24 +10,30 @@
 #ifdef LINUX
 typedef int64_t __int64;
 typedef unsigned int DWORD;
-#include <cstring>
 #include <cfloat>
+#include <cstring>
 
+#include <climits>
 #include <limits>
 #define _FPCLASS_NINF (- std::numeric_limits<double>::infinity())
 #define _I64_MAX (std::numeric_limits<__int64>::max())
+
+#include <cmath>
 #endif
 
-
-// macro to get system time
+// macro to get system time; others.
 #if defined LINUX
 #include <unistd.h>
 #define GETCLOCK() clock()
 #define SLEEP(X) usleep(1000*X)
+#define stricmp strcasecmp
 #else
 #define GETCLOCK() GetTickCount()
 #define SLEEP(X) Sleep(X)
 #endif
+
+#define LOG_OF_SUM_OF_TWO_NUMBERS_GIVEN_AS_LOGS(sum,x,y) { if (x == y) sum = 0.30102999566398119521373889472449 + x ; else if (x > y) sum = x + log10(1.0 + pow(10.0, y - x)) ; else sum = y + log10(1.0 + pow(10.0, x - y)) ; }
+#define LOG_OF_SUB_OF_TWO_NUMBERS_GIVEN_AS_LOGS(sub,x,y) { if (x == y) sub = - std::numeric_limits<double>::infinity() ; else if (x > y) sub = x + log10(1.0 - pow(10.0, y - x)) ; else sub = y + log10(1.0 - pow(10.0, x - y)) ; }
 
 namespace ARE
 {
@@ -102,6 +108,43 @@ int LoadVarOrderFromFile(
 	) ;
 
 int Initialize(void) ;
+
+// remove from Set1 everything not in Set2; assume both Set1 and Set2 are sorted in increasing order. on return, Set1 is sorted.
+inline void SetIntersection(int *Set1, int & N1, const int *Set2, int N2)
+{
+	int *s1 = Set1 ; const int *s2 = Set2 ;
+	int *s1E = s1+N1 ; const int *s2E = s2+N2 ;
+	while (s1 < s1E && s2 < s2E) {
+		if (*s1 == *s2) 
+			{ s1++ ; s2++ ; }
+		else if (*s1 < *s2) {
+			--s1E ;
+			for (int *s = s1 ; s < s1E ; s++) *s = *(s+1) ;
+			}
+		else 
+			{ s2++ ; }
+		}
+	N1 = s1 - Set1 ;
+}
+
+// remove from Set1 everything in Set2; assume both Set1 and Set2 are sorted in increasing order. on return, Set1 is sorted.
+inline void SetMinus(int *Set1, int & N1, const int *Set2, int N2)
+{
+	int *s1 = Set1 ; const int *s2 = Set2 ;
+	int *s1E = s1+N1 ; const int *s2E = s2+N2 ;
+	while (s1 < s1E && s2 < s2E) {
+		if (*s1 == *s2) {
+			--s1E ;
+			for (int *s = s1 ; s < s1E ; s++) *s = *(s+1) ;
+			s2++ ;
+			}
+		else if (*s1 < *s2) 
+			{ s1++ ; }
+		else 
+			{ s2++ ; }
+		}
+	N1 = s1E - Set1 ;
+}
 
 } // namespace ARE
 

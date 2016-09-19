@@ -5,7 +5,7 @@
 #include "Problem.hxx"
 //#include "ProblemGraphNode.hxx"
 #include "Workspace.hxx"
-#include "BEworkspace.hxx"
+#include "MBEworkspace.hxx"
 
 int ARE::Workspace::Destroy(void)
 {
@@ -18,21 +18,6 @@ int ARE::Workspace::Destroy(void)
 		delete _Problem ;
 	_IsValid = true ;
 	return 0 ;
-}
-
-
-void ARE::Workspace::AddErrorExplanation(ARE::Function *f, ARE::FunctionTableBlock *ftb)
-{
-	ARE::Explanation *e = new ARE::Explanation(ARE::Explantion_Error) ;
-	if (NULL == e) 
-		SetFatalError() ;
-	else {
-		if (NULL != f) 
-			e->_Bucket = f->OriginatingBucket() ;
-		if (NULL != ftb) 
-			e->_FTBidx = ftb->IDX() ;
-		AddExplanation(*e) ;
-		}
 }
 
 
@@ -58,7 +43,7 @@ bool ARE::Workspace::HasErrorExplanation(void)
 void ARE::Workspace::LogStatistics(time_t ttStart, time_t ttFinish)
 {
 	if (NULL != ARE::fpLOG) {
-		char s[1024] ;
+/*		char s[1024] ;
 		__int64 i64 ;
 		int i ;
 
@@ -112,13 +97,6 @@ void ARE::Workspace::LogStatistics(time_t ttStart, time_t ttFinish)
 		double art = _FTBComputationTimeTotal - _FileSaveTimeTotal - _FileLoadTimeTotal ;
 		x = runtime > 0 ? ((double) art)/((double) 1000.0*runtime) : -1.0 ;
 		fprintf(ARE::fpLOG, "\n   avg num threads actually computing data = %g", x) ;
-/*
-		for (i64 = 0 ; i64 < nBlocksWaited ; i64++) {
-			int BucketIDX ; __int64 BlockIDX ;
-			InputTableBlockWaitDetails(i64, BucketIDX, BlockIDX) ;
-			fprintf(ARE::fpLOG, "\nFTB wait %I64d = %d %I64d", i64, BucketIDX, BlockIDX) ;
-			}
-*/
 		if (NULL != bews) {
 			fprintf(ARE::fpLOG, "\nNumber of FTBs loaded per bucket") ;
 			for (i = 0 ; i < bews->nBuckets() ; i++) {
@@ -127,7 +105,7 @@ void ARE::Workspace::LogStatistics(time_t ttStart, time_t ttFinish)
 				__int64 nblocks = f.nTableBlocks() ;
 				fprintf(ARE::fpLOG, "\n bucket %d OUT : n blocks = %I64d, n times loaded %d", (int) i, nblocks, _nFTBsLoadedPerBucket[i]) ;
 				}
-			}
+			}*/
 		fflush(ARE::fpLOG) ;
 		}
 }

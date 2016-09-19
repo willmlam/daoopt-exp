@@ -12,7 +12,13 @@
 
 namespace ARE { class ARP ; }
 namespace ARE { class Function ; }
-namespace ARE { class FunctionTableBlock ; }
+
+#ifndef ARP_nInfinity
+#define ARP_nInfinity (-std::numeric_limits<double>::infinity())
+#endif // ARP_nInfinity
+#ifndef ARP_pInfinity
+#define ARP_pInfinity (std::numeric_limits<double>::infinity())
+#endif // ARP_pInfinity
 
 namespace ARE
 {
@@ -42,7 +48,7 @@ protected :
 public :
 	inline bool HasFatalError(void) const { return _HasFatalError ; }
 	inline void SetFatalError(void) { _HasFatalError = true ; }
-	void AddErrorExplanation(ARE::Function *f, ARE::FunctionTableBlock *ftb) ;
+	void AddErrorExplanation(ARE::Function *f) ;
 	void AddExplanation(ARE::Explanation & E) ;
 	bool HasErrorExplanation(void) ;
 

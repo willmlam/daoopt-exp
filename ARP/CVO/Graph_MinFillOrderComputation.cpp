@@ -35,7 +35,7 @@ have_list :
 int ARE::Graph::ComputeVariableEliminationOrder_Simple(char CostFunction, int WidthLimit, bool EarlyTermination_W, double TotalComplexityLimit, bool EarlyTermination_C, bool QuitAfterEasyIsDone, int EasyWidth, int n4RandomPick, double eRandomPick, int & TempAdjVarSpaceSizeExtraArrayN, AdjVar *TempAdjVarSpaceSizeExtraArray[])
 {
 	_nFillEdges = 0 ;
-	if (NULL == _Problem || _nNodes < 1) 
+	if (_nNodes < 1) 
 		return 0 ;
 	int nRemaining = _nNodes - _OrderLength ;
 	if (nRemaining <= 0) 
@@ -383,8 +383,8 @@ printf("\nMinFill : round %d w=%d type=%c var=%d degree=%d MinFillScore=%d ElimS
 
 	if (_Nodes[X]._Degree > _VarElimOrderWidth) 
 		_VarElimOrderWidth = _Nodes[X]._Degree ;
-	if (_Nodes[X]._EliminationScore > _MaxVarElimComplexity) 
-		_MaxVarElimComplexity = _Nodes[X]._EliminationScore ;
+	if (_Nodes[X]._EliminationScore > _MaxVarElimComplexity_Log10) 
+		_MaxVarElimComplexity_Log10 = _Nodes[X]._EliminationScore ;
 //	_TotalVarElimComplexity += _Nodes[X]._EliminationScore ;
 #ifdef TEST_COMPL_CORRECT
 double xxx = log10(1.0 + pow(10.0, _Nodes[X]._EliminationScore - _TotalVarElimComplexity)) ;
@@ -394,17 +394,17 @@ xxx, _Nodes[X]._EliminationScore, _TotalVarElimComplexity, _Nodes[X]._Eliminatio
 exit(1) ;
 }
 #endif // TEST_COMPL_CORRECT
-	_TotalVarElimComplexity += log10(1.0 + pow(10.0, _Nodes[X]._EliminationScore - _TotalVarElimComplexity)) ;
+	_TotalVarElimComplexity_Log10 += log10(1.0 + pow(10.0, _Nodes[X]._EliminationScore - _TotalVarElimComplexity_Log10)) ;
 	double space = _Nodes[X]._EliminationScore - _Nodes[X]._LogK ;
-	_TotalNewFunctionStorageAsNumOfElements += log10(1.0 + pow(10.0, space - _TotalNewFunctionStorageAsNumOfElements)) ;
+	_TotalNewFunctionStorageAsNumOfElements_Log10 += log10(1.0 + pow(10.0, space - _TotalNewFunctionStorageAsNumOfElements_Log10)) ;
 
 	if (EarlyTermination_C) {
 //printf("\nLAST CHECK : _TotalVarElimComplexity %I64d TotalComplexityLimit %I64d", _TotalVarElimComplexity, TotalComplexityLimit) ;
 		// check if the complexity is blown
-		if (_TotalVarElimComplexity >= TotalComplexityLimit) 
+		if (_TotalVarElimComplexity_Log10 >= TotalComplexityLimit) 
 			return ERRORCODE_EliminationComplexityTooLarge ;
 		// check if InfiniteSingleVarElimComplexity is blown
-		if (_MaxVarElimComplexity >= InfiniteSingleVarElimComplexity_log) 
+		if (_MaxVarElimComplexity_Log10 >= InfiniteSingleVarElimComplexity_log) 
 			return ERRORCODE_EliminationComplexityTooLarge ;
 		}
 	if (EarlyTermination_W) {
@@ -1264,6 +1264,113 @@ remove_X :
 		exit(1) ;
 		}
 */
+
+	goto pick_next_var ;
+}
+
+
+int ARE::Graph::ComputeVariableEliminationOrder_LowerBound(void)
+{
+	if (NULL == _Problem || _nNodes < 1) 
+		return 0 ;
+	int nRemaining = _nNodes - _OrderLength ;
+	if (nRemaining <= 0) 
+		return 0 ;
+
+	// we will eliminate variables one at a time, picking a min-degree variable at each time.
+	// when eliminating a variable, we simple drop it, remove adjacent edges, and add no new edges.
+	// max degree of any variable eliminated is a lower bound on induced width.
+
+	int i, j, k, X, u, v ;
+
+#define maxNumVarsForPicking 256 // this is built-in hard limit of the number of variables we consider for picking; make it large enough.
+	int nVarsToPickFrom ;
+	int VarsToPickFrom[maxNumVarsForPicking] ; // make sure this array has at least maxNumVarsForPicking elements
+  int degree ;
+
+pick_next_var :
+
+	// if only ignore variables are left, be done
+	if (nRemaining <= _nIgnoreVariables) 
+		return 0 ;
+
+	// if there are any (non-ignore) trivial/MinFillScore=0 variables, just pick one
+	for (i = 0 ; i < _nTrivialNodes ; i++) {
+		u = _TrivialNodesList[i] ;
+		if (IsIgnoreVariable(u)) continue ;
+		X = u ;
+		goto eliminate_picked_variable ;
+		}
+	for (i = 0 ; i < _nMinFillScore0Nodes ; i++) {
+		u = _MinFill0ScoreList[i] ;
+		if (IsIgnoreVariable(u)) continue ;
+		X = u ;
+		goto eliminate_picked_variable ;
+		}
+
+	// collect min-degree nodes out of general nodes
+	u = _RemainingNodesList[0] ;
+	VarsToPickFrom[0] = u ;
+	nVarsToPickFrom = 1 ;
+	degree = _Nodes[u]._Degree ;
+	for (i = 1 ; i < _nRemainingNodes ; i++) {
+		u = _RemainingNodesList[i] ;
+		if (IsIgnoreVariable(u)) continue ;
+		if (_Nodes[u]._Degree > degree) continue ;
+		if (_Nodes[u]._Degree < degree) {
+			nVarsToPickFrom = 1 ;
+			VarsToPickFrom[0] = u ;
+			degree = _Nodes[u]._Degree ;
+			}
+		else if (nVarsToPickFrom < maxNumVarsForPicking) {
+			VarsToPickFrom[nVarsToPickFrom++] = u ;
+			}
+		}
+	if (0 == nVarsToPickFrom) 
+		return ERRORCODE_NoVariablesLeftToPickFrom ;
+	if (1 == nVarsToPickFrom) 
+		i = 0 ;
+	else 
+		i = _RNG.randInt(nVarsToPickFrom-1) ;
+	X = VarsToPickFrom[i] ;
+	goto eliminate_picked_variable ;
+
+eliminate_picked_variable :
+
+	/*
+		DEF = width is number of variables in a cluster - 1.
+	*/
+
+	RemoveVarFromList(X) ;
+	_VarType[X] = 0 ;
+	_PosOfVarInList[X] = _OrderLength ;
+	_VarElimOrder[_OrderLength++] = X ;
+	--nRemaining ;
+
+	if (_Nodes[X]._Degree > _VarElimOrderWidth) 
+		_VarElimOrderWidth = _Nodes[X]._Degree ;
+
+	if (0 == _Nodes[X]._Degree) {
+		goto pick_next_var ;
+		}
+
+	for (AdjVar *avX = _Nodes[X]._Neighbors ; NULL != avX ; avX = avX->_NextAdjVar) {
+		u = avX->_V ;
+		_Nodes[u]._Degree-- ;
+
+		/* we don't really need to update adjacency list of u; its degree is already updated
+		AdjVar *av_u_last = NULL, *av_u_next ;
+		for (AdjVar *av_u = _Nodes[u]._Neighbors ; NULL != av_u ; av_u = av_u_next) {
+			av_u_next = av_u->_NextAdjVar ;
+			if (X == av_u->_V) { // take av_u out of the adjacency list of u
+				if (NULL == av_u_last) 
+					{ _Nodes[u]._Neighbors = av_u_next ; }
+				else 
+					{ av_u_last->_NextAdjVar = av_u_next ; }
+				break ;
+				}
+			}*/
+		}
 
 	goto pick_next_var ;
 }
