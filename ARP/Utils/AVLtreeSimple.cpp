@@ -77,7 +77,7 @@ void CMauiAVLTreeSimple::EmptyQuick(void)
 	if (0 == m_size) 
 		return ;
 
-	unsigned long i, j ;
+	uint32_t i, j ;
 
 	// find last node in the used list
 	j = m_root ;
@@ -100,7 +100,7 @@ void CMauiAVLTreeSimple::EmptyQuick(void)
 
 void CMauiAVLTreeSimple::Empty(void)
 {
-	unsigned long i ;
+	uint32_t i ;
 
 /*
 	Initialize parameters.
@@ -125,7 +125,7 @@ void CMauiAVLTreeSimple::Empty(void)
 }
 
 
-void CMauiAVLTreeSimple::SetReallocationSize(unsigned long reallocation_size)
+void CMauiAVLTreeSimple::SetReallocationSize(uint32_t reallocation_size)
 {
 	if (reallocation_size <= AVL_SIZE_LIMIT) 
 		m_re_allocation_size = reallocation_size ;
@@ -136,9 +136,9 @@ void CMauiAVLTreeSimple::SetReallocationSize(unsigned long reallocation_size)
 	This is an internal function to reserve space for the AVL tree.
 */
 
-int CMauiAVLTreeSimple::AllocateMemory(unsigned long new_size)
+int CMauiAVLTreeSimple::AllocateMemory(uint32_t new_size)
 {
-	unsigned long i ;
+	uint32_t i ;
 
 	// check if there is a tree already. if yes, destroy it.
 	if (m_db_tree) {
@@ -195,7 +195,7 @@ int CMauiAVLTreeSimple::AllocateMemory(unsigned long new_size)
 
 int CMauiAVLTreeSimple::ReAllocateMemory(void)
 {
-	unsigned long new_size, i ;
+	uint32_t new_size, i ;
 	MauiAVLNodeSimple *new_db_tree = NULL ;
 
 	if (m_re_allocation_size < 1) return 0 ;
@@ -268,13 +268,13 @@ CMauiAVLTreeSimple::CMauiAVLTreeSimple(void)
 	NB! this function will sort the array 'key' (and 'data').
 */
 
-CMauiAVLTreeSimple::CMauiAVLTreeSimple(unsigned long tree_size /* number of keys (>= 0) */, 
-	long *key /* an array of keys */, 
-	unsigned long space /* how much space to allocate for the AVL tree (> 0) */, 
-	unsigned long re_allocation_size)
+CMauiAVLTreeSimple::CMauiAVLTreeSimple(uint32_t tree_size /* number of keys (>= 0) */, 
+	int32_t *key /* an array of keys */, 
+	uint32_t space /* how much space to allocate for the AVL tree (> 0) */, 
+	uint32_t re_allocation_size)
 {
-	unsigned long i ;
-	long j ;
+	uint32_t i ;
+	int32_t j ;
 
 /*
 	Qualification check.
@@ -308,11 +308,11 @@ CMauiAVLTreeSimple::CMauiAVLTreeSimple(unsigned long tree_size /* number of keys
  * sort entities first
  * ********** ********** */
 
-	long left[32], right[32] ;
+	int32_t left[32], right[32] ;
 	QuickSortLong2(key,tree_size, left, right) ;
 
 #ifdef DEBUG_AVL
-	if (! Sort_Check_long(key,tree_size)) {
+	if (! Sort_Check_Long(key,tree_size)) {
 		}
 #endif
 
@@ -469,10 +469,10 @@ void CMauiAVLTreeSimple::PrintTree(void)
 
 #define SIZE_CHECK_TREE 1024
 static char sCheckTree[SIZE_CHECK_TREE] ;
-long CMauiAVLTreeSimple::CheckTree(char **pErrorStr)
+int32_t CMauiAVLTreeSimple::CheckTree(char **pErrorStr)
 {
-	unsigned long i, j, m ;
-	unsigned long k ;
+	uint32_t i, j, m ;
+	uint32_t k ;
 
 	if (pErrorStr) 
 		*pErrorStr = 0 ;
@@ -520,7 +520,7 @@ long CMauiAVLTreeSimple::CheckTree(char **pErrorStr)
 	for (i = m_first_used_block, j = 0 ; i ; i = m_db_tree[i].m_next_entity) {
 		if (++j > m_size) {
 			if (pErrorStr) {
-				sprintf_s(sCheckTree, SIZE_CHECK_TREE, "next_entity list too long\n") ;
+				sprintf_s(sCheckTree, SIZE_CHECK_TREE, "next_entity list too int32_t\n") ;
 				*pErrorStr = sCheckTree ;
 				}
 			goto failure_12_09_1994 ;
@@ -544,7 +544,7 @@ long CMauiAVLTreeSimple::CheckTree(char **pErrorStr)
 	for (i = k, j = 0 ; i ; i = m_db_tree[i].m_prev_entity) {
 		if (++j > m_size) {
 			if (pErrorStr) {
-				sprintf_s(sCheckTree, SIZE_CHECK_TREE, "prev_entity list too long\n") ;
+				sprintf_s(sCheckTree, SIZE_CHECK_TREE, "prev_entity list too int32_t\n") ;
 				*pErrorStr = sCheckTree ;
 				}
 			goto failure_12_09_1994 ;
@@ -569,7 +569,7 @@ long CMauiAVLTreeSimple::CheckTree(char **pErrorStr)
 	for (i = m_first_free_block, j = 0 ; i ; i = m_db_tree[i].m_next_entity) {
 		if (++j > m_free_size) {
 			if (pErrorStr) {
-				sprintf_s(sCheckTree, SIZE_CHECK_TREE, "free next_entity list too long\n") ;
+				sprintf_s(sCheckTree, SIZE_CHECK_TREE, "free next_entity list too int32_t\n") ;
 				*pErrorStr = sCheckTree ;
 				}
 			goto failure_12_09_1994 ;
@@ -647,7 +647,7 @@ backtrack_12_07_1994:
 			for (--k ; k >= 0 && Left[k] < 0 ; k--) {
 				++m ;
 				// right now: [k] points to a node; m is right child height, Right[k] is left child height
-				if ((m - Right[k]) != (long) m_db_tree[labs(Left[k])].m_balance) {
+				if ((m - Right[k]) != (int32_t) m_db_tree[labs(Left[k])].m_balance) {
 					if (pErrorStr) {
 						j = labs(Left[k]) ;
 						sprintf_s(sCheckTree, SIZE_CHECK_TREE,"mismatch of balances real r=%ld l=%ld node=%ld h=%d known=%d LC h=%d RC h=%d",
@@ -658,8 +658,8 @@ backtrack_12_07_1994:
 						}
 					goto failure_12_09_1994 ;
 					}
-				if (Right[k] > (long)m) m = Right[k] ;
-				if (m != (long) m_db_tree[labs(Left[k])].m_height) {
+				if (Right[k] > (int32_t)m) m = Right[k] ;
+				if (m != (int32_t) m_db_tree[labs(Left[k])].m_height) {
 					if (pErrorStr) {
 						sprintf_s(sCheckTree, SIZE_CHECK_TREE,"real height is not equal to what is known in db; 2--> k=%ld Right[k]=%ld Left[k]=%ld m_db_tree[Left[k]]=%d\n",k,Right[k],Left[k],m_db_tree[labs(Left[k])].m_height) ;
 						*pErrorStr = sCheckTree ;
@@ -668,7 +668,7 @@ backtrack_12_07_1994:
 					}
 				}
 			++m ;
-			if (Right[k] < (long)m) Right[k] = m ;
+			if (Right[k] < (int32_t)m) Right[k] = m ;
 			else m = Right[k] ;
 			if (k < 0) break ; // done
 			// we used to go left at node [k] (because left[k]>0); now we need to go right.
@@ -695,7 +695,7 @@ backtrack_12_07_1994:
 					goto failure_12_09_1994 ;
 					}
 
-				if (((long) m_db_tree[i].m_balance) != ((long) m_db_tree[m_db_tree[i].m_RC].m_height) - ((long) m_db_tree[m_db_tree[i].m_LC].m_height)) {
+				if (((int32_t) m_db_tree[i].m_balance) != ((int32_t) m_db_tree[m_db_tree[i].m_RC].m_height) - ((int32_t) m_db_tree[m_db_tree[i].m_LC].m_height)) {
 					if (pErrorStr) {
 						sprintf_s(sCheckTree, SIZE_CHECK_TREE,"1 balance computed incorrectly. node %ld",i) ;
 						*pErrorStr = sCheckTree ;
@@ -704,7 +704,7 @@ backtrack_12_07_1994:
 					}
 				}
 			else {
-				if (((long) m_db_tree[i].m_balance) != ((long) m_db_tree[m_db_tree[i].m_RC].m_height) + 1) {
+				if (((int32_t) m_db_tree[i].m_balance) != ((int32_t) m_db_tree[m_db_tree[i].m_RC].m_height) + 1) {
 					if (pErrorStr) {
 						sprintf_s(sCheckTree, SIZE_CHECK_TREE,"2 balance computed incorrectly. node %ld",i) ;
 						*pErrorStr = sCheckTree ;
@@ -722,7 +722,7 @@ backtrack_12_07_1994:
 				goto failure_12_09_1994 ;
 				}
 
-			if (((long) m_db_tree[i].m_balance) != -((long) m_db_tree[m_db_tree[i].m_LC].m_height) - 1) {
+			if (((int32_t) m_db_tree[i].m_balance) != -((int32_t) m_db_tree[m_db_tree[i].m_LC].m_height) - 1) {
 				if (pErrorStr) {
 					sprintf_s(sCheckTree, SIZE_CHECK_TREE,"3 balance computed incorrectly. node %ld",i) ;
 					*pErrorStr = sCheckTree ;
@@ -737,14 +737,14 @@ backtrack_12_07_1994:
 			}
 		else { // right subtree (if exists) not scanned
 			if (0 == m_db_tree[i].m_RC) { // no right subtree!
-				if (-Right[k] != (long) m_db_tree[labs(Left[k])].m_balance) {
+				if (-Right[k] != (int32_t) m_db_tree[labs(Left[k])].m_balance) {
 					if (pErrorStr) {
 						sprintf_s(sCheckTree, SIZE_CHECK_TREE,"real balance is not what is known in db (no right subtree)") ;
 						*pErrorStr = sCheckTree ;
 						}
 					goto failure_12_09_1994 ;
 					}
-				if (Right[k] != (long) m_db_tree[labs(Left[k])].m_height) {
+				if (Right[k] != (int32_t) m_db_tree[labs(Left[k])].m_height) {
 					if (pErrorStr) {
 						sprintf_s(sCheckTree, SIZE_CHECK_TREE,"real height is not equal to what is known in db (no right subtree); 2--> k=%ld Right[k]=%ld Left[k]=%ld m_db_tree[Left[k]]=%d\n",k,Right[k],Left[k],m_db_tree[labs(Left[k])].m_height) ;
 						*pErrorStr = sCheckTree ;
@@ -810,10 +810,10 @@ failure_12_09_1994:
  * ********** ********** ********** ********** ********** ********** ********** ********** ********** */
 
 
-void CMauiAVLTreeSimple::R_rotation(unsigned long k)
+void CMauiAVLTreeSimple::R_rotation(uint32_t k)
 // make an R rotation (this function is used only by AVL_delete)
 {
-	unsigned long i, lc, rc ;
+	uint32_t i, lc, rc ;
 
 	i = m_db_tree[k].m_LC ;
 	m_db_tree[k].m_LC = m_db_tree[i].m_RC ;
@@ -832,10 +832,10 @@ void CMauiAVLTreeSimple::R_rotation(unsigned long k)
 }
 
 
-void CMauiAVLTreeSimple::L_rotation(unsigned long k)
+void CMauiAVLTreeSimple::L_rotation(uint32_t k)
 // make an L rotation (this function is used only by AVL_delete)
 {
-	unsigned long i, lc, rc ;
+	uint32_t i, lc, rc ;
 
 	i = m_db_tree[k].m_RC ;
 	m_db_tree[k].m_RC = m_db_tree[i].m_LC ;
@@ -862,7 +862,7 @@ void CMauiAVLTreeSimple::BalanceInsertTree(void)
 // 		when we delete a key, a different balancing function is used
 //		(this function here is very specific for insertion (and perhaps a little more efficient than the general balancing function))
 {
-	unsigned long a, b, c, d, i ;
+	uint32_t a, b, c, d, i ;
 
 	if (path_len < 1) return ; // the tree is already balanced
 
@@ -999,7 +999,7 @@ up_the_tree_12_04_94:
 void CMauiAVLTreeSimple::BalanceDeleteTree(void)
 // balance the tree after an deletion is done
 {
-	unsigned long i, j, k ;
+	uint32_t i, j, k ;
 	signed short h ;
 
 	// Left[path_len] is equal to the current node (its balance and height are correct)
@@ -1082,7 +1082,7 @@ rebalance_parent_12_07_1994:
 		If the id is in the tree, Left[path_len] is 0.
 */
 
-long CMauiAVLTreeSimple::Find(long id)  
+int32_t CMauiAVLTreeSimple::Find(int32_t id)  
 {
 #ifdef DEBUG_AVL_mutex
 	if (NULL == _msAVLdebugMutex) 
@@ -1090,7 +1090,7 @@ long CMauiAVLTreeSimple::Find(long id)
 	COptexEXTAutoLock lock(*_msAVLdebugMutex) ;
 #endif // _DEBUG
 
-	long i, j ;
+	int32_t i, j ;
 
 /*
 	Qualification check.
@@ -1140,9 +1140,9 @@ down_the_tree_12_04_94:
 }
 
 
-long CMauiAVLTreeSimple::FindNext(long key, long *next_key)  
+int32_t CMauiAVLTreeSimple::FindNext(int32_t key, int32_t *next_key)  
 {
-	long j ;
+	int32_t j ;
 	if ((j = Find(key))) {
 		// this entity is already in the database; increase data.
 		j = m_db_tree[j].m_next_entity ;
@@ -1168,7 +1168,7 @@ long CMauiAVLTreeSimple::FindNext(long key, long *next_key)
 	return TRUE and replace the data associated with this key
 */
 
-long CMauiAVLTreeSimple::Insert(long id)
+int32_t CMauiAVLTreeSimple::Insert(int32_t id)
 {
 #ifdef DEBUG_AVL_mutex
 	if (NULL == _msAVLdebugMutex) 
@@ -1176,7 +1176,7 @@ long CMauiAVLTreeSimple::Insert(long id)
 	COptexEXTAutoLock lock(*_msAVLdebugMutex) ;
 #endif // _DEBUG
 
-	unsigned long i, j ;
+	uint32_t i, j ;
 
 /*
 	Qualification check.
@@ -1305,7 +1305,7 @@ long CMauiAVLTreeSimple::Insert(long id)
 	return the index of the node if deleted, 0 if the id is not in the database
 */
 
-long CMauiAVLTreeSimple::RemoveFirst(long *key /* output */) // returns TRUE iff everything is fine
+int32_t CMauiAVLTreeSimple::RemoveFirst(int32_t *key /* output */) // returns TRUE iff everything is fine
 {
 #ifdef DEBUG_AVL_mutex
 	if (NULL == _msAVLdebugMutex) 
@@ -1328,7 +1328,7 @@ long CMauiAVLTreeSimple::RemoveFirst(long *key /* output */) // returns TRUE iff
 	return the index of the node if deleted, 0 if the id is not in the database
 */
 
-long CMauiAVLTreeSimple::Remove(long id)
+int32_t CMauiAVLTreeSimple::Remove(int32_t id)
 {
 #ifdef DEBUG_AVL_mutex
 	if (NULL == _msAVLdebugMutex) 
@@ -1336,7 +1336,7 @@ long CMauiAVLTreeSimple::Remove(long id)
 	COptexEXTAutoLock lock(*_msAVLdebugMutex) ;
 #endif // _DEBUG
 
-	unsigned long i, j, k, r ;
+	uint32_t i, j, k, r ;
 
 /*
 	Qualification check.
@@ -1508,7 +1508,7 @@ switch_nodes_12_07_1994:
 	this function does not move the current pointer
 */
 
-//long CMauiAVLTreeSimple::get_first_key_data(long *key /* can be NULL */, long *data /* can be NULL */)
+//int32_t CMauiAVLTreeSimple::get_first_key_data(int32_t *key /* can be NULL */, int32_t *data /* can be NULL */)
 //{
 //	if (m_size < 1) return 0 ;
 //	if (key) *key = m_db_tree[m_first_used_block].m_id ;
@@ -1521,10 +1521,10 @@ switch_nodes_12_07_1994:
 	this function does not move the current pointer
 */
 
-//long CMauiAVLTreeSimple::get_second_key_data(long *key /* can be NULL */, long *data /* can be NULL */)
+//int32_t CMauiAVLTreeSimple::get_second_key_data(int32_t *key /* can be NULL */, int32_t *data /* can be NULL */)
 //{
 //	if (m_size < 2) return 0 ;
-//	long next_ent = m_db_tree[m_first_used_block].m_next_entity ;
+//	int32_t next_ent = m_db_tree[m_first_used_block].m_next_entity ;
 //	if (key) *key = m_db_tree[next_ent].m_id ;
 //	if (data) *data = m_db_tree[next_ent].m_data ;
 //	return 1 ;
@@ -1537,7 +1537,7 @@ switch_nodes_12_07_1994:
 	Sets the selection/current pointer to the first node in the tree.
 */
 
-long CMauiAVLTreeSimple::GetFirst(long *key /* can be NULL */, long & current) const 
+int32_t CMauiAVLTreeSimple::GetFirst(int32_t *key /* can be NULL */, int32_t & current) const 
 {
 	if (m_size < 1) {
 		current = 0 ;
@@ -1556,7 +1556,7 @@ long CMauiAVLTreeSimple::GetFirst(long *key /* can be NULL */, long & current) c
 	Moves the current selection pointer to the next node in the tree.
 */
 
-long CMauiAVLTreeSimple::GetNext(long *key /* can be NULL */, long & current) const 
+int32_t CMauiAVLTreeSimple::GetNext(int32_t *key /* can be NULL */, int32_t & current) const 
 {
 	// if the tree is empty, cannot select anything
 	if (m_size < 1) {
@@ -1572,7 +1572,7 @@ long CMauiAVLTreeSimple::GetNext(long *key /* can be NULL */, long & current) co
 		if (key) *key = m_db_tree[current].m_id ;
 		return 1 ;
 		}
-	if (0 == current || current > (long)m_allocated_space) {
+	if (0 == current || current > (int32_t)m_allocated_space) {
 		if (key) *key = 0 ;
 		current = 0 ;
 		return 0 ;
@@ -1592,7 +1592,7 @@ long CMauiAVLTreeSimple::GetNext(long *key /* can be NULL */, long & current) co
 	// get next key
 	current = m_db_tree[current].m_next_entity ;
 	// check if points to valid node
-	if (0 == current || current > (long)m_allocated_space) {
+	if (0 == current || current > (int32_t)m_allocated_space) {
 		if (key) *key = 0 ;
 		return 0 ;
 		}
@@ -1606,7 +1606,7 @@ long CMauiAVLTreeSimple::GetNext(long *key /* can be NULL */, long & current) co
 // this function returns the key/data pointed to by 'current' 
 // (if -1==current, then this means the first, if 0==current, then this means NONE).
 // it also forwars the 'current' pointer to the next element in the set.
-long CMauiAVLTreeSimple::GetCurrentAndAdvance(long *key /* can be NULL */, long & current) const 
+int32_t CMauiAVLTreeSimple::GetCurrentAndAdvance(int32_t *key /* can be NULL */, int32_t & current) const 
 {
 	// if the tree is empty, cannot select anything
 	if (m_size < 1) {
@@ -1620,7 +1620,7 @@ long CMauiAVLTreeSimple::GetCurrentAndAdvance(long *key /* can be NULL */, long 
 	if (current < 0) {
 		current = m_first_used_block ;
 		}
-	if (0 == current || current > (long)m_allocated_space) {
+	if (0 == current || current > (int32_t)m_allocated_space) {
 		if (key) *key = 0 ;
 		current = 0 ;
 		return 0 ;
@@ -1650,9 +1650,9 @@ long CMauiAVLTreeSimple::GetCurrentAndAdvance(long *key /* can be NULL */, long 
 	key we are looking for by 1 and keep looking.
 */
 
-long CMauiAVLTreeSimple::FindSmallestPositiveKeyNotUsed(void)
+int32_t CMauiAVLTreeSimple::FindSmallestPositiveKeyNotUsed(void)
 {
-	long i, j, target_key ;
+	int32_t i, j, target_key ;
 
 	// check if the tree is empty
 	if (m_size < 1) return 1 ;
@@ -1705,7 +1705,7 @@ backtrack_10_11_95 :
 }
 
 
-long CMauiAVLTreeSimple::TestTree(int numIterations, char **pErrorStr) // returns TRUE iff the tree is OK.
+int32_t CMauiAVLTreeSimple::TestTree(int numIterations, char **pErrorStr) // returns TRUE iff the tree is OK.
 {
 	if (pErrorStr) 
 		*pErrorStr = NULL ;
@@ -1714,12 +1714,12 @@ long CMauiAVLTreeSimple::TestTree(int numIterations, char **pErrorStr) // return
 
 	// we will need to keep track of the data we insert into the tree; we will use this array.
 #define MAX_TEST_KEYS 512
-	long keys[MAX_TEST_KEYS] ;
+	int32_t keys[MAX_TEST_KEYS] ;
 	int nk = 0 ;
 
 	// we will execute a number of sequences of operations: insert, remove.
 	int n = 0 ;
-	unsigned long minSize = 999999, maxSize = 0 ;
+	uint32_t minSize = 999999, maxSize = 0 ;
 	int totalSize = 0, totalN = 0 ;
 	Empty() ;
 	while (n < numIterations) {
@@ -1749,7 +1749,7 @@ long CMauiAVLTreeSimple::TestTree(int numIterations, char **pErrorStr) // return
 			for (i = 0 ; i < l && n < numIterations ; i++) {
 				if (0 == nk) break ; // check if out of keys
 				// with a small probability, try to remove a non-existent key)
-				long key = -1 ;
+				int32_t key = -1 ;
 				int p = mtrandgen.randInt(19) ;
 				if (0 == p) {
 					key = mtrandgen.randInt(999999) ;
@@ -1802,7 +1802,7 @@ long CMauiAVLTreeSimple::TestTree(int numIterations, char **pErrorStr) // return
 
 bool CMauiAVLTreeSimple::operator<<(const CMauiAVLTreeSimple & AVLtree)
 {
-	unsigned long i ;
+	uint32_t i ;
 
 	// if current memory not enough, let it go
 	if (NULL == m_db_tree || m_allocated_space < AVLtree.m_allocated_space) {
@@ -1851,13 +1851,13 @@ bool CMauiAVLTreeSimple::operator<<(const CMauiAVLTreeSimple & AVLtree)
 }
 
 
-bool CMauiAVLTreeSimple::TestConsistency(long checkbitvector) const
+bool CMauiAVLTreeSimple::TestConsistency(int32_t checkbitvector) const
 {
 	// checkbitvector & 1 = check height
 	// checkbitvector & 2 = check balance
 
 	if (NULL == m_db_tree) return true ;
-	unsigned long i, n ;
+	uint32_t i, n ;
 
 	// NOTE : all indeces must be within [1, m_allocated_space]
 
@@ -1897,12 +1897,12 @@ bool CMauiAVLTreeSimple::TestConsistency(long checkbitvector) const
 	// go through all used nodes; check that left child is smaller, right child is larger.
 	for (i = m_first_used_block ; i ; i = m_db_tree[i].m_next_entity) {
 		if (m_db_tree[i].m_LC) {
-			unsigned long lid = m_db_tree[i].m_LC ;
+			uint32_t lid = m_db_tree[i].m_LC ;
 			if (m_db_tree[lid].m_id > m_db_tree[i].m_id) 
 				return false ;
 			}
 		if (m_db_tree[i].m_RC) {
-			unsigned long rid = m_db_tree[i].m_RC ;
+			uint32_t rid = m_db_tree[i].m_RC ;
 			if (m_db_tree[rid].m_id < m_db_tree[i].m_id) 
 				return false ;
 			}

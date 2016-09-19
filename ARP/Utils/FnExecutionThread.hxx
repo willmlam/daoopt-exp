@@ -5,7 +5,7 @@
 #include <Utils/MiscUtils.hxx>
 
 #if defined WINDOWS || _WINDOWS
-typedef unsigned int (*pFnExecutionThreadFn)(void *X) ;
+typedef unsigned int (__stdcall *pFnExecutionThreadFn)(void *X) ;
 #elif defined (LINUX)
 typedef void *(*pFnExecutionThreadFn)(void *X) ;
 #endif 

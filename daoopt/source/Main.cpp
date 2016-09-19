@@ -226,44 +226,37 @@ bool Main::findOrLoadOrdering() {
   double timediff = 0.0;
   time_order_start = high_resolution_clock::now();
 
-  /*
-  scoped_ptr<ARE::Graph> cvoGraph;
-  scoped_ptr<ARE::Graph> cvoMasterGraph;
-  scoped_ptr<CMauiAVLTreeSimple> cvoAvlVars2CheckScore;
-  scoped_ptr<ARE::AdjVarMemoryDynamicManager> cvoTempAdjVarSpace;
+  unique_ptr<ARE::Graph> cvo_graph;
+  unique_ptr<ARE::Graph> cvo_master_graph;
+  int temp_adj_var_space_exists = 0;
+  ARE::AdjVar** temp_adj_var_space_size_extra_array = nullptr;
 
   if (m_options->order_cvo) {
-    vector< const vector<int>* > fn_signatures;
-    BOOST_FOREACH( Function* f, m_problem->getFunctions() )
-    { fn_signatures.push_back(& f->getScopeVec()); }
+    vector< const vector<int>*> fn_signatures;
+    for (Function* f : m_problem->getFunctions()) {
+      fn_signatures.push_back(&f->getScopeVec());
+    }
 
-    cvoMasterGraph.reset(new ARE::Graph);
-    cvoMasterGraph->Create(m_problem->getN(), fn_signatures);
-    if (!cvoMasterGraph->_IsValid)
+    cvo_master_graph.reset(new ARE::Graph());
+    cvo_master_graph->Create(m_problem->getN(), fn_signatures);
+    cvo_master_graph->RNG().seed(m_options->seed);
+    if (!cvo_master_graph->_IsValid) {
       return false;
+    }
+    temp_adj_var_space_size_extra_array = new ARE::AdjVar*[1000];
 
-    cvoAvlVars2CheckScore.reset(new CMauiAVLTreeSimple);
-    cvoTempAdjVarSpace.reset(new
-  ARE::AdjVarMemoryDynamicManager(ARE_TempAdjVarSpaceSize));
-
-    cvoMasterGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
-        INT_MAX, false, true, 10, m_options->cvo_n_random_pick,
-        m_options->cvo_e_random_pick, *cvoAvlVars2CheckScore,
-  *cvoTempAdjVarSpace);
-    cvoMasterGraph->ReAllocateEdges();
-
-    cvoGraph.reset(new ARE::Graph);
+    cvo_master_graph->ComputeVariableEliminationOrder_Simple(0, INT_MAX, false,
+        DBL_MAX, false, true, 1, 1, 0.0, temp_adj_var_space_exists,
+        temp_adj_var_space_size_extra_array);
+    cvo_master_graph->ReAllocateEdges();
+    
   }
-  */
-
   // Search for variable elimination ordering, looking for min. induced
   // width, breaking ties via pseudo tree height
   cout << "Searching for elimination ordering,";
-  /*
   if (m_options->order_cvo) {
     cout << " CVO,";
   }
-  */
 
   if (m_options->order_iterations != NONE)
     cout << " " << m_options->order_iterations << " iterations";
@@ -281,21 +274,26 @@ bool Main::findOrLoadOrdering() {
     vector<int> elimCand;   // new ordering candidate
     bool improved = false;  // improved in this iteration?
     int new_w;
-    /*
     if (m_options->order_cvo) {
-      *cvoGraph = *cvoMasterGraph;
-      new_w = cvoGraph->ComputeVariableEliminationOrder_Simple_wMinFillOnly(
-          w, true, false, 10, m_options->cvo_n_random_pick,
-          m_options->cvo_e_random_pick, *cvoAvlVars2CheckScore, *cvoTempAdjVarSpace);
-      if (new_w != 0)
+      cvo_graph.reset(new ARE::Graph());
+      *cvo_graph = *cvo_master_graph;
+      // seed based on daoopt's RNG; this lets us have deterministic iterations
+      // subject to daoopt's seed.
+      cvo_graph->RNG().seed(rand::next());
+      int width_limit = INT_MAX;
+      double space_limit = DBL_MAX;
+      new_w = cvo_graph->ComputeVariableEliminationOrder_Simple(
+          0, width_limit, false, space_limit, false, false, 10, 1, 0.0,
+          temp_adj_var_space_exists, temp_adj_var_space_size_extra_array);
+      if (new_w != 0) {
+        cout << "WARNING! (errorcode: " << new_w << ")" << endl;
         new_w = INT_MAX;
-      else {
-        new_w = cvoGraph->_VarElimOrderWidth;
-        elimCand.assign(cvoGraph->_VarElimOrder,
-            cvoGraph->_VarElimOrder + cvoGraph->_nNodes);
+      } else {
+        new_w = cvo_graph->_VarElimOrderWidth;
+        elimCand.assign(cvo_graph->_VarElimOrder,
+                        cvo_graph->_VarElimOrder + cvo_graph->_nNodes);
       }
-    }
-    else */ {
+    } else {
       new_w =
           m_pseudotree->eliminate(g, elimCand, w, m_options->order_tolerance);
     }
@@ -332,6 +330,11 @@ bool Main::findOrLoadOrdering() {
     if (m_options->order_timelimit != NONE &&
         timediff > m_options->order_timelimit)
       break;
+  }
+  if (temp_adj_var_space_size_extra_array) {
+    for (int i = temp_adj_var_space_exists - 1; i >= 0; --i) {
+      delete[] temp_adj_var_space_size_extra_array[i];
+    }
   }
   time_order_cur = high_resolution_clock::now();
   timediff = duration_cast<duration<double>>(time_order_cur - time_order_start)

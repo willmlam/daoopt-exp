@@ -1,32 +1,20 @@
-include_directories(
-  ./
-  ./BE
-  ./CVO
-  ./Problem
-  ./Utils
-  ../minisat
-)
+include_directories(../minisat)
 
 add_library(ARP OBJECT
+  ./BE/MiniBucket.cpp
   ./BE/Bucket.cpp
-  ./BE/BEworkspace.cpp
+  ./BE/MBEworkspace.cpp
   ./CVO/Graph.cpp
   ./CVO/Graph_MinFillOrderComputation.cpp
-  ./CVO/Graph_RemoveRedundantFillEdges.cpp
   ./CVO/VariableOrderComputation.cpp
-  ./Problem/Function.cpp
-  ./Problem/FunctionTableBlock.cpp
-  ./Problem/Globals.cpp
+  ./CVO/Graph_RemoveRedundantFillEdges.cpp
   ./Problem/Problem.cpp
+  ./Problem/Globals.cpp
   ./Problem/Workspace.cpp
-  ./Utils/Array.cpp
-  ./Utils/AVLtree.cpp
+  ./Problem/Function.cpp
   ./Utils/AVLtreeSimple.cpp
-  ./Utils/FnExecutionThread.cpp
-  ./Utils/Heap.cpp
-  ./Utils/HeapBasic.cpp
-  ./Utils/HeapBasicReductionWithPermutationMapping.cpp
-  ./Utils/MiscUtils.cpp
   ./Utils/Mutex.cpp
+  ./Utils/MiscUtils.cpp
+  ./Utils/FnExecutionThread.cpp
   ./Utils/Sort.cxx
 )

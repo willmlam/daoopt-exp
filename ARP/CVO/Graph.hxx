@@ -23,8 +23,8 @@ class ARP ;
 class AdjVar
 {
 public :
-	int _V ;
-	int _IterationEdgeAdded ;
+	int32_t _V ;
+	int32_t _IterationEdgeAdded ;
 	AdjVar *_NextAdjVar ;
 public :
 	AdjVar(void) : _V(-1), _IterationEdgeAdded(-1), _NextAdjVar(NULL) { }
@@ -33,13 +33,13 @@ public :
 class Node
 {
 public :
-	int _Degree ;
+	int32_t _Degree ;
 	double _LogK ; // log of the domain size of the variable
-	int _MinFillScore ;
+	int32_t _MinFillScore ;
 	double _EliminationScore ; // log of the product of domain sizes of variables in N_G[v]
 	AdjVar *_Neighbors ;
 public :
-	Node(int Degree = 0) : _Degree(Degree), _LogK(0.0), _MinFillScore(-1), _EliminationScore(0.0), _Neighbors(NULL) { }
+	Node(int32_t Degree = 0) : _Degree(Degree), _LogK(0.0), _MinFillScore(-1), _EliminationScore(0.0), _Neighbors(NULL) { }
 } ;
 
 class Graph
@@ -47,40 +47,40 @@ class Graph
 public :
 	ARP *_Problem ;
 public :
-	int _nNodes ;
+	int32_t _nNodes ;
 	Node *_Nodes ; // we assume that the adj-node-list for each node is sorted in increasing order of node indeces
 public :
-	int _nEdges ; // this is the actual number of edges in the graph; size of _StaticAdjVarTotalList is 2*_nEdges.
+	int32_t _nEdges ; // this is the actual number of edges in the graph; size of _StaticAdjVarTotalList is 2*_nEdges.
 	AdjVar *_StaticAdjVarTotalList ;
 public :
 	// this function is used when the initial edge set has changed (e.g. because some variables have been eliminated), 
 	// and we want to consolidate/cleanup the edge set.
-	int ReAllocateEdges(void) ;
+	int32_t ReAllocateEdges(void) ;
 	// this function is used when the initial edge set has changed and number of edges has changed, 
 	// and we want to consolidate/cleanup the edge set.
 	// note that NewNumEdges may be larger than current number of edges.
-	int ReAllocateEdges(int NewNumEdges) ;
+	int32_t ReAllocateEdges(int32_t NewNumEdges) ;
 	// this function adds an edge (both ways) between two variables, using the provided AdjVar objects; if uv/vu data member _V is -1, then this obj was not used (probably because already adjacent before).
-	int AddEdge(int u, int v, AdjVar & uv, AdjVar & vu) ;
+	int32_t AddEdge(int32_t u, int32_t v, AdjVar & uv, AdjVar & vu) ;
 	// this function adds an edge u->v, using the provided AdjVar object
-	int AddEdge(int u, int v, AdjVar & uv) ;
+	int32_t AddEdge(int32_t u, int32_t v, AdjVar & uv) ;
 	// this function removes an edge between two variables, returning the AdjVar objects that were used for the edges
-	int RemoveEdge(int u, int v, AdjVar * & uv, AdjVar * & vu) ;
+	int32_t RemoveEdge(int32_t u, int32_t v, AdjVar * & uv, AdjVar * & vu) ;
 public :
-	int _VarElimOrderWidth ;
-	double _MaxVarElimComplexity ; // log og
-	double _TotalVarElimComplexity ; // log of
-	double _TotalNewFunctionStorageAsNumOfElements ; // log of
-	int _nFillEdges ;
+	int32_t _VarElimOrderWidth ;
+	double _MaxVarElimComplexity_Log10 ; // log of
+	double _TotalVarElimComplexity_Log10 ; // log of
+	double _TotalNewFunctionStorageAsNumOfElements_Log10 ; // log of
+	int32_t _nFillEdges ;
 public :
-	inline double ComputeEliminationComplexity(int v) 
+	inline double ComputeEliminationComplexity(int32_t v) 
 	{
 		double score = _Nodes[v]._LogK ;
 		for (AdjVar *av = _Nodes[v]._Neighbors ; NULL != av ; av = av->_NextAdjVar) 
 			score += _Nodes[av->_V]._LogK ;
 		return score ;
 /*
-		__int64 score = _Problem->K(v) ;
+		int64_t score = _Problem->K(v) ;
 		for (AdjVar *av = _Nodes[v]._Neighbors ; NULL != av ; av = av->_NextAdjVar) {
 			score *= _Problem->K(av->_V) ;
 			if (score >= InfiniteSingleVarElimComplexity) 
@@ -89,7 +89,7 @@ public :
 		return score ;
 */
 	}
-	inline void AdjustScoresForArcAddition(int u, int v, int CurrentIteration)
+	inline void AdjustScoresForArcAddition(int32_t u, int32_t v, int32_t CurrentIteration)
 	{
 		/* TODO improvement :
 			we will move nodes whose score is decremented to 0, into _MFSchangelist[] list.
@@ -150,7 +150,7 @@ move_on2 :
 		// Note that here w = av_u->_V == av_v->_V may on adjacent to X ("on the circle") or not ("outside the circle").
 		// in case that is it on the circle, we need to make sure that edges (u,w) and (v,w) existed before.
 		if (u < v && av_u->_IterationEdgeAdded < CurrentIteration && av_v->_IterationEdgeAdded < CurrentIteration) {
-			int w = av_u->_V ;
+			int32_t w = av_u->_V ;
 			--_Nodes[w]._MinFillScore ; 
 			if (0 == _MFShaschanged[w]) 
 				{ _MFShaschanged[w] = 1 ; _MFSchangelist[_nMFSchanges++] = w ; }
@@ -162,43 +162,44 @@ move_on2 :
 public :
 	// 0=ordered, 1=Trivial, 2=MinFillScore0, 3=General
 	char *_VarType ;
-	int *_PosOfVarInList ;
+	int32_t *_PosOfVarInList ;
 	// some variables should be ignored; they should go at the end of the elimination list
-	int _nIgnoreVariables ;
-	int _IgnoreVariables[1] ; // 2014-04-21 KK : for now, we have at most 1 ignore variable.
+	int32_t _nIgnoreVariables ;
+	int32_t _IgnoreVariables[1] ; // 2014-04-21 KK : for now, we have at most 1 ignore variable.
 	// list of ordered variables; in elimination order.
-	int _OrderLength ;
-	int *_VarElimOrder ;
+	int32_t _OrderLength ;
+	int32_t *_VarElimOrder ;
 	// temporary space for holding trivial nodes (degree(X) <= 1)
-	int _nTrivialNodes ;
-	int *_TrivialNodesList ;
+	int32_t _nTrivialNodes ;
+	int32_t *_TrivialNodesList ;
 	// temporary holding space for MinFillScore=0 nodes. During OrderingCreation, we rely on the fact that once a node's MinFill score becomes 0, it stays zero.
 	// note that if node is trivial, it should not be in MinFillScore=0 list.
-	int _nMinFillScore0Nodes ;
-	int *_MinFill0ScoreList ;
+	int32_t _nMinFillScore0Nodes ;
+	int32_t *_MinFill0ScoreList ;
 	// temporary holding space for remining nodes.
-	int _nRemainingNodes ;
-	int *_RemainingNodesList ;
+	int32_t _nRemainingNodes ;
+	int32_t *_RemainingNodesList ;
 public :
-	// temporary space for storing edges to add during each variable ordering computation iteration
-	short _EdgeU[ARE_GRAPH_VAR_ORDER_COMP_MAX_NUM_EDGES_ADDED] ;
-	short _EdgeV[ARE_GRAPH_VAR_ORDER_COMP_MAX_NUM_EDGES_ADDED] ;
+	// temporary space for storing edges to add during each variable ordering computation iteration.
+	// 2015-12-01 KK : changed _Edge[] element type from short to int, so that more than 32K variables can be used.
+	int32_t _EdgeU[ARE_GRAPH_VAR_ORDER_COMP_MAX_NUM_EDGES_ADDED] ;
+	int32_t _EdgeV[ARE_GRAPH_VAR_ORDER_COMP_MAX_NUM_EDGES_ADDED] ;
 	// we need to track vars whose MFS changes.
 	char *_MFShaschanged ; // a boolean for each var, whether its MFS has changed of not
-	int *_MFSchangelist ; // a list of vars whose MFS has changed
-	int _nMFSchanges ;
+	int32_t *_MFSchangelist ; // a list of vars whose MFS has changed
+	int32_t _nMFSchanges ;
 public :
-	inline bool IsIgnoreVariable(int X)
+	inline bool IsIgnoreVariable(int32_t X)
 	{
-		for (int iii = 0 ; iii < _nIgnoreVariables ; iii++) {
+		for (int32_t iii = 0 ; iii < _nIgnoreVariables ; iii++) {
 			if (X == _IgnoreVariables[iii]) 
 				return true ;
 			}
 		return false ;
 	}
-	inline void RemoveVarFromList(int X)
+	inline void RemoveVarFromList(int32_t X)
 	{
-		int i = _PosOfVarInList[X] ;
+		int32_t i = _PosOfVarInList[X] ;
 		// it must be that i>=0
 		_PosOfVarInList[X] = -1 ;
 		if (3 == _VarType[X]) {
@@ -221,7 +222,7 @@ public :
 			}
 		// else X is ordered; we will not remove these variables.
 	}
-	inline void ProcessPostEliminationNodeListLocation(int u) 
+	inline void ProcessPostEliminationNodeListLocation(int32_t u) 
 	{
 		// check if u has become special; this function is called, after X is eliminated, for all nodes u whose MinFill score has changed
 
@@ -229,7 +230,7 @@ public :
 			// check if u has become trivial
 			if (_Nodes[u]._Degree <= 1) {
 // DEBUGGG
-//printf("\nMinFill : round %d picked var=%d; making u=%d trivial, VarToMinFill0ScoreListMap[u]=%d ...", (int) nOrdered, (int) X, (int) u, (int) _VarToMinFill0ScoreListMap[u]) ;
+//printf("\nMinFill : round %d picked var=%d; making u=%d trivial, VarToMinFill0ScoreListMap[u]=%d ...", (int32_t) nOrdered, (int32_t) X, (int32_t) u, (int32_t) _VarToMinFill0ScoreListMap[u]) ;
 				RemoveVarFromList(u) ;
 				_PosOfVarInList[u] = _nTrivialNodes ;
 				_TrivialNodesList[_nTrivialNodes++] = u ;
@@ -241,7 +242,7 @@ public :
 			if (_Nodes[u]._Degree <= 1) {
 				RemoveVarFromList(u) ;
 // DEBUGGG
-//printf("\nMinFill : round %d picked var=%d; making u=%d trivial, VarToMinFill0ScoreListMap[u]=%d ...", (int) nOrdered, (int) X, (int) u, (int) _VarToMinFill0ScoreListMap[u]) ;
+//printf("\nMinFill : round %d picked var=%d; making u=%d trivial, VarToMinFill0ScoreListMap[u]=%d ...", (int32_t) nOrdered, (int32_t) X, (int32_t) u, (int32_t) _VarToMinFill0ScoreListMap[u]) ;
 				_PosOfVarInList[u] = _nTrivialNodes ;
 				_TrivialNodesList[_nTrivialNodes++] = u ;
 				_VarType[u] = 1 ;
@@ -260,53 +261,57 @@ public :
 protected :
 	MTRand _RNG ;
 public :
-	int ComputeVariableEliminationOrder_Simple(
+	inline MTRand & RNG(void) { return _RNG ; }
+public :
+	int32_t ComputeVariableEliminationOrder_LowerBound(void) ;
+	int32_t ComputeVariableEliminationOrder_Simple(
 		char CostFunction, // 0=MinFill, 1=MinDegree, 2=MinComplexity
 		// width/complexity of the best know order; used to cut off search when the elimination order we found is not very good
-		int WidthLimit, 
+		int32_t WidthLimit, 
 		bool EarlyTermination_W, 
 		double TotalComplexityLimit, // log of the complexity limit
 		bool EarlyTermination_C, 
 		// if true, we will quit after all Trivial/MinFillScore0 nodes have been used up. This is typically used to generate a starting point for large-scale randomized searches.
 		bool QuitAfterEasyIsDone, 
 		// width that is considered trivial; whenever a variale with this width is found, it can be eliminated right away, even if it is not the variable with the smallest width
-		int EasyWidth, 
+		int32_t EasyWidth, 
 		// when no easy variables (e.g. degree <=1, MinFillScore=0) are to pick, we pick randomly among a few best nodes.
-		int nRandomPick, 
+		int32_t nRandomPick, 
 		double eRandomPick, 
 		// temp AdjVar space; size of each block is TempAdjVarSpaceSize.
-		int & TempAdjVarSpaceSizeExtraArrayN, AdjVar *TempAdjVarSpaceSizeExtraArray[]
+		int32_t & TempAdjVarSpaceSizeExtraArrayN, AdjVar *TempAdjVarSpaceSizeExtraArray[]
 		) ;
-	int ComputeVariableEliminationOrder_Simple_wMinFillOnly(
+	int32_t ComputeVariableEliminationOrder_Simple_wMinFillOnly(
 		// width/complexity of the best know order; used to cut off search when the elimination order we found is not very good
-		int WidthLimit, 
+		int32_t WidthLimit, 
 		bool EarlyTermination_W, 
 		// if true, we will quit after all Trivial/MinFillScore0 nodes have been used up. This is typically used to generate a starting point for large-scale randomized searches.
 		bool QuitAfterEasyIsDone, 
 		// width that is considered trivial; whenever a variale with this width is found, it can be eliminated right away, even if it is not the variable with the smallest width
-		int EasyWidth, 
+		int32_t EasyWidth, 
 		// when no easy variables (e.g. degree <=1, MinFillScore=0) are to pick, we pick randomly among a few best nodes.
-		int nRandomPick, 
+		int32_t nRandomPick, 
 		double eRandomPick, 
 		// temp AdjVar space; size of each block is TempAdjVarSpaceSize.
-		int & TempAdjVarSpaceSizeExtraArrayN, AdjVar *TempAdjVarSpaceSizeExtraArray[]
+		int32_t & TempAdjVarSpaceSizeExtraArrayN, AdjVar *TempAdjVarSpaceSizeExtraArray[]
 		) ;
 public :
-	int RemoveRedundantFillEdges(void) ;
+	int32_t RemoveRedundantFillEdges(void) ;
 public :
-	int operator=(const Graph & G) ;
-	int Test(int MaxWidthAcceptableForSingleVariableElimination) ;
+	int32_t operator=(const Graph & G) ;
+	int32_t Test(int32_t MaxWidthAcceptableForSingleVariableElimination) ;
 public :
-	Graph(ARP *Problem = NULL) ;
+	Graph(ARP *Problem = NULL, uint32_t RandomGeneratorSeed = 0) ;
 	~Graph(void) ;
-	int Destroy(void) ;
+	int32_t Destroy(void) ;
 
 	// create a graph from a problem
-	int Create(ARP & Problem) ;
+	int32_t Create(ARP & Problem) ;
 
-//	// create a graph from the given set of fn signatures. 
-//	// we assume each signature is correct : var indeces range [0, nNodes), there are no repetitions.
-//	int Create(int nNodes, std::vector<std::set<int>> & fn_signatures) ;
+	// create a graph from the given set of fn signatures. 
+	// we assume each signature is correct : var indeces range [0, nNodes), there are no repetitions.
+	int32_t Create(int32_t nNodes,
+                 const std::vector<const std::vector<int>*> & fn_signatures) ;
 } ;
 
 } // namespace ARE

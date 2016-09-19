@@ -31,7 +31,11 @@ RecursiveMutex::RecursiveMutex(
 #elif defined LINUX
 	pthread_mutexattr_t mutexAttributes ;
 	pthread_mutexattr_init(&mutexAttributes) ;
+#ifdef __APPLE__
 	pthread_mutexattr_settype(&mutexAttributes, PTHREAD_MUTEX_RECURSIVE) ;
+#else
+	pthread_mutexattr_settype(&mutexAttributes, PTHREAD_MUTEX_RECURSIVE_NP) ;
+#endif
 	pthread_mutex_init(&_RM, &mutexAttributes) ;
 	pthread_mutexattr_destroy(&mutexAttributes) ;
 #endif
