@@ -148,6 +148,8 @@ DEFINE_int32(lookahead_n_be_abs_error_to_include, INT_MAX,
              "to include in LH");
 DEFINE_double(lookahead_starting_probability, 1.0,
              "initial probability of performing lookahead");
+DEFINE_double(lookahead_min_probability, 0.2,
+             "minimum probability of performing lookahead");
 DEFINE_bool(lookahead_fix_probability, false, "keep the same probabiliy of"
             "performing lookahead");
 DEFINE_bool(lookahead_always_perform_if_better_once, false, "always perform"

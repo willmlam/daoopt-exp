@@ -29,6 +29,7 @@
 DECLARE_bool(bee_importance_sampling);
 DECLARE_bool(aobf_subordering_use_relative_error);
 DECLARE_double(lookahead_starting_probability);
+DECLARE_double(lookahead_min_probability);
 DECLARE_bool(lookahead_fix_probability);
 DECLARE_bool(lookahead_always_perform_if_better_once);
 DECLARE_bool(lookahead_always_compute);
@@ -634,23 +635,74 @@ double MiniBucketElimLH::getHeurPerIndSubproblem(
 }
 
 void MiniBucketElimLH::noteOrNodeExpansionBeginning(
-    int var, std::vector<val_t> &assignment, SearchNode *search_node) {
+    int var, vector<val_t> &assignment, SearchNode *search_node) {
 
-  MBLHSubtree &lhHelper = _Lookahead[var];
-  lookahead_subtree_updated_ = false;
-  if (lhHelper._SubtreeNodes.size() > 0) {
+  MBLHSubtree* lhHelper = &_Lookahead[var];
+  lookahead_subtree_ok_ = false;
+
+  // For sub lookahead subtrees, get the appropriate helper
+  if (lhHelper->_IsCopyOfEarlierSubtree) {
+    vector<val_t> assignment_backup;
+    vector<val_t*> assignment_ptrs;
+
+    int earlier_subtree_var = lhHelper->_IsCopyOfEarlierSubtree->_RootVar;
+
+    // find out which assignments could potentially be modified that need to
+    // restored
+    int v = var;
+    do {
+      v = m_pseudotree->getNode(v)->getParent()->getVar(); 
+      assignment_backup.push_back(assignment[v]);
+      assignment_ptrs.push_back(&assignment[v]);
+    } while (v != earlier_subtree_var);
+
+
+    bool need_more_computation_for_copy = false;
+    MBLHSubtree* lhHelperOriginal = &_Lookahead[earlier_subtree_var];
+    for (MBLHSubtreeNode* c :
+        lhHelper->_IsCopyOfEarlierSubtree->_Children) {
+      if (!c->_IsValidForCurrentContext) {
+        need_more_computation_for_copy = true;
+        break;
+      }
+    }
     if (FLAGS_lookahead_always_compute ||
+        !need_more_computation_for_copy ||
         _nLHcalls[var] < max_lookahead_trials_ ||
         (FLAGS_lookahead_always_perform_if_better_once &&
           count_better_ordering_[var] > 0) ||
         rand::next_unif() <= lookahead_probability_[var]) {
       ++_nLHcalls[var];
-      lhHelper.ComputeHeuristic(assignment);
-      lookahead_subtree_updated_ = true;
+      if (need_more_computation_for_copy) {
+        lhHelperOriginal->ComputeHeuristicSubset(assignment,
+            lhHelper->_IsCopyOfEarlierSubtree);
+        // Restore assignment
+        for (int i = 0; i < assignment_backup.size(); ++i) {
+          *assignment_ptrs[i] = assignment_backup[i];
+        }
+      }
+      lookahead_subtree_ok_ = true;
     } else {
       ++_nLHcallsSkipped[var];
     }
+  } else if (lhHelper->_SubtreeNodes.size() > 0) {
+    if (FLAGS_lookahead_always_compute ||
+        _nLHcalls[var] < max_lookahead_trials_ ||
+        (FLAGS_lookahead_always_perform_if_better_once &&
+         count_better_ordering_[var] > 0) ||
+        rand::next_unif() <= lookahead_probability_[var]) {
+      ++_nLHcalls[var];
+      lhHelper->ComputeHeuristic(assignment);
+      lookahead_subtree_ok_ = true;
+    } else {
+      // if the helper is an original subtree, we need to invalidate it.
+      if (!lhHelper->_IsCopyOfEarlierSubtree) {
+        lhHelper->Invalidate();
+      }
+      ++_nLHcallsSkipped[var];
+    }
   }
+
 }
 
 double MiniBucketElimLH::getHeur(int var, std::vector<val_t> &assignment,
@@ -663,7 +715,7 @@ double MiniBucketElimLH::getHeur(int var, std::vector<val_t> &assignment,
 #endif
 
   MBLHSubtree &lhHelper = _Lookahead[var];
-  if (0 == lhHelper._SubtreeNodes.size() || !lookahead_subtree_updated_) {
+  if (0 == lhHelper._SubtreeNodes.size() || !lookahead_subtree_ok_) {
     return MiniBucketElim::getHeur(var, assignment, search_node);
   }
   _Stats._NumNodesLookahead[var] += 1;
@@ -747,39 +799,43 @@ void MiniBucketElimLH::getHeurAll(int var, vector<val_t> &assignment,
 
   // Check if lookahead is possibly relevant
   MBLHSubtree &lhHelper = _Lookahead[var];
-  if (lhHelper._SubtreeNodes.size() > 0 && lookahead_subtree_updated_) {
+  if (lhHelper._SubtreeNodes.size() > 0 && lookahead_subtree_ok_) {
     if (!FLAGS_lookahead_always_compute) {
-      // storage for comparison purposes later
-      //    vector<pair<int, double>> no_lh_pairs;
-      //    vector<pair<int, double>> lh_pairs;
       int no_lh_argmax = -1;
       double no_lh_max = ELEM_ZERO;
       int lh_argmax = -1;
       double lh_max = ELEM_ZERO;
 
-      // Overwrite non-lh values, but store them first for comparison
+      // We decide if they're different by just comparing the
+      // argmaxs of the two orderings (results in false negatives)
       for (val_t i = 0; i < var_domain_size; ++i) {
         assignment[var] = i;
+        double lh_value = lhHelper.GetHeuristic(assignment);
         if (out[i] > no_lh_max) {
           no_lh_argmax = i;
           no_lh_max = out[i];
         }
-        //      no_lh_pairs.push_back(make_pair(i, out[i]));
-        out[i] = lhHelper.GetHeuristic(assignment);
-        if (out[i] > lh_max) {
+        if (lh_value > lh_max) {
           lh_argmax = i;
           lh_max = out[i];
         }
-        //      lh_pairs.push_back(make_pair(i, out[i]));
+
+        /*
+        if (lh_value - out[i] > 1e-14) {
+          cout << "WARNING: lh value is worse than non-lh value: "
+            << (lh_value OP_DIVIDE out[i]) << endl;
+        }
+        */
+        out[i] = lh_value;
       }
 
-      // Faster approximation based only on the max
-      // Update count and probability
+      // Update count and probability, if ordering is different
       if (no_lh_argmax != lh_argmax) {
         ++count_better_ordering_[var];
         if (!FLAGS_lookahead_fix_probability) {
           lookahead_probability_[var] =
-              max(0.1, static_cast<double>(count_better_ordering_[var]) /
+              max(FLAGS_lookahead_min_probability,
+                  static_cast<double>(count_better_ordering_[var]) /
                   _nLHcalls[var]);
         }
       }

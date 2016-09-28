@@ -35,6 +35,8 @@ using namespace std::chrono;
 // exactly the same errors are the higher (earlier) LH subtree.
 // #define IGNORE_COPY_SUBTREE
 
+#define REUSE_IDENTICAL_SUBTREES
+
 /* disables DEBUG output */
 #undef DEBUG
 
@@ -168,6 +170,7 @@ int daoopt::MBLHSubtreeNode::Delete(void)
 
 int daoopt::MBLHSubtreeNode::ComputeOutputFunction(std::vector<val_t> & assignment)
 {
+  _IsValidForCurrentContext = true;
 	if (NULL == _OutputFunction) 
 		return 0 ;
 	if (! _idxVarMappingComputed) {
@@ -526,6 +529,7 @@ int daoopt::MBLHSubtree::ComputeSubtree(void)
 	for (vector<MBLHSubtreeNode *>::iterator itST = _SubtreeNodes.begin(); itST != _SubtreeNodes.end(); ++itST) 
 		(*itST)->SerializeSignature() ;
 
+#ifdef REUSE_IDENTICAL_SUBTREES
 	// check if this subtree is a subset of the subtree of some ancestor
 	std::vector<MBLHSubtree> & lhArray = _H->LH() ;
 	daoopt::PseudotreeNode *p = nRootVar->getParent() ;
@@ -552,6 +556,7 @@ int daoopt::MBLHSubtree::ComputeSubtree(void)
 		fprintf(_H->m_options->_fpLogFile, "\nMATCH : subtree of rootvar %d is a subset of subtree of %d at distance=%d", _RootVar, _IsCopyOfEarlierSubtree->_RootVar, dUp) ;
 		fflush(_H->m_options->_fpLogFile) ;
 		}
+#endif
 
 	return 0 ;
 }
@@ -605,6 +610,12 @@ int daoopt::MBLHSubtree::Initialize(MiniBucketElimLH & H, int v, int depth, int 
 	return 0 ;
 }
 
+void daoopt::MBLHSubtree::Invalidate() {
+  for (MBLHSubtreeNode* n : _SubtreeNodes) {
+    n->_IsValidForCurrentContext = false;
+  }
+}
+
 void daoopt::MBLHSubtree::ComputeHeuristic(std::vector<val_t> & assignment)
 {
 	// compute subtree output functions, bottom-up, only if this LH subtree is not a copy of a (subtree of) an earlier (higher in the bucket tree) LH subtree
@@ -612,11 +623,47 @@ void daoopt::MBLHSubtree::ComputeHeuristic(std::vector<val_t> & assignment)
 		++_RootNode._nTimesComputed ;
 
 		// compute output functions of all nodes, back-to-front; since _SubtreeNodes[] is in order where u<v means v is a descendant of u, this is ok.
-		for (int i = _SubtreeNodes.size()-1 ; i >= 0 ; i--) {
+		for (int i = _SubtreeNodes.size() - 1 ; i >= 0 ; i--) {
 			MBLHSubtreeNode *n = _SubtreeNodes[i] ;
 			n->ComputeOutputFunction(assignment) ;
-			}
-		}
+    }
+  } 
+}
+
+// This will compute only the necessary output functions
+void daoopt::MBLHSubtree::ComputeHeuristicSubset(std::vector<val_t>& assignment,
+    MBLHSubtreeNode* sub_root) {
+  // this should never be called by a subtree that is subsumed by an ancestor.
+  assert(!_IsCopyOfEarlierSubtree);
+
+  // sort of strange to increment this here, but we'll do it for now.
+  ++_RootNode._nTimesComputed;
+
+  // generate a stack such that we compute the output functions bottom up
+  std::stack<MBLHSubtreeNode*> dfs;
+  for (MBLHSubtreeNode* c : sub_root->_Children) {
+    if (!c->_IsValidForCurrentContext) {
+      dfs.push(c);
+    }
+  }
+
+  std::stack<MBLHSubtreeNode*> subtree_nodes;
+  while(!dfs.empty()) {
+    MBLHSubtreeNode* top = dfs.top();
+    subtree_nodes.push(top);
+    dfs.pop();
+    for (MBLHSubtreeNode* c : top->_Children) {
+      if (!c->_IsValidForCurrentContext) {
+        dfs.push(c);
+      }
+    }
+  }
+
+  while(!subtree_nodes.empty()) {
+    MBLHSubtreeNode* n = subtree_nodes.top();
+    n->ComputeOutputFunction(assignment);
+    subtree_nodes.pop();
+  }
 }
 
 double daoopt::MBLHSubtree::GetHeuristic(std::vector<val_t> & assignment)

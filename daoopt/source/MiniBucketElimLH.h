@@ -197,7 +197,7 @@ class MiniBucketElimLH : public MiniBucketElim {
 
   // Flag to note whether ComputeHeuristic was called so getHeur* functions know
   // whether GetHeuristic calls should be made on the lookahead subtree
-  bool lookahead_subtree_updated_;
+  bool lookahead_subtree_ok_;
 
  public:
   inline std::vector<MBLHSubtree> &LH(void) { return _Lookahead; }
@@ -355,7 +355,7 @@ inline MiniBucketElimLH::MiniBucketElimLH(Problem *p, Pseudotree *pt,
       _nBucketsWithNonZeroBucketError(-1),
       _nBucketsWithMoreThan1MB(-1),
       max_lookahead_trials_(100),
-      lookahead_subtree_updated_(false) {}
+      lookahead_subtree_ok_(false) {}
 
 inline void MiniBucketElimLH::printExtraStats() const {
   cout << "Heuristic call counts: " << endl;
