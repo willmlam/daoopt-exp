@@ -656,16 +656,22 @@ void MiniBucketElimLH::noteOrNodeExpansionBeginning(
       assignment_ptrs.push_back(&assignment[v]);
     } while (v != earlier_subtree_var);
 
-
-    bool need_more_computation_for_copy = false;
+    lookahead_subtree_ok_ = true;
     MBLHSubtree* lhHelperOriginal = &_Lookahead[earlier_subtree_var];
     for (MBLHSubtreeNode* c :
         lhHelper->_IsCopyOfEarlierSubtree->_Children) {
       if (!c->_IsValidForCurrentContext) {
-        need_more_computation_for_copy = true;
+        lookahead_subtree_ok_ = false;
         break;
       }
     }
+    if (lookahead_subtree_ok_) {
+      ++_nLHcalls[var];
+    } else {
+      ++_nLHcallsSkipped[var];
+    }
+
+    /*
     if (FLAGS_lookahead_always_compute ||
         !need_more_computation_for_copy ||
         _nLHcalls[var] < max_lookahead_trials_ ||
@@ -685,6 +691,7 @@ void MiniBucketElimLH::noteOrNodeExpansionBeginning(
     } else {
       ++_nLHcallsSkipped[var];
     }
+    */
   } else if (lhHelper->_SubtreeNodes.size() > 0) {
     if (FLAGS_lookahead_always_compute ||
         _nLHcalls[var] < max_lookahead_trials_ ||
@@ -695,10 +702,8 @@ void MiniBucketElimLH::noteOrNodeExpansionBeginning(
       lhHelper->ComputeHeuristic(assignment);
       lookahead_subtree_ok_ = true;
     } else {
-      // if the helper is an original subtree, we need to invalidate it.
-      if (!lhHelper->_IsCopyOfEarlierSubtree) {
-        lhHelper->Invalidate();
-      }
+      // Invalidate this subtree for it's children
+      lhHelper->Invalidate();
       ++_nLHcallsSkipped[var];
     }
   }
