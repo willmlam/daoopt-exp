@@ -146,6 +146,9 @@ DEFINE_int32(lookahead_subtree_size_limit, -1,
 DEFINE_int32(lookahead_n_be_abs_error_to_include, INT_MAX,
              "lookahead: number of largest avg abs bucket error variables"
              "to include in LH");
+DEFINE_bool(lookahead_reuse_identical_subtrees, false,
+            "lookahead: cache results of ancestor subtrees when possible. "
+            "(This should only be used when the search is depth-first.)");
 DEFINE_double(lookahead_starting_probability, 1.0,
              "initial probability of performing lookahead");
 DEFINE_double(lookahead_min_probability, 0.2,
@@ -207,6 +210,7 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
       opt->algorithm = FLAGS_algorithm;
     }
 
+
     opt->in_problemFile = FLAGS_input_file;
     opt->in_evidenceFile = FLAGS_evid_file;
     opt->in_orderingFile = FLAGS_ordering_file;
@@ -261,6 +265,11 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
         FLAGS_lookahead_subtree_size_limit;
     opt->nBEabsErrorToInclude =
         FLAGS_lookahead_n_be_abs_error_to_include;
+    // use lookahead ancestor caching by default only if search is depth-first
+    // otherwise, ensure it's false.
+    if (opt->algorithm != "aobb") {
+      FLAGS_lookahead_reuse_identical_subtrees = false;
+    } 
 
     opt->prop_heuristic = FLAGS_do_heuristic_prop;
 

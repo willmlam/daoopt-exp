@@ -1215,6 +1215,7 @@ bool Main::outputInfo() const {
 #endif
 
   ostringstream oss;
+  oss << "+ algorithm:\t" << m_options->algorithm << endl;
   oss << "+ i-bound:\t" << m_options->ibound << endl << "+ j-bound:\t"
       << m_options->cbound << endl << "+ Memory limit:\t" << m_options->memlimit
       << endl << "+ Suborder:\t" << m_options->subprobOrder << " ("

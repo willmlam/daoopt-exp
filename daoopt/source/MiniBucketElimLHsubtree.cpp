@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <fstream>
 #include <chrono>
+#include <gflags/gflags.h>
 
 using namespace std::chrono;
 
@@ -35,7 +36,8 @@ using namespace std::chrono;
 // exactly the same errors are the higher (earlier) LH subtree.
 // #define IGNORE_COPY_SUBTREE
 
-#define REUSE_IDENTICAL_SUBTREES
+DECLARE_bool(lookahead_reuse_identical_subtrees);
+
 
 /* disables DEBUG output */
 #undef DEBUG
@@ -529,34 +531,34 @@ int daoopt::MBLHSubtree::ComputeSubtree(void)
 	for (vector<MBLHSubtreeNode *>::iterator itST = _SubtreeNodes.begin(); itST != _SubtreeNodes.end(); ++itST) 
 		(*itST)->SerializeSignature() ;
 
-#ifdef REUSE_IDENTICAL_SUBTREES
-	// check if this subtree is a subset of the subtree of some ancestor
-	std::vector<MBLHSubtree> & lhArray = _H->LH() ;
-	daoopt::PseudotreeNode *p = nRootVar->getParent() ;
-	_IsCopyOfEarlierSubtree = NULL ;
-	int dUp = 1 ;
-	while (NULL != p) {
-		// check if subtree of p contains signature of this subtree
-		int v = p->getVar() ;
-		MBLHSubtree & lhV = lhArray[v] ;
-		MBLHSubtreeNode *n = lhV.GetSubtreeNode(_RootVar) ;
-		if (NULL == n) 
-			// subtree of v does not contain node '_RootVar'.
-			break ;
-		if (_RootNode._Signature != n->_Signature) 
-			// signature of '_RootVar' in n does not match signature of this subtree; we cannot use n to compute the value of this subtree; quit.
-			break ;
-		// we can use n to compute the value of this subtree, since n and this subtree match!!!
-		_IsCopyOfEarlierSubtree = n ;
-		// go up on level and check again
-		p = p->getParent() ;
-		++dUp ;
-		}
-	if (_H->m_options->_fpLogFile && NULL != _IsCopyOfEarlierSubtree) {
-		fprintf(_H->m_options->_fpLogFile, "\nMATCH : subtree of rootvar %d is a subset of subtree of %d at distance=%d", _RootVar, _IsCopyOfEarlierSubtree->_RootVar, dUp) ;
-		fflush(_H->m_options->_fpLogFile) ;
-		}
-#endif
+  if (FLAGS_lookahead_reuse_identical_subtrees) {
+    // check if this subtree is a subset of the subtree of some ancestor
+    std::vector<MBLHSubtree> & lhArray = _H->LH() ;
+    daoopt::PseudotreeNode *p = nRootVar->getParent() ;
+    _IsCopyOfEarlierSubtree = NULL ;
+    int dUp = 1 ;
+    while (NULL != p) {
+      // check if subtree of p contains signature of this subtree
+      int v = p->getVar() ;
+      MBLHSubtree & lhV = lhArray[v] ;
+      MBLHSubtreeNode *n = lhV.GetSubtreeNode(_RootVar) ;
+      if (NULL == n) 
+        // subtree of v does not contain node '_RootVar'.
+        break ;
+      if (_RootNode._Signature != n->_Signature) 
+        // signature of '_RootVar' in n does not match signature of this subtree; we cannot use n to compute the value of this subtree; quit.
+        break ;
+      // we can use n to compute the value of this subtree, since n and this subtree match!!!
+      _IsCopyOfEarlierSubtree = n ;
+      // go up on level and check again
+      p = p->getParent() ;
+      ++dUp ;
+    }
+    if (_H->m_options->_fpLogFile && NULL != _IsCopyOfEarlierSubtree) {
+      fprintf(_H->m_options->_fpLogFile, "\nMATCH : subtree of rootvar %d is a subset of subtree of %d at distance=%d", _RootVar, _IsCopyOfEarlierSubtree->_RootVar, dUp) ;
+      fflush(_H->m_options->_fpLogFile) ;
+    }
+  }
 
 	return 0 ;
 }
