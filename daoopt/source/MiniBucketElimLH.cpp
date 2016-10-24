@@ -489,7 +489,15 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
   } else {
     double total_memory_limit = m_options->lookahead_LE_AllTablesTotalLimit;
     double table_memory_limit = m_options->lookahead_LE_SingleTableLimit;
-    computeLocalErrorTables(true, total_memory_limit, table_memory_limit);
+
+    // only compute local errors as needed for subtree pruning
+    if (!m_options->lookahead_use_full_subtree) {
+      computeLocalErrorTables(true, total_memory_limit, table_memory_limit);
+    } else {
+      for (int v : elimOrder) {
+        _BucketErrorQuality[v] = 99;
+      }
+    }
 
     // for each bucket, compute closest distance to descendant with >0 bucket
     // error
