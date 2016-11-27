@@ -30,6 +30,7 @@ class AOStar : virtual public Search {
 
  protected:
   virtual SearchNode* initSearch();
+  virtual void InitBFSearchSpace();
   bool DoSearch();
   void ExpandAndRevise(BFSearchNode* node);
   bool Expand(BFSearchNode* node);
@@ -58,7 +59,7 @@ class AOStar : virtual public Search {
   struct CompNodeIndexAsc : public std::binary_function<BFSearchNode*,
     BFSearchNode*, bool> {
     bool operator()(const BFSearchNode* x, const BFSearchNode* y) const {
-      return x->get_index() < y->get_index();
+      return x->index() < y->index();
     }
   };
 
@@ -95,7 +96,7 @@ class AOStar : virtual public Search {
 
   // function objects
   std::function<bool(const SearchNode*, const SearchNode*)>
-      comp_node_ordering_heur_desc_fn;
+      comp_node_ordering_heur_desc_fn_;
 };
 
 

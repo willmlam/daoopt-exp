@@ -56,6 +56,7 @@
 #endif
 
 #include "AOStar.h"
+#include "AnytimeAOStar.h"
 #include "LimitedDiscrepancy.h"
 
 namespace daoopt {

@@ -45,6 +45,9 @@ namespace daoopt {
 
 extern high_resolution_clock::time_point _time_start; // from Main.cpp
 
+Search::Search() {
+}
+
 Search::Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h,
     BoundPropagator* prop, ProgramOptions* po) :
     m_problem(prob), m_pseudotree(pt), m_space(s), m_heuristic(h),

@@ -328,6 +328,9 @@ class MiniBucketElimLH : public MiniBucketElim {
   void ComputeSubtreeErrors(const std::vector<double> &bucket_error);
   void ComputeSubtreeErrorFns(const std::vector<Function *> &bucket_error_fns);
 
+  void ComputeDepthLimitedSubtreeErrorFns(
+      const std::vector<Function*>& bucket_error_fns, int depth);
+
   double GetLookaheadProbability(int var) const {
     return lookahead_probability_[var];
   }

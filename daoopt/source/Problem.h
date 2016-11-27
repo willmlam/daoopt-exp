@@ -162,6 +162,11 @@ public:
   /* report an updated upper bound */
   void updateUpperBound(double bound, const SearchStats* nodestats = NULL,
       bool output = true);
+  
+  /* report both lower-upper bound */
+  void updateLowerUpperBound(double cost, double bound,
+                             const SearchStats* nodestats = NULL,
+                             bool output = true);
 
 
   /* resets current optimal solution cost and assignment */

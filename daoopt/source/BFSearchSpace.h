@@ -39,17 +39,22 @@ struct StateHasher {
 };
 
 using AOGraph = boost::unordered_map<BFSearchState, BFSearchNode*, StateHasher>;
+using AOLayers = std::vector<std::list<BFSearchNode*>>;
 
 class BFSearchSpace : virtual public SearchSpace {
  public:
   void add_node(const BFSearchState& state, BFSearchNode* node);
   bool find_node(int var, const BFSearchState& state) const;
-  BFSearchNode* get_node(int var, const BFSearchState& state) const;
+  BFSearchNode* node(int var, const BFSearchState& state) const;
   void erase_node(int var, const BFSearchState& state);
   void clear_all_nodes();
 
-  const std::vector<AOGraph>& get_nodes() const { return nodes_; }
-  std::vector<AOGraph>& get_nodes() { return nodes_; }
+  const std::vector<AOGraph>& nodes() const { return nodes_; }
+  std::vector<AOGraph>& nodes() { return nodes_; }
+
+  const AOLayers& layers() const { return layers_; }
+  AOLayers& layers() { return layers_; }
+  void initialize_layers(size_t num_layers);
 
   void IncNodesExpanded(int node_type);
 
@@ -59,6 +64,9 @@ class BFSearchSpace : virtual public SearchSpace {
  protected:
   // Cache for nodes in explicated search space
   std::vector<AOGraph> nodes_;
+
+  // Layers for repairing
+  AOLayers layers_;
 
  private:
   BFSearchSpace(const BFSearchSpace&);
@@ -75,10 +83,19 @@ inline BFSearchSpace::~BFSearchSpace() {
   root = nullptr;
 }
 
+inline void BFSearchSpace::initialize_layers(size_t num_layers) {
+  layers_.resize(num_layers);
+}
+
 inline void BFSearchSpace::add_node(const BFSearchState& state,
     BFSearchNode* node) {
   assert(node);
   nodes_[node->getVar()].insert(std::make_pair(state, node));
+  if (!layers_.empty()) {
+    int d = node->getDepth();
+    assert(d >= 0 && d < int(layers_.size()));
+    layers_[d].push_front(node);
+  }
 }
 
 inline bool BFSearchSpace::find_node(int var,
@@ -86,7 +103,7 @@ inline bool BFSearchSpace::find_node(int var,
   return ContainsKey(nodes_[var], state);
 }
 
-inline BFSearchNode* BFSearchSpace::get_node(int var, const BFSearchState& state) const {
+inline BFSearchNode* BFSearchSpace::node(int var, const BFSearchState& state) const {
   AOGraph::const_iterator it = nodes_[var].find(state);
   return it != nodes_[var].end() ? it->second : nullptr;
 }
@@ -109,6 +126,7 @@ inline void BFSearchSpace::clear_all_nodes() {
     }
   }
   nodes_.clear();
+  layers_.clear();
 }
 
 inline void BFSearchSpace::IncNodesExpanded(int node_type) {

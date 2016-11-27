@@ -19,6 +19,7 @@ bool AOStar::solve(size_t nodeLimit) {
 
   // Initial best-first search phase
   try {
+    InitBFSearchSpace();
     solved = DoSearch();
   } catch (std::bad_alloc& ba_exception) {
     delete[] emergency_memory;
@@ -52,6 +53,7 @@ bool AOStar::DoSearch() {
   root->set_fringe(true);
   root->setHeurCache(dv);
 
+  solution_cost_ = ELEM_ZERO;
   heuristic_bound_ = h;
 
   prev_reported_time_ = -1;
@@ -91,7 +93,7 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
     revise_set.erase(revise_set.begin());
     e->set_visited(false);
 
-    assert(e->get_index() == 0);
+    assert(e->index() == 0);
     bool change = Revise(e);
 
 #ifdef DEBUG
@@ -101,25 +103,25 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
     if (change) {
       // Step 12 Nilssons
       if (e->getType() == NODE_AND) {
-        assert(e->get_parents().size() == 1);
-        BFSearchNode* parent = e->get_parents().front();
+        assert(e->parents().size() == 1);
+        BFSearchNode* parent = e->parents().front();
 
         // Count children of e still in the revise_set
         // The index will place this node later the more children there are.
         size_t index = 0;
-        for (BFSearchNode* child : parent->get_children()) {
+        for (BFSearchNode* child : parent->children()) {
           if (child->is_visited()) {
             ++index;
           }
         }
-        BFSearchNode* best = parent->get_best_child();
+        BFSearchNode* best = parent->best_child();
         bool found = (best == e); // Is 'e' the marked AND child of the parent?
         if (parent->is_visited()) {
           // decrease parent index and replace
           auto si = revise_set.begin();
           for (; si != revise_set.end(); ++si) {
             if (parent == *si) {
-              if (parent->get_index() > 0) {
+              if (parent->index() > 0) {
                 revise_set.erase(si);
                 parent->decrement_index();
                 revise_set.insert(parent);
@@ -134,9 +136,9 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
         }
       } else if (e->getType() == NODE_OR) {
         // Multiple parents in the CMAO graph.
-        for (BFSearchNode* parent : e->get_parents()) {
+        for (BFSearchNode* parent : e->parents()) {
           size_t index = 0;
-          for (BFSearchNode* child : parent->get_children()) {
+          for (BFSearchNode* child : parent->children()) {
             if (child->is_visited()) {
               ++index;
             }
@@ -146,7 +148,7 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
             auto si = revise_set.begin();
             for (; si != revise_set.end(); ++si) {
               if (parent == *si) {
-                if (parent->get_index() > 0) {
+                if (parent->index() > 0) {
                   revise_set.erase(si);
                   parent->decrement_index();
                   revise_set.insert(parent);
@@ -162,13 +164,13 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
         }
       }
     } else {
-      assert(e->getType() != NODE_AND || e->get_parents().size() == 1);
-      for (BFSearchNode* parent : e->get_parents()) {
+      assert(e->getType() != NODE_AND || e->parents().size() == 1);
+      for (BFSearchNode* parent : e->parents()) {
         if (parent->is_visited()) {
           auto si = revise_set.begin();
           for (; si != revise_set.end(); ++si) {
             if (parent == *si) {
-              if (parent->get_index() > 0) {
+              if (parent->index() > 0) {
                 revise_set.erase(si);
                 parent->decrement_index();
                 revise_set.insert(parent);
@@ -182,7 +184,6 @@ void AOStar::ExpandAndRevise(BFSearchNode* node) {
   }
   assert(revise_set.empty());
 
-  tip_nodes_.clear();
   FindBestPartialTree();
 
   assert(dynamic_cast<BFSearchNode*>(search_space_->getRoot())->is_solved() ||
@@ -210,12 +211,13 @@ bool AOStar::Expand(BFSearchNode* node) {
 
       BFSearchNodeOR* c;
       if (!m_options->nocaching && search_space_->find_node(var_child, state)) {
-        c = (BFSearchNodeOR*) search_space_->get_node(var_child, state);
+        c = (BFSearchNodeOR*) search_space_->node(var_child, state);
       } else {
         c = new BFSearchNodeOR(node, var_child, depth + 1);
         double h = assignCostsOR(c);
         c->setHeur(h);
         c->setValue(h);
+        c->setFeasibleValue(ELEM_ZERO);
 
         search_space_->add_node(state, c);
       }
@@ -243,6 +245,7 @@ bool AOStar::Expand(BFSearchNode* node) {
       double oh = ordering_heur_cache[val];
       c->setHeur(h - w);
       c->setValue(h - w);
+      c->setFeasibleValue(ELEM_ZERO);
       c->setOrderingHeur(oh);
       search_space_->add_node(state, c);
 
@@ -258,6 +261,8 @@ bool AOStar::Expand(BFSearchNode* node) {
 
 bool AOStar::Revise(BFSearchNode* node) {
   assert(node);
+//  cout << "Revise BFS: (" << node << ") "<< node->ToString() << endl;
+
 
   bool change = true;
   bool tightening_threshold_reached = false;
@@ -272,7 +277,7 @@ bool AOStar::Revise(BFSearchNode* node) {
       double old_value = node->getValue();
       bool solved = true;
       double q_value = ELEM_ONE;
-      for (BFSearchNode* child : node->get_children()) {
+      for (BFSearchNode* child : node->children()) {
         solved = solved && child->is_solved();
         q_value OP_TIMESEQ child->getValue();
       }
@@ -283,14 +288,14 @@ bool AOStar::Revise(BFSearchNode* node) {
         node->set_fringe(false);
       }
 
-      change = solved || q_value != old_value;
+      change = solved || (q_value != old_value);
     }
   } else if (node->getType() == NODE_OR) {
     double old_value = node->getValue();
     double q_value = -std::numeric_limits<double>::infinity();
     BFSearchNode* best = nullptr;
 
-    for (BFSearchNode* child : node->get_children()) {
+    for (BFSearchNode* child : node->children()) {
       int val = child->getVal();
       double w = node->getWeight(val);
       double q = w OP_TIMES child->getValue();
@@ -318,14 +323,14 @@ bool AOStar::Revise(BFSearchNode* node) {
         node->getParent()->addSubSolved(node->getValue());
       }
     }
-    change = solved || q_value != old_value;
+    change = solved || (q_value != old_value);
     if (change && node == search_space_->getRoot()) {
       if (heuristic_bound_ - q_value > 1e-10) {
         heuristic_bound_ = q_value;
         high_resolution_clock::time_point now = high_resolution_clock::now();
         double t = duration_cast<duration<double>>(now - _time_start).count();
         if (prev_reported_time_ < 0 || t - prev_reported_time_ > 5) {
-          m_problem->updateUpperBound(heuristic_bound_,
+          m_problem->updateLowerUpperBound(solution_cost_, heuristic_bound_,
                                       &(search_space_->stats));
           prev_reported_time_ = t;
         }
@@ -337,6 +342,7 @@ bool AOStar::Revise(BFSearchNode* node) {
 }
 
 bool AOStar::FindBestPartialTree() {
+  tip_nodes_.clear();
   BFSearchNode* root = reinterpret_cast<BFSearchNode*>(search_space_->getRoot());
 
   std::fill(m_assignment.begin(), m_assignment.end(), UNKNOWN);
@@ -352,8 +358,8 @@ bool AOStar::FindBestPartialTree() {
       int val = e->getVal();
       m_assignment[var] = val;
 
-      if (!e->get_children().empty()) {
-        for (BFSearchNode* child : e->get_children()) {
+      if (!e->children().empty()) {
+        for (BFSearchNode* child : e->children()) {
           child->set_current_parent(e);
           if (!child->is_solved()) {
             dfs_stack.push(child);
@@ -364,8 +370,8 @@ bool AOStar::FindBestPartialTree() {
         tip_nodes_.push_back(e);
       }
     } else {
-      if (!e->get_children().empty()) {
-        BFSearchNode* best_child = e->get_best_child();
+      if (!e->children().empty()) {
+        BFSearchNode* best_child = e->best_child();
         assert(best_child);
         best_child->set_current_parent(e);
         dfs_stack.push(best_child);
@@ -380,7 +386,7 @@ bool AOStar::FindBestPartialTree() {
 
 void AOStar::ArrangeTipNodes() {
   std::sort(tip_nodes_.begin(), tip_nodes_.end(),
-            comp_node_ordering_heur_desc_fn);
+            comp_node_ordering_heur_desc_fn_);
 }
 
 BFSearchNode* AOStar::ChooseTipNode() {
@@ -417,11 +423,16 @@ SearchNode* AOStar::initSearch() {
   root->set_terminal(false);
   root->set_fringe(true);
 
-  BFSearchState state(NODE_OR, "s-2");
   search_space_->setRoot(root);
+  return root;
+}
+
+void AOStar::InitBFSearchSpace() {
+  BFSearchNode* root = reinterpret_cast<BFSearchNode*>(
+      search_space_->getRoot());
+  BFSearchState state(NODE_OR, "s-2");
   search_space_->add_node(state, root);
   tip_nodes_.push_back(root);
-  return root;
 }
 
 
@@ -444,10 +455,10 @@ SearchNode* AOStar::nextNode() {
 AOStar::AOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
                      Heuristic* heur, BoundPropagator* prop,
                      ProgramOptions* po)
-: Search(p, pt, space, heur, prop, po), global_search_index_(0) {
+: Search(p, pt, space, heur, prop, po), global_search_index_(0),
+  comp_node_ordering_heur_desc_fn_(NodeOrderingHeurDesc()) {
   search_space_ = dynamic_cast<BFSearchSpace*>(space);
-  this->initSearch();
-  comp_node_ordering_heur_desc_fn = NodeOrderingHeurDesc();
+  initSearch();
 }
 
 }  // namespace daoopt

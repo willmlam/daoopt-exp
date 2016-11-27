@@ -62,6 +62,9 @@ protected:
   double m_nodeValue;                // node value (as in cost)
   double m_heurValue;                // heuristic estimate of the node's value
 
+  double m_feasibleValue;            // cost of current best feasible solution
+                                     // of problem rooting this node
+
   double m_orderingHeurValue;        // heuristic for ordering subproblems
                                      // (generally an estimate of the residual)
 
@@ -106,6 +109,9 @@ public:
   // the first one is overridden in SearchNodeOR, the second one isn't
   virtual double getHeur() const { return m_heurValue; }
 //  virtual double getHeurOrg() const { return m_heurValue; }
+
+  virtual void setFeasibleValue(double) = 0;
+  virtual double getFeasibleValue() const = 0;
 
   void setOrderingHeur(double d) { m_orderingHeurValue = d; }
   virtual double getOrderingHeur() const { return m_orderingHeurValue; }
@@ -233,6 +239,10 @@ public:
 
   void setValue(double d) { m_nodeValue = d; }
   double getValue() const { return m_nodeValue; }
+
+  void setFeasibleValue(double d) { m_feasibleValue = d; }
+  double getFeasibleValue() const { return m_feasibleValue; }
+
 //  void setLabel(double d) { m_nodeLabel = d; }
   double getLabel() const { return m_nodeLabel; }
   void addSubSolved(double d) { m_subSolved OP_TIMESEQ d; }
@@ -318,6 +328,8 @@ public:
 
   void setValue(double d) { m_nodeValue = d; }
   double getValue() const { return m_nodeValue; }
+  void setFeasibleValue(double d) { m_feasibleValue = d; }
+  double getFeasibleValue() const { return m_feasibleValue; }
 //  void setLabel(double d) { assert(false); } // no label for OR nodes!
   double getLabel() const { assert(false); return 0; } // no label for OR nodes!
   void addSubSolved(double d) { assert(false); } // not applicable for OR nodes

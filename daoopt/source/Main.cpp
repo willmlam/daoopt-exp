@@ -511,7 +511,8 @@ bool Main::initDataStructs() {
 #else
   if (m_options->algorithm == "aobb") {
     m_space.reset(new SearchSpace(m_pseudotree.get(), m_options.get()));
-  } else if (m_options->algorithm == "aobf") {
+  } else if (m_options->algorithm == "aobf" ||
+      m_options->algorithm == "aaobf") {
     m_space.reset(new BFSearchSpace(m_pseudotree.get(), m_options.get(),
                                     m_problem->getN()));
   }
@@ -551,6 +552,10 @@ bool Main::initDataStructs() {
     m_search.reset(new AOStar(m_problem.get(), m_pseudotree.get(),
                               m_space.get(), m_heuristic.get(), m_prop.get(),
                               m_options.get()));
+  } else if (m_options->algorithm == "aaobf") {
+    m_search.reset(new AnytimeAOStar(m_problem.get(), m_pseudotree.get(),
+          m_space.get(), m_heuristic.get(), m_prop.get(),
+          m_options.get()));
   } else {
     cout << "Invalid algorithm option." << endl;
     return false;

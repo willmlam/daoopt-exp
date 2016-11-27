@@ -1166,6 +1166,35 @@ void Problem::updateUpperBound(double bound, const SearchStats* nodestats,
   }
 }
 
+void Problem::updateLowerUpperBound(double cost, double bound,
+                                    const SearchStats* nodestats, bool output) {
+  double old_cost = m_curCost;
+  double old_bound = m_curUpperBound;
+  updateUpperBound(bound, nodestats, false);
+  updateSolution(cost, nodestats, false);
+  bool cost_changed = m_curCost != old_cost;
+  bool bound_changed = m_curUpperBound != old_bound;
+  if (output) {
+    oss ss;
+    ss << std::setprecision(20);
+    if (!(cost_changed ^ bound_changed)) {
+      ss << "w ";
+    } else if (cost_changed) {
+      ss << "u ";
+    } else if (bound_changed) {
+      ss << "h ";
+    } 
+    if (nodestats)
+      ss << nodestats->numExpOR << ' ' <<  nodestats->numExpAND << ' ';
+    else
+      ss << "0 0 ";
+    ss << SCALE_LOG(m_curCost) << " ";
+    ss << SCALE_LOG(m_curUpperBound);
+    ss << endl;
+    myprint(ss.str());
+  }
+}
+
 
 void Problem::writeUAI(const string& prob) const {
   assert (prob.size());

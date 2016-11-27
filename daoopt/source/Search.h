@@ -238,6 +238,7 @@ protected:
 
 protected:
   virtual bool isMaster() const = 0;
+  Search();
   Search(Problem* prob, Pseudotree* pt, SearchSpace* s, Heuristic* h,
       BoundPropagator* prop, ProgramOptions* po);
 public:

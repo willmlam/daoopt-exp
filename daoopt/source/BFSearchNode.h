@@ -14,21 +14,21 @@ class BFSearchNode : public SearchNode {
   BFSearchNode(SearchNode* parent);
   ~BFSearchNode();
 
-  inline double get_heur_updated() const {
+  inline double heur_updated() const {
     return heur_updated_;
   }
   inline void set_heur_updated(double f) {
     heur_updated_ = f;
   }
 
-  inline BFSearchNode* get_current_parent() const {
+  inline BFSearchNode* current_parent() const {
     return current_parent_;
   }
   inline void set_current_parent(BFSearchNode* node) {
     current_parent_ = node;
   }
 
-  inline int get_index() const {
+  inline int index() const {
     return index_;
   }
   inline void set_index(int index) {
@@ -41,7 +41,7 @@ class BFSearchNode : public SearchNode {
     --index_;
   }
 
-  inline const std::list<BFSearchNode*>& get_parents() const {
+  inline const std::list<BFSearchNode*>& parents() const {
     return parents_;
   }
   inline void add_parent(BFSearchNode* node) {
@@ -59,7 +59,7 @@ class BFSearchNode : public SearchNode {
     return false;
   }
 
-  inline const std::list<BFSearchNode*>& get_children() const {
+  inline const std::list<BFSearchNode*>& children() const {
     return children_;
   }
   inline void add_child(BFSearchNode* node) {
@@ -78,9 +78,12 @@ class BFSearchNode : public SearchNode {
   }
 
   virtual void set_best_child(BFSearchNode* node) = 0;
-  virtual BFSearchNode* get_best_child() = 0;
+  virtual BFSearchNode* best_child() = 0;
 
-  inline size_t get_hash_key() const {
+  virtual void set_feasible_child(BFSearchNode* node) = 0;
+  virtual BFSearchNode* feasible_child() = 0;
+
+  inline size_t hash_key() const {
     return hash_key_;
   }
   inline void set_hash_key(size_t hash_key) {
@@ -122,11 +125,12 @@ class BFSearchNode : public SearchNode {
     is_visited_ = flag;
   }
 
-  inline bool is_deadend() const {
-    return is_deadend_;
+  inline bool is_feasible() const {
+    return is_feasible_;
   }
-  inline void set_deadend(bool flag) {
-    is_deadend_ = flag;
+
+  inline void set_feasible(bool flag) {
+    is_feasible_ = flag;
   }
 
   virtual void setWeight(int val, double w) = 0;
@@ -143,7 +147,7 @@ class BFSearchNode : public SearchNode {
   bool is_terminal_;
   bool is_expanded_;
   bool is_visited_;
-  bool is_deadend_;
+  bool is_feasible_;
 
   // Tightened estimate via lookahead
   double heur_updated_;
@@ -180,6 +184,13 @@ class BFSearchNodeAND : public BFSearchNode {
     m_nodeValue = value;
   }
 
+  inline double getFeasibleValue() const {
+    return m_feasibleValue;
+  }
+  inline void setFeasibleValue(double value) {
+    m_feasibleValue =  value;
+  }
+
   std::string ToString();
 
   /* empty, but required implementations */
@@ -212,7 +223,10 @@ class BFSearchNodeAND : public BFSearchNode {
   void clearOrderingHeurCache() { }
 
   void set_best_child(BFSearchNode* node) { }
-  BFSearchNode* get_best_child() { }
+  BFSearchNode* best_child() { }
+
+  void set_feasible_child(BFSearchNode* node) { }
+  BFSearchNode* feasible_child() { }
 
  protected:
   val_t val_;
@@ -257,6 +271,13 @@ class BFSearchNodeOR : public BFSearchNode {
     m_nodeValue = value;
   }
 
+  inline double getFeasibleValue() const {
+    return m_feasibleValue;
+  }
+  inline void setFeasibleValue(double value) {
+    m_feasibleValue =  value;
+  }
+
   inline double getWeight(int val) const {
     assert(heur_cache_);
     return heur_cache_[2*val+1];
@@ -286,11 +307,18 @@ class BFSearchNodeOR : public BFSearchNode {
     if (ordering_heur_cache_) delete[] ordering_heur_cache_;
   }
 
-  inline BFSearchNode* get_best_child() {
+  inline BFSearchNode* best_child() {
     return best_child_;
   }
   inline void set_best_child(BFSearchNode* node) {
     best_child_ = node;
+  }
+
+  inline BFSearchNode* feasible_child() {
+    return feasible_child_;
+  }
+  inline void set_feasible_child(BFSearchNode* node) {
+    feasible_child_ = node;
   }
 
  protected:
@@ -298,6 +326,7 @@ class BFSearchNodeOR : public BFSearchNode {
   double* heur_cache_;
   double* ordering_heur_cache_;
   BFSearchNode* best_child_;
+  BFSearchNode* feasible_child_;
 
 
 };
@@ -309,7 +338,7 @@ inline BFSearchNode::BFSearchNode(SearchNode* parent)
     is_terminal_(false),
     is_expanded_(false),
     is_visited_(false),
-    is_deadend_(false),
+    is_feasible_(false),
     heur_updated_(ELEM_NAN),
     var_(NONE),
     index_(0),
@@ -347,16 +376,18 @@ inline std::string BFSearchNodeAND::ToString() {
   oss << "AND node: (x" << getVar() << "," << getVal() << ")"
       << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
       << ", q = " << (getValue() == 0 ? 0 : -getValue())
+      << ", f = " << (getFeasibleValue() == 0 ? 0 : -getFeasibleValue())
       << ", oh = " << getOrderingHeur()
       << ", ub = inf" 
       << ", depth = " << getDepth();
   oss << ", children { ";
-  for (BFSearchNode* c : get_children()) {
+  for (BFSearchNode* c : children()) {
     int var = (int) c->getVar();
     oss << var << ":" << (c->getHeur() == 0 ? 0 : -c->getHeur()) << " ";
   }
 
   oss << "}";
+  oss << ", fringe = " << (is_fringe() ? "YES" : "NO");
   oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
   oss << ", solved = " << (is_solved() ? "YES" : "NO");
 
@@ -368,22 +399,24 @@ inline std::string BFSearchNodeOR::ToString() {
   oss << "OR node: (x" << getVar() << ")"
       << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
       << ", q = " << (getValue() == 0 ? 0 : -getValue())
+      << ", f = " << (getFeasibleValue() == 0 ? 0 : -getFeasibleValue())
       << ", oh = " << getOrderingHeur()
       << ", ub = inf" 
       << ", depth = " << getDepth()
       << ", weights { ";
-  for (BFSearchNode* c : get_children()) {
+  for (BFSearchNode* c : children()) {
     int val = (int) c->getVal();
     oss << val << ":" << -getWeight(val) << " ";
   }
 
   oss << "}, children { ";
-  for (BFSearchNode* c : get_children()) {
+  for (BFSearchNode* c : children()) {
     int val = (int) c->getVal();
     oss << val << ":" << (c->getHeur() == 0 ? 0 : -c->getHeur()) << " ";
   }
 
   oss << "}";
+  oss << ", fringe = " << (is_fringe() ? "YES" : "NO");
   oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
   oss << ", solved = " << (is_solved() ? "YES" : "NO");
 

@@ -27,12 +27,14 @@
 #include <gflags/gflags.h>
 
 DECLARE_bool(bee_importance_sampling);
-DECLARE_bool(aobf_subordering_use_relative_error);
 DECLARE_double(lookahead_starting_probability);
 DECLARE_double(lookahead_min_probability);
 DECLARE_bool(lookahead_fix_probability);
 DECLARE_bool(lookahead_always_perform_if_better_once);
 DECLARE_bool(lookahead_always_compute);
+
+DECLARE_bool(aobf_subordering_use_relative_error);
+DECLARE_int32(aobf_subordering_depth_limit);
 
 using namespace std::chrono;
 
@@ -490,8 +492,10 @@ size_t MiniBucketElimLH::build(const std::vector<val_t> *assignment,
     double total_memory_limit = m_options->lookahead_LE_AllTablesTotalLimit;
     double table_memory_limit = m_options->lookahead_LE_SingleTableLimit;
 
-    // only compute local errors as needed for subtree pruning
-    if (!m_options->lookahead_use_full_subtree) {
+    // only compute local errors as needed for subtree pruning or
+    // aobf subproblem ordering heuristic
+    if (!m_options->lookahead_use_full_subtree ||
+        m_options->aobf_subordering != "") {
       computeLocalErrorTables(true, total_memory_limit, table_memory_limit);
     } else {
       for (int v : elimOrder) {
@@ -2085,7 +2089,12 @@ int MiniBucketElimLH::computeLocalErrorTables(
     }
     */
     //    ComputeSubtreeErrorFns(_TrueSlicedBucketErrorFunctions);
-    ComputeSubtreeErrorFns(_BucketErrorFunctions);
+    if (FLAGS_aobf_subordering_depth_limit < 0) {
+      ComputeSubtreeErrorFns(_BucketErrorFunctions);
+    } else {
+      ComputeDepthLimitedSubtreeErrorFns(_BucketErrorFunctions,
+          FLAGS_aobf_subordering_depth_limit);
+    }
     /*
     cout << "fns" << endl;
     for (const auto* fn : _SubtreeErrorFunctions) {
@@ -2258,6 +2267,164 @@ void MiniBucketElimLH::ComputeSubtreeErrorFns(
       }
       assert(increment_done);
     }
+  }
+}
+
+void MiniBucketElimLH::ComputeDepthLimitedSubtreeErrorFns(
+    const std::vector<Function*>& bucket_error_fns, int depth_limit) {
+  // temporary functions representing "buckets"
+  _SubtreeErrorFunctions.resize(m_problem->getN(), nullptr);
+  vector<Function*> buckets(_SubtreeErrorFunctions.size(), nullptr);
+
+  // Initialize subtree error functions and buckets
+  for (int i = 0; i < _SubtreeErrorFunctions.size(); ++i) {
+    const auto* current_fn = bucket_error_fns[i];
+    int64 table_size = current_fn->getTableSize();
+    double* new_table = new double[table_size]();
+    _SubtreeErrorFunctions[i] = new FunctionBayes(
+        -i, m_problem, current_fn->getScopeSet(), new_table, table_size);
+    new_table = new double[table_size]();
+    buckets[i] = new FunctionBayes(
+        -i, m_problem, current_fn->getScopeSet(), new_table, table_size);
+  }
+
+  for (int var : m_pseudotree->getElimOrder()) {
+    // Generate the list of variables within depth d of v
+    stack<int> processing_stack;
+    
+    // stack contains a var, depth (relative to v) pair.
+    stack<pair<int,int>> dfs;
+    dfs.push(make_pair(var, 0));
+
+    // remember the buffer bucket and replace the root with the one that will
+    // become the final result
+    Function* buffer_bucket = buckets[var];
+    buckets[var] = _SubtreeErrorFunctions[var];
+    while (!dfs.empty()) {
+      int c_var;
+      int c_depth;
+      tie(c_var, c_depth) = dfs.top();
+      dfs.pop(); 
+
+      // set variable's bucket function to the error function
+      for (int k = 0; k < buckets[c_var]->getTableSize(); ++k) {
+        buckets[c_var]->getTable()[k] = bucket_error_fns[c_var]->getTable()[k];
+      }
+
+      // skip root -- it does not need to send messages
+      if (c_var != var) {
+        processing_stack.push(c_var);
+      }
+      
+      if (c_depth < depth_limit) {
+        const PseudotreeNode* node = m_pseudotree->getNode(c_var);
+        for (const PseudotreeNode* c : node->getChildren()) {
+          dfs.push(make_pair(c->getVar(), c_depth + 1));
+        }
+      }
+    }
+
+    // Process each variable bottom up.
+    while (!processing_stack.empty()) {
+      int v = processing_stack.top();
+      processing_stack.pop();
+      int p = m_pseudotree->getNode(v)->getParent()->getVar();
+      Function* v_fn = buckets[v];
+      Function* p_fn = buckets[p];
+
+      // send message v->p
+      // these messages are different in that variable v has already been
+      // eliminated.
+      // the process is as follows:
+      // project out the variables not in the parent scope (avg, min, max)
+      // duplicate the message over cardinality of the parent scope variables
+      // not in the message
+      const set<int> &v_scope = v_fn->getScopeSet();
+      const set<int> &p_scope = p_fn->getScopeSet();
+
+      set<int> agg_scope = setminus(v_scope, p_scope);
+      set<int> dupe_scope = setminus(p_scope, v_scope);
+      set<int> both_scope = intersection(v_scope, p_scope);
+      vector<val_t> agg_domains;
+      int64 agg_card = 1;
+      for (int vv : agg_scope) {
+        agg_domains.push_back(m_problem->getDomainSize(vv));
+        agg_card *= m_problem->getDomainSize(vv);
+      }
+      vector<val_t> dupe_domains;
+      for (int vv : dupe_scope) {
+        dupe_domains.push_back(m_problem->getDomainSize(vv));
+      }
+      vector<val_t> both_domains;
+      for (int vv : both_scope) {
+        both_domains.push_back(m_problem->getDomainSize(vv));
+      }
+
+      set<int> all_vars(v_scope);
+      all_vars.insert(p_scope.begin(), p_scope.end());
+
+      int n = all_vars.size();
+      vector<int> all_vars_vec(all_vars.begin(), all_vars.end());
+      val_t *tuple = new val_t[n];
+      for (int k = 0; k < n; ++k) {
+        tuple[k] = 0;
+      }
+
+      vector<val_t*> idx_map_p;
+      vector<val_t*> idx_map_v;
+      vector<val_t*> idx_map_agg;
+      vector<val_t*> idx_map_dupe;
+      vector<val_t*> idx_map_both;
+
+      for (int k = 0; k < n; ++k) {
+        int vs = all_vars_vec[k];
+        if (ContainsKey(both_scope, vs)) {
+          idx_map_v.push_back(&tuple[k]);
+          idx_map_p.push_back(&tuple[k]);
+          idx_map_both.push_back(&tuple[k]);
+        } else if (ContainsKey(v_scope, vs)) {
+          idx_map_v.push_back(&tuple[k]);
+          idx_map_agg.push_back(&tuple[k]);
+        } else if (ContainsKey(p_scope, vs)) {
+          idx_map_p.push_back(&tuple[k]);
+          idx_map_dupe.push_back(&tuple[k]);
+        }
+      }
+
+      // Iterate over intersection
+      do {
+        // TODO(lamw): should consider other aggregation functions
+        //
+        // AVERAGE
+        /*
+        double value = 0.0;
+        do {
+          value += v_fn->getValuePtr(idx_map_v);
+        } while (IdxMapIncrement(idx_map_agg, agg_domains));
+        value /= agg_card;
+        */
+        // MIN
+        double value = numeric_limits<double>::infinity();
+        do {
+          value = min(value, v_fn->getValuePtr(idx_map_v));
+        } while (IdxMapIncrement(idx_map_agg, agg_domains));
+        // MAX
+        /*
+        double value = -numeric_limits<double>::infinity();
+        do {
+          value = max(value, v_fn->getValuePtr(idx_map_v));
+        } while (IdxMapIncrement(idx_map_agg, agg_domains));
+        */
+
+        // duplicate value across compatible instantiations of parent
+        do {
+          double p_value = p_fn->getValuePtr(idx_map_p);
+          p_fn->setValuePtr(idx_map_p, p_value + value);
+        } while (IdxMapIncrement(idx_map_dupe, dupe_domains));
+      } while (IdxMapIncrement(idx_map_both, both_domains));
+    }
+    // restore buffer bucket
+    buckets[var] = buffer_bucket;
   }
 }
 

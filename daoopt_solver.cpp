@@ -171,11 +171,16 @@ DEFINE_string(aobf_subordering, "", "subproblem ordering for AOBF (default: "
     "descending heuristic, options: static_be, sampled_be");
 DEFINE_int32(bee_slice_sample_scope_size, 10, "maximum size for output scope "
              "when sampling error tables");
-DEFINE_bool(bee_slice_sample_closest_first, false,
-            "keep the closest variables wrt to the search space "
-            "(default: farthest varaibles)");
+DEFINE_bool(bee_slice_sample_closest_first, true,
+            "keep the closest variables wrt to the search space"
+            "(otherwise farthest) (default: closest varaibles)");
 DEFINE_bool(aobf_subordering_use_relative_error, false, "use relative error "
     "for AOBF subproblem ordering heuristic.");
+DEFINE_int32(aobf_subordering_depth_limit, -1,
+    "Computes subtree error functions based on passing messages within a depth "
+    "for the subtree ordering heuristic."
+    "This essentially controls what level residual we wish to use as the "
+    "heuristic");
 
 // Constraint propagation
 DEFINE_string(cp_type, "NONE", "use constraint propagation "
@@ -203,13 +208,8 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
       return false;
     }
 
-    if (FLAGS_algorithm != "aobb" && FLAGS_algorithm != "aobf") {
-      cout << "Invalid search algorithm specified." << endl;
-      return false;
-    } else {
-      opt->algorithm = FLAGS_algorithm;
-    }
 
+    opt->algorithm = FLAGS_algorithm;
 
     opt->in_problemFile = FLAGS_input_file;
     opt->in_evidenceFile = FLAGS_evid_file;
