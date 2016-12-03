@@ -116,7 +116,6 @@ void AnytimeAOStar::InitBFSearchSpace() {
   BFSearchNode* root = reinterpret_cast<BFSearchNode*>(
       search_space_->getRoot());
   BFSearchState state(NODE_OR, "s-2");
-  root->setFeasibleValue(ELEM_ZERO);
   search_space_->add_node(state, root);
   tip_nodes_feasible_.push_back(root);
 }
@@ -233,7 +232,6 @@ void AnytimeAOStar::UpdateBound(BFSearchNode* node, BoundType bound_type) {
   cout << node->ToString() << endl;
 #endif
   std::multiset<BFSearchNode*, CompNodeIndexAsc> revise_set;
-
   revise_set.insert(node);
   node->set_visited(true);
 
@@ -267,7 +265,7 @@ void AnytimeAOStar::UpdateBound(BFSearchNode* node, BoundType bound_type) {
             ++index;
           }
         }
-        bool found = false;
+        bool found = true; // for kFeasible, always put parent in
         if (bound_type == BoundType::kHeuristic) {
           found = (parent->best_child() == e);
         }
@@ -284,7 +282,6 @@ void AnytimeAOStar::UpdateBound(BFSearchNode* node, BoundType bound_type) {
             }
           }
         } else if (found) {
-          assert(bound_type == BoundType::kHeuristic);
           parent->set_index(index);
           parent->set_visited(true);
           revise_set.insert(parent);
