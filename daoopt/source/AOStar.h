@@ -27,11 +27,12 @@ class AOStar : virtual public Search {
   AOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
       Heuristic* heur, BoundPropagator* prop, ProgramOptions* po);
   bool solve(size_t nodeLimit);
+  bool printStats() const override;
 
  protected:
   virtual SearchNode* initSearch();
   virtual void InitBFSearchSpace();
-  bool DoSearch();
+  virtual bool DoSearch();
   void ExpandAndRevise(BFSearchNode* node);
   bool Expand(BFSearchNode* node);
   bool Revise(BFSearchNode* node);
@@ -39,6 +40,7 @@ class AOStar : virtual public Search {
   void ArrangeTipNodes();
 
   BFSearchNode* ChooseTipNode();
+
 
   std::string Context(int node_type, const std::set<int>& ctxt);
 
@@ -75,18 +77,31 @@ class AOStar : virtual public Search {
   };
 
   void reset(SearchNode* p);
-  SearchNode* nextNode();
 
-  bool doCompleteProcessing(SearchNode* n);
-  bool doExpand(SearchNode* n);
+
   bool isDone() const {
     return dynamic_cast<BFSearchNode*>(search_space_->getRoot())->is_solved();
   }
   bool isMaster() const { return false; }
 
+  // Empty implementation for unused functions.
+  bool doCompleteProcessing(SearchNode* n) {
+    assert(false);
+    return false;
+  }
+  bool doExpand(SearchNode* n) {
+    assert(false);
+    return false;
+  }
+  SearchNode* nextNode() {
+    assert(false);
+    return false;
+  }
+
   std::vector<SearchNode*> tip_nodes_;
 
   bool best_first_limit_reached_;
+  bool timed_out_;
 
   BFSearchSpace* search_space_;
   size_t global_search_index_;

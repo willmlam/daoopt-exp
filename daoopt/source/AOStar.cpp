@@ -36,6 +36,19 @@ bool AOStar::solve(size_t nodeLimit) {
 
   if (emergency_memory) delete[] emergency_memory;
 
+  if (timed_out_ || best_first_limit_reached_) {
+    high_resolution_clock::time_point time_now = high_resolution_clock::now();
+    double time_elapsed =
+      duration_cast<duration<double>>(time_now - _time_start).count();
+    if (timed_out_) {
+      cout << "TIMED OUT at ";
+    } else if (best_first_limit_reached_) {
+      cout << "OUT OF MEMORY at ";
+    }
+    cout << time_elapsed << " seconds." << endl;
+    printStats();
+  }
+
   return solved;
 }
 
@@ -55,11 +68,17 @@ bool AOStar::DoSearch() {
 
   solution_cost_ = ELEM_ZERO;
   heuristic_bound_ = h;
-
   prev_reported_time_ = -1;
 
   while(!root->is_solved()) {
     assert(tip_nodes_.size() > 0);
+    high_resolution_clock::time_point time_now = high_resolution_clock::now();
+    double time_elapsed =
+      duration_cast<duration<double>>(time_now - _time_start).count();
+    if (time_elapsed > m_options->maxTime) {
+      timed_out_ = true;
+      return false;
+    }
     ArrangeTipNodes();
     BFSearchNode* n = ChooseTipNode();
     ExpandAndRevise(n);
@@ -243,9 +262,14 @@ bool AOStar::Expand(BFSearchNode* node) {
       double h = heur_cache[2 * val];
       double w = heur_cache[2 * val + 1];
       double oh = ordering_heur_cache[val];
-      c->setHeur(h - w);
-      c->setValue(h - w);
-      c->setFeasibleValue(ELEM_ZERO);
+      double h_child;
+      if (h == ELEM_ZERO) {
+        h_child = ELEM_ZERO;
+      } else {
+        h_child = h - w;
+      }
+      c->setHeur(h_child);
+      c->setValue(h_child);
       c->setOrderingHeur(oh);
       search_space_->add_node(state, c);
 
@@ -292,7 +316,7 @@ bool AOStar::Revise(BFSearchNode* node) {
     }
   } else if (node->getType() == NODE_OR) {
     double old_value = node->getValue();
-    double q_value = -std::numeric_limits<double>::infinity();
+    double q_value = ELEM_ZERO;
     BFSearchNode* best = nullptr;
 
     for (BFSearchNode* child : node->children()) {
@@ -304,7 +328,7 @@ bool AOStar::Revise(BFSearchNode* node) {
         q_value = q;
         best = child;
       } else if (q == q_value) {
-        if (!best) {
+        if (!best || child->is_solved()) {
           best = child;
         }
       }
@@ -327,12 +351,14 @@ bool AOStar::Revise(BFSearchNode* node) {
     if (change && node == search_space_->getRoot()) {
       if (heuristic_bound_ - q_value > 1e-10) {
         heuristic_bound_ = q_value;
-        high_resolution_clock::time_point now = high_resolution_clock::now();
-        double t = duration_cast<duration<double>>(now - _time_start).count();
-        if (prev_reported_time_ < 0 || t - prev_reported_time_ > 5) {
-          m_problem->updateLowerUpperBound(solution_cost_, heuristic_bound_,
-                                      &(search_space_->stats));
-          prev_reported_time_ = t;
+        if (m_options->algorithm != "aaobf") {
+          high_resolution_clock::time_point now = high_resolution_clock::now();
+          double t = duration_cast<duration<double>>(now - _time_start).count();
+          if (prev_reported_time_ < 0 || t - prev_reported_time_ > 5) {
+            m_problem->updateLowerUpperBound(solution_cost_, heuristic_bound_,
+                &(search_space_->stats));
+            prev_reported_time_ = t;
+          }
         }
       }
     }
@@ -435,27 +461,24 @@ void AOStar::InitBFSearchSpace() {
   tip_nodes_.push_back(root);
 }
 
-
-// Empty implementations for unused functions.
-bool AOStar::doCompleteProcessing(SearchNode* n) {
-  assert(false);
-  return false;
-}
-
-bool AOStar::doExpand(SearchNode* n) {
-  assert(false);
-  return false;
-}
-
-SearchNode* AOStar::nextNode() {
-  assert(false);
-  return nullptr;
+bool AOStar::printStats() const {
+  cout << "Search Stats: " << endl;
+  cout << "============= " << endl;
+  cout << "OR nodes:           " << m_space->stats.numExpOR << endl;
+  cout << "AND nodes:          " << m_space->stats.numExpAND << endl;
+  /*
+  cout << "Deadend nodes:      " << m_space->stats.numDead << endl;
+  cout << "Deadend nodes (CP): " << m_space->stats.numDeadCP << endl;
+  */
+  return true;
 }
 
 AOStar::AOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
                      Heuristic* heur, BoundPropagator* prop,
                      ProgramOptions* po)
 : Search(p, pt, space, heur, prop, po), global_search_index_(0),
+  best_first_limit_reached_(false),
+  timed_out_(false),
   comp_node_ordering_heur_desc_fn_(NodeOrderingHeurDesc()) {
   search_space_ = dynamic_cast<BFSearchSpace*>(space);
   initSearch();

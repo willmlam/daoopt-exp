@@ -374,21 +374,21 @@ inline void BFSearchNodeOR::getPST(vector<double>& pst) const {
 inline std::string BFSearchNodeAND::ToString() {
   std::ostringstream oss;
   oss << "AND node: (x" << getVar() << "," << getVal() << ")"
-      << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
-      << ", q = " << (getValue() == 0 ? 0 : -getValue())
-      << ", f = " << (getFeasibleValue() == 0 ? 0 : -getFeasibleValue())
+      << ", h = " << getHeur()
+      << ", q = " << getValue()
+      << ", f = " << getFeasibleValue()
       << ", oh = " << getOrderingHeur()
-      << ", ub = inf" 
       << ", depth = " << getDepth();
   oss << ", children { ";
   for (BFSearchNode* c : children()) {
     int var = (int) c->getVar();
-    oss << var << ":" << (c->getHeur() == 0 ? 0 : -c->getHeur()) << " ";
+    oss << var << ":" << c->getHeur() << " ";
   }
 
   oss << "}";
   oss << ", fringe = " << (is_fringe() ? "YES" : "NO");
   oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
+  oss << ", feasible = " << (is_feasible() ? "YES" : "NO");
   oss << ", solved = " << (is_solved() ? "YES" : "NO");
 
   return oss.str();
@@ -397,27 +397,27 @@ inline std::string BFSearchNodeAND::ToString() {
 inline std::string BFSearchNodeOR::ToString() {
   std::ostringstream oss;
   oss << "OR node: (x" << getVar() << ")"
-      << ", h = " << (getHeur() == 0 ? 0 : -getHeur())
-      << ", q = " << (getValue() == 0 ? 0 : -getValue())
-      << ", f = " << (getFeasibleValue() == 0 ? 0 : -getFeasibleValue())
+      << ", h = " << getHeur()
+      << ", q = " << getValue()
+      << ", f = " << getFeasibleValue()
       << ", oh = " << getOrderingHeur()
-      << ", ub = inf" 
       << ", depth = " << getDepth()
       << ", weights { ";
   for (BFSearchNode* c : children()) {
     int val = (int) c->getVal();
-    oss << val << ":" << -getWeight(val) << " ";
+    oss << val << ":" << getWeight(val) << " ";
   }
 
   oss << "}, children { ";
   for (BFSearchNode* c : children()) {
     int val = (int) c->getVal();
-    oss << val << ":" << (c->getHeur() == 0 ? 0 : -c->getHeur()) << " ";
+    oss << val << ":" << c->getHeur() << " ";
   }
 
   oss << "}";
   oss << ", fringe = " << (is_fringe() ? "YES" : "NO");
   oss << ", expanded = " << (is_expanded() ? "YES" : "NO");
+  oss << ", feasible = " << (is_feasible() ? "YES" : "NO");
   oss << ", solved = " << (is_solved() ? "YES" : "NO");
 
   return oss.str();

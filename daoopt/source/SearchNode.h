@@ -388,7 +388,9 @@ ostream& operator << (ostream&, const SearchNode&);
 
 /* Inline definitions */
 inline SearchNode::SearchNode(SearchNode* parent) :
-    m_flags(0), m_parent(parent), m_nodeValue(ELEM_NAN), m_heurValue(INFINITY), _PruningGap(DBL_MAX),
+    m_flags(0), m_parent(parent), m_nodeValue(ELEM_NAN), m_heurValue(INFINITY),
+    m_feasibleValue(ELEM_ZERO),
+    _PruningGap(DBL_MAX),
     m_children(NULL), m_childCountFull(0), m_childCountAct(0)
 #if defined PARALLEL_DYNAMIC || defined PARALLEL_STATIC
   , m_subCount(0)

@@ -9,30 +9,6 @@ namespace daoopt {
 
 extern high_resolution_clock::time_point _time_start; // From Main.cpp
 
-
-bool AnytimeAOStar::solve(size_t nodeLimit) {
-  char* emergency_memory = new char[65536];
-
-  bool solved = false;
-
-  try {
-    InitBFSearchSpace();
-    solved = DoSearch();
-  } catch (std::bad_alloc& ba_exception) {
-    delete[] emergency_memory;
-    emergency_memory = nullptr;
-    best_first_limit_reached_ = true;
-    solved = false;
-  } catch (...) {
-    std::cerr << "Non bad alloc error?" << std::endl;
-    solved = false;
-  }
-
-  if (emergency_memory) delete[] emergency_memory;
-
-  return solved;
-}
-
 bool AnytimeAOStar::DoSearch() {
   BFSearchNode* root = dynamic_cast<BFSearchNode*>(search_space_->getRoot());
   double h = m_heuristic->getGlobalUB();
@@ -58,6 +34,13 @@ bool AnytimeAOStar::DoSearch() {
 
   bool repair_needed = false;
   while (!root->is_solved()) {
+    high_resolution_clock::time_point time_now = high_resolution_clock::now();
+    double time_elapsed =
+      duration_cast<duration<double>>(time_now - _time_start).count();
+    if (time_elapsed > m_options->maxTime) {
+      timed_out_ = true;
+      return false;
+    }
     BFSearchNode* next = nullptr;
     if (!tip_nodes_feasible_.empty()) {
       m_assignment = assignment_feasible_;
@@ -100,10 +83,6 @@ bool AnytimeAOStar::DoSearch() {
   m_problem->updateLowerUpperBound(solution_cost_,
                                    heuristic_bound_,
                                    &(search_space_->stats));
-  cout << "FST exp (OR): " << exp_depth_first_or_ << endl;;
-  cout << "FST exp (AND): " << exp_depth_first_and_ << endl;;
-  cout << "BST exp (OR): " << exp_best_first_or_ << endl;;
-  cout << "BST exp (AND): " << exp_best_first_and_ << endl;;
   return true;
 }
 
@@ -128,6 +107,9 @@ bool AnytimeAOStar::MarkFeasibleChild(BFSearchNode* node) {
   // If there is already a feasible value, then we need to update it to the
   // best one, which is based on the lower-upper bound gap.
   double feasible_value = node->getFeasibleValue();
+  if (node->getDepth() < 2) {
+//    cout << "feasible: " << feasible_value << endl;
+  }
   if (feasible_value != ELEM_ZERO) {
     double max_gap = ELEM_ZERO;
     for (BFSearchNode* c : node->children()) {
@@ -137,27 +119,22 @@ bool AnytimeAOStar::MarkFeasibleChild(BFSearchNode* node) {
 
       // pruning check
       double heur_bound = q OP_TIMES w;
-      if (heur_bound < feasible_value) {
+      /*
+      if (heur_bound <= feasible_value) {
 #ifdef DEBUG
         cout << "heur bound (" << heur_bound<< ") <= feasible value (" <<
             feasible_value << ")" << endl;
         cout << "val: " << val << endl;
         cout << node->ToString() << endl;
+        cout << node->best_child() << endl;
+        cout << c << endl;
         cout << c->ToString() << endl;
 #endif
         continue; // the current node already has a better feasible solution
       }
-
-      // At this point, we are checking each child for whichever one has a
-      // heuristic estimate that is much better.
-      // the gap is the ratio of the estimate over the known feasible value.
-      double child_feasible = feasible_value OP_DIVIDE w;
-      double gap = q / child_feasible;
-      /*
-      if (!c->is_terminal()) {
-        gap = q OP_DIVIDE gap;
-      } 
       */
+
+      double gap = heur_bound - feasible_value;
 
       if (gap + 1e-10 > max_gap) {
         max_gap = gap;
@@ -165,7 +142,24 @@ bool AnytimeAOStar::MarkFeasibleChild(BFSearchNode* node) {
       }
     }
 #ifdef DEBUG
+    cout << "Old mark: " << node << " -> " << node->feasible_child() << endl;
     cout << "Marked: " << node << " -> " << m << endl;
+    if (node->feasible_child() && !m) {
+      cout << node->ToString() << endl;
+      cout << node->feasible_child()->ToString() << endl;
+      BFSearchNode* c = node->feasible_child();
+      int val = c->getVal();
+      double w = node->getWeight(val);
+      double q = c->getValue();
+
+      // pruning check
+      double heur_bound = q OP_TIMES w;
+      cout << "heur bound (" << heur_bound<< ") <= feasible value (" <<
+        feasible_value << ")" << endl;
+      cout << "val: " << val << endl;
+      
+      cin.get();
+    }
 #endif
     node->set_feasible_child(m);
   } else {
@@ -407,14 +401,15 @@ bool AnytimeAOStar::ReviseFeasible(BFSearchNode* node) {
 
 
 bool AnytimeAOStar::Repair() {
+#ifdef DEBUG
+  cout << "Repairing." << endl;
+#endif
   AOLayers& layers = search_space_->layers();
   for (auto layer_list : boost::adaptors::reverse(layers)) {
     for (BFSearchNode* node : layer_list) {
       int var = node->getVar();
       node->set_solved(false);
       if (!node->is_expanded()) {
-        double heur = node->getHeur();
-        node->setValue(heur);
         if (!node->is_terminal()) {
           node->set_solved(false);
         }
@@ -429,6 +424,11 @@ bool AnytimeAOStar::Repair() {
       }
     }
   }
+#ifdef DEBUG
+  cout << " - Heuristic bound: "
+    << search_space_->getRoot()->getValue() << endl;
+  cout << "Repair finished." << endl;
+#endif
   return true;
 }
 
@@ -478,6 +478,7 @@ bool AnytimeAOStar::FindFeasiblePartialTree() {
             if (!m) {
               tip_nodes_feasible_.clear();
 //              cout << node->ToString() << endl;
+//              cin.get();
               return false;
             } else {
               dfs.push(m);
@@ -521,6 +522,15 @@ BFSearchNode* AnytimeAOStar::ChooseTipNodeFeasible() {
   } else {
     return nullptr;
   }
+}
+
+bool AnytimeAOStar::printStats() const {
+  AOStar::printStats();
+  cout << "OR nodes (FST):     " << exp_depth_first_or_ << endl;
+  cout << "AND nodes (FST):    " << exp_depth_first_and_ << endl;
+  cout << "OR nodes (BST):     " << exp_best_first_or_ << endl;
+  cout << "AND nodes (BST):    " << exp_best_first_and_ << endl;
+  return true;
 }
 
 AnytimeAOStar::AnytimeAOStar(Problem* p, Pseudotree* pt, SearchSpace* space,

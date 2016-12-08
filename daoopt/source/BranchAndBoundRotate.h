@@ -70,12 +70,12 @@ protected:
 
   // resets the rotate count (after storing its value)
   void resetRotateCount(int reason);
-  // outputs rotation stats
-  void printStats() const;
 
 public:
   void setStackLimit(size_t s) { m_stackLimit = s; }
   bool solve(size_t nodeLimit);
+  // outputs rotation stats
+  bool printStats() const override;
 
 public:
   BranchAndBoundRotate(Problem* prob, Pseudotree* pt, SearchSpace* space,

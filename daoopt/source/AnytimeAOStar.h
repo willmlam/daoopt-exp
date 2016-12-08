@@ -33,14 +33,12 @@ class AnytimeAOStar : virtual public AOStar {
  public:
   AnytimeAOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
                 Heuristic* heur, BoundPropagator* prop, ProgramOptions* po);
-  bool solve(size_t nodeLimit);
+//  bool solve(size_t nodeLimit);
+  bool printStats() const override;
  protected:
-//  virtual SearchNode* initSearch(); // this is only creating the root node
   void InitBFSearchSpace() override;
-  bool DoSearch();
+  bool DoSearch() override;
   void ExpandAndRevise(BFSearchNode* node, BoundType bound_type);
-//  bool Expand(BFSearchNode* node);
-//  bool Revise(BFSearchNode* node);
 
   // for feasible tree
   void ExpandAndReviseFeasible(BFSearchNode* node);
@@ -62,6 +60,7 @@ class AnytimeAOStar : virtual public AOStar {
 
   void IncExpNodeCount(BoundType bound_type, int node_type);
 
+
  protected: 
   std::vector<SearchNode*> tip_nodes_feasible_;
   std::vector<val_t> assignment_feasible_;
@@ -72,7 +71,6 @@ class AnytimeAOStar : virtual public AOStar {
 
   std::function<bool(const SearchNode*, const SearchNode*)>
     comp_node_ordering_gap_fn_;
-
   
 };
 

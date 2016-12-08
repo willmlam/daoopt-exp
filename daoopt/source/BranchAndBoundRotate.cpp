@@ -103,7 +103,7 @@ bool BranchAndBoundRotate::doExpand(SearchNode* n) {
 }
 
 
-void BranchAndBoundRotate::printStats() const {
+bool BranchAndBoundRotate::printStats() const {
   oss ss;
   ss << "rotateCnt:";
   BOOST_FOREACH(size_t n, m_rotateCnt) ss << ' ' << n;
@@ -127,6 +127,7 @@ void BranchAndBoundRotate::printStats() const {
   ss << "avgRotate: " << avgRotate << " maxRotate: " << m_rotateCnt.size()-1 << endl;
   myprint(ss.str());
   ss.str("");
+  return false;
 }
 
 bool BranchAndBoundRotate::doCompleteProcessing(SearchNode* n) {

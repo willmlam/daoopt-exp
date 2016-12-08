@@ -101,7 +101,7 @@ public:
   virtual bool isDone() const = 0;
 
   /* allows to print stats particular to the algorithm */
-  virtual void printStats() const { /* default empty */ }
+  virtual bool printStats() const { return false; /* default empty */ }
 
 #ifdef PARALLEL_DYNAMIC
   count_t getSubCount() const { return m_space->getTrueRoot()->getSubCount(); }
