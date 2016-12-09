@@ -12,6 +12,18 @@ class NodeComp {
   }
 };
 
+class NodeOrderingGap {
+ public:
+  bool operator()(const SearchNode* x, const SearchNode* y) const {
+    double x_gap = x->getValue() OP_DIVIDE x->getFeasibleValue();
+    double y_gap = y->getValue() OP_DIVIDE y->getFeasibleValue();
+    if (std::isinf(x_gap) && std::isinf(y_gap)) {
+      return x->getHeur() > y->getHeur();
+    }
+    return x_gap > y_gap;
+  }
+};
+
 class NodeOrderingHeurDesc {
  public:
   bool operator()(const SearchNode* x, const SearchNode* y) const {

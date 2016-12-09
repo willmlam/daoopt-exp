@@ -107,17 +107,15 @@ bool AnytimeAOStar::MarkFeasibleChild(BFSearchNode* node) {
   // If there is already a feasible value, then we need to update it to the
   // best one, which is based on the lower-upper bound gap.
   double feasible_value = node->getFeasibleValue();
-  if (node->getDepth() < 2) {
-//    cout << "feasible: " << feasible_value << endl;
-  }
   if (feasible_value != ELEM_ZERO) {
+    BFSearchNode* cur_m = node->feasible_child();
     double max_gap = ELEM_ZERO;
     for (BFSearchNode* c : node->children()) {
       int val = c->getVal();
       double w = node->getWeight(val);
       double q = c->getValue();
 
-      // pruning check
+      // pruning check (not needed due to ordering by gap?)
       double heur_bound = q OP_TIMES w;
       /*
       if (heur_bound <= feasible_value) {
@@ -134,7 +132,7 @@ bool AnytimeAOStar::MarkFeasibleChild(BFSearchNode* node) {
       }
       */
 
-      double gap = heur_bound - feasible_value;
+      double gap = heur_bound OP_DIVIDE feasible_value;
 
       if (gap + 1e-10 > max_gap) {
         max_gap = gap;
@@ -539,7 +537,7 @@ AnytimeAOStar::AnytimeAOStar(Problem* p, Pseudotree* pt, SearchSpace* space,
   AOStar(p, pt, space, heur, prop, po),
   exp_depth_first_or_(0), exp_depth_first_and_(0),
   exp_best_first_or_(0), exp_best_first_and_(0),
-  comp_node_ordering_gap_fn_(NodeHeurDesc()) {
+  comp_node_ordering_gap_fn_(NodeOrderingHeurDesc()) {
 }
 
 }  // namespace daoopt
