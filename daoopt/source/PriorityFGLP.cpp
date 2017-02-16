@@ -28,7 +28,9 @@ PriorityFGLP::PriorityFGLP(PriorityFGLP* parent_fglp,
 
   // Copy over only relevant priorities.
   for (const int var : sub_vars) {
-    var_priority_.insert(parent_fglp->var_priority_.byIndex(var), var);
+    var_priority_.insert(
+        parent_fglp->var_priority_.isIndexed(var) ?
+        parent_fglp->var_priority_.byIndex(var) : -1, var);
   }
   Condition(parent_fglp->factors(), assignment, sub_vars, condition_var);
 
@@ -78,7 +80,9 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
 
     // Prioritized update
     double p = var_priority_.top().first;
-    if (fabs(p) < tolerance || std::isnan(p)) break;
+    if (fabs(p) < tolerance || std::isnan(p)) {
+      break;
+    }
     int v = var_priority_.top().second;
     var_priority_.pop();
 
@@ -142,7 +146,9 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
       Function *f = factors_by_variable_[v][i];
       for (int vs : f->getScopeVec()) {
         if (vs == v) continue;
-        double p_max = max(p_new, var_priority_.byIndex(vs));
+        double p_max = max(p_new,
+                           var_priority_.isIndexed(vs) ?
+                           var_priority_.byIndex(vs) : -1);
         var_priority_.insert(p_max, vs);
       }
     }
@@ -164,7 +170,7 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
     }
     delete avg_mm;
 
-    if (iter > 0 && iter % problem_->getN() == 0) {
+    if (iter > 0) {
       diff = UpdateUB();
       if (verbose_) {
         cout << "UB: " << ub_ << " (d=" << diff << ")" << endl;
@@ -182,8 +188,9 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
   runiters_ = iter;
 
   if (verbose_) {
-    cout << "FGLP (" << iter << " iter, " << runtime_ << " sec): " << ub_
-         << endl;
+    double top_p = var_priority_.size() > 0 ? var_priority_.top().first : 0;
+    cout << "pFGLP (" << iter << " iter, " << runtime_ << " sec, tol=" 
+      << top_p << "): " << ub_ << endl;
   }
 }
 

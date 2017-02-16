@@ -107,7 +107,7 @@ class AOStar : virtual public Search {
   }
   SearchNode* nextNode() {
     assert(false);
-    return false;
+    return nullptr;
   }
 
   std::vector<SearchNode*> tip_nodes_;

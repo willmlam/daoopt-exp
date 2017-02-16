@@ -7,13 +7,15 @@ using namespace std;
 FGLPMBEHybrid::FGLPMBEHybrid(Problem *p, Pseudotree *pt, ProgramOptions *po)
     : Heuristic(p, pt, po) {
   // do any original preprocessing first
+  int root_iterations = m_options->mplp < 0 ? 5 : m_options->mplp;
   if (m_options != NULL && (m_options->mplp > 0 || m_options->mplps > 0)) {
-    if (m_options->usePriority)
+    if (m_options->usePriority) {
       fglp.reset(new PriorityFGLP(m_problem, po->useNullaryShift));
-    else
+      root_iterations *= m_problem->getN();
+    } else {
       fglp.reset(new FGLP(m_problem, po->useNullaryShift));
-    fglp->Run(m_options->mplp < 0 ? 5 : m_options->mplp, m_options->mplps,
-              m_options->mplpt);
+    }
+    fglp->Run(root_iterations, m_options->mplps, m_options->mplpt);
     fglp->set_owns_factors(false);
     m_problem->replaceFunctions(fglp->factors());
     m_pseudotree->resetFunctionInfo(m_problem->getFunctions());
