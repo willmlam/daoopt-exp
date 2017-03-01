@@ -66,8 +66,10 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
   steady_clock::time_point time_end;
 
   int iter;
+  int iter_output_step = 1;
   for (iter = 0; iter < max_updates || (max_updates == -1 && max_time > 0) ||
-       var_priority_.top().first == numeric_limits<double>::max();
+       (iter < 2*problem_->getN() &&
+        var_priority_.top().first == numeric_limits<double>::max());
        ++iter) {
     time_end = steady_clock::now();
     if (max_time > 0 &&
@@ -170,15 +172,20 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
     }
     delete avg_mm;
 
-    if (iter > 0) {
+    if (iter > 0 && iter % iter_output_step == 0) {
       diff = UpdateUB();
       if (verbose_) {
-        cout << "UB: " << ub_ << " (d=" << diff << ")" << endl;
+        cout << "[";
+        printf("%1.0e", double(iter));
+        cout << "] UB: " << ub_ << " (d=" << diff << ")" << endl;
         /*
            cout << "constant: " << m_globalConstFactor->getTable()[0] << endl;
            cout << "non-const UB: " << m_UBNonConstant << endl;
            */
       }
+    }
+    if (iter > 10*iter_output_step) {
+      iter_output_step *= 10;
     }
   }
   UpdateUB();

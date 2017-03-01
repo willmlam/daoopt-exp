@@ -116,13 +116,13 @@ class indexedHeap : virtual public mxObject {
 
   // Debugging: print out priorities, index values, and reverse index table
   void debug() {
-    std::cout << "P: ";
+    std::cout << "P: [" << _p.size() << "]";
     for (int i = 0; i < _p.size(); ++i) std::cout << _p[i] << " ";
     std::cout << "\n";
-    std::cout << "I: ";
+    std::cout << "I: [" << _id.size() << "]";
     for (int i = 0; i < _id.size(); ++i) std::cout << _id[i] << " ";
     std::cout << "\n";
-    std::cout << "R: ";
+    std::cout << "R: [" << _rev.size() << "]";
     for (int i = 0; i < _rev.size(); ++i) std::cout << _rev[i] << " ";
     std::cout << "\n";
   }
