@@ -80,13 +80,20 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
       break;
     }
 
-    // Prioritized update
-    double p = var_priority_.top().first;
-    if (fabs(p) <= tolerance || std::isnan(p)) {
-      break;
+    // default round robin
+    int v = iter % problem_->getN();
+
+    // do the priority update only if max_time is small
+    // otherwise we just aim to "warm start" the priorities
+    if (max_time > 0 && max_time <= 5) {
+      // Prioritized update
+      double p = var_priority_.top().first;
+      if (fabs(p) <= tolerance || std::isnan(p)) {
+        break;
+      }
+      v = var_priority_.top().second;
+      var_priority_.pop();
     }
-    int v = var_priority_.top().second;
-    var_priority_.pop();
 
     if (v >= int(factors_by_variable_.size())) continue;
 
