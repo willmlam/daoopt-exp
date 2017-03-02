@@ -181,17 +181,19 @@ void FGLPHeuristic::getHeurAll(int var, vector<val_t> &assignment,
   */
 
   FGLP *varFGLP;
+  double iterations = m_options->ndfglp;
   if (m_options->usePriority) {
     varFGLP =
         new PriorityFGLP(dynamic_cast<PriorityFGLP *>(parentFGLP), m_tempAssn,
                          m_subproblemVars[var], condition_var);
+    iterations *= m_problem->getN();
   } else {
     varFGLP =
         new FGLP(parentFGLP, m_tempAssn, m_subproblemVars[var], condition_var);
   }
 
   //    varFGLP->set_verbose(true);
-  varFGLP->Run(m_options->ndfglp, m_options->ndfglps, m_options->ndfglpt);
+  varFGLP->Run(int(iterations), m_options->ndfglps, m_options->ndfglpt);
 
   totalIterationsRun += varFGLP->runiters();
   if (varFGLP->runiters() > 0) {

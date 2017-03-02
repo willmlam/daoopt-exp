@@ -124,7 +124,7 @@ DEFINE_bool(fglp_schedule_priority, false,
             "use FGLP update schedule with priorities");
 
 
-DEFINE_int32(dfglp_iterations, -1, "# iterations of FGLP at every node");
+DEFINE_double(dfglp_iterations, -1, "# iterations of FGLP at every node");
 DEFINE_double(dfglp_time, -1.0, "time for FGLP at every node");
 DEFINE_double(dfglp_tolerance, 1e-7, "convergence tolerance for dynamic FGLP");
 
