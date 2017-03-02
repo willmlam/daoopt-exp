@@ -68,7 +68,9 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
   int iter;
   int iter_output_step = 1;
   // trying this to make it's complexity comparable to FGLP
-  max_updates *= problem_->getN(); 
+  int new_max_updates = max_updates * problem_->getN(); 
+  // handle overflow
+  max_updates = new_max_updates > max_updates ? new_max_updates : -1;
   for (iter = 0; iter < max_updates || (max_updates == -1 && max_time > 0) ||
        (iter < 2*problem_->getN() &&
         var_priority_.top().first == numeric_limits<double>::max());
@@ -84,7 +86,7 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
 
     // Prioritized update
     double p = var_priority_.top().first;
-    if (fabs(p) < tolerance || std::isnan(p)) {
+    if (fabs(p) <= tolerance || std::isnan(p)) {
       break;
     }
     int v = var_priority_.top().second;
