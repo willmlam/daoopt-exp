@@ -115,17 +115,6 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
     for (size_t i = 0; i < factors_by_variable_[v].size(); ++i) {
       Function *f = factors_by_variable_[v][i];
       var_max_marginals[i] = MaxMarginal(f, v);
-
-      if (use_nullary_shift_) {
-        for (size_t j = 0; j < table_size; ++j) {
-          mm_max[i] = max(mm_max[i], var_max_marginals[i][j]);
-        }
-        total_nullary_shift OP_TIMESEQ mm_max[i];
-
-        // Shift max into the global constant
-        global_const_factor_->getTable()[0] OP_TIMESEQ mm_max[i];
-        bound_contribs_[v] OP_TIMESEQ mm_max[i];
-      }
     }
 
     // Compute average max marginal
@@ -141,10 +130,22 @@ void PriorityFGLP::Run(int max_updates, double max_time, double tolerance) {
       }
     }
     for (size_t i = 0; i < table_size; ++i) {
-      if (use_nullary_shift_) {
-        avg_mm[i] OP_DIVIDEEQ total_nullary_shift;
-      }
       avg_mm[i] = OP_ROOT(avg_mm[i], var_max_marginals.size());
+    }
+
+    // Compute nullary shift by shifting out minimum of avg_mm
+    if (use_nullary_shift_) {
+      double max_avg_mm = -numeric_limits<double>::max();
+      for (size_t i = 0; i< table_size; ++i) {
+        max_avg_mm = max(max_avg_mm, avg_mm[i]);
+      }
+      for (size_t i = 0; i< table_size; ++i) {
+        avg_mm[i] OP_DIVIDEEQ max_avg_mm;
+      }
+      total_nullary_shift = var_max_marginals.size() * max_avg_mm;
+      // Shift max into the global constant
+      global_const_factor_->getTable()[0] OP_TIMESEQ total_nullary_shift;
+      bound_contribs_[v] OP_TIMESEQ total_nullary_shift;
     }
 
     // Compute new priority values for each function
