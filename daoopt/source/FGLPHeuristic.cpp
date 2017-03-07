@@ -186,7 +186,8 @@ void FGLPHeuristic::getHeurAll(int var, vector<val_t> &assignment,
     varFGLP =
         new PriorityFGLP(dynamic_cast<PriorityFGLP *>(parentFGLP), m_tempAssn,
                          m_subproblemVars[var], condition_var);
-    iterations *= m_problem->getN();
+//    iterations *= m_problem->getN();
+    iterations *= m_subproblemVars[var].size();
   } else {
     varFGLP =
         new FGLP(parentFGLP, m_tempAssn, m_subproblemVars[var], condition_var);
