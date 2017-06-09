@@ -28,6 +28,9 @@
 #include <sstream>
 #include <fstream>
 
+/*To trim lines when reading the input file*/
+#include <boost/algorithm/string.hpp> 
+
 #include "UAI2012.h"
 
 #undef DEBUG
@@ -477,6 +480,8 @@ bool Problem::parseUAI16(char* prob, size_t probN, char* evid, size_t evidN,
 
   string line;
   while(m_task == UNKNOWN && std::getline(in, s)) {
+    boost::algorithm::trim(s);
+
     // Skip comment lines and empty lines
     if (s[0] == 'c' || s.length() == 0) {
       continue;
