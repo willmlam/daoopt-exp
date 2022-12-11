@@ -12,7 +12,6 @@ add_library(ARP OBJECT
   ./Problem/Globals.cpp
   ./Problem/Workspace.cpp
   ./Problem/Function.cpp
-  ./Utils/AVLtreeSimple.cpp
   ./Utils/Mutex.cpp
   ./Utils/MiscUtils.cpp
   ./Utils/FnExecutionThread.cpp

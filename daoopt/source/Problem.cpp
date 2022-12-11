@@ -928,7 +928,7 @@ void Problem::outputAndSaveSolution(const string& file, const SearchStats* nodes
   if (! file.empty())
     writeFile = true;
 
-  ogzstream out;
+  ofstream out;
   if (writeFile) {
     out.open(file.c_str(), ios::out | ios::trunc | ios::binary);
     if (!out) {
@@ -950,7 +950,8 @@ void Problem::outputAndSaveSolution(const string& file, const SearchStats* nodes
   screen << ' ' << assigSize;
 #endif
 
-  if (writeFile) {
+  bool output_stats = false;
+  if (writeFile && output_stats) {
     BINWRITE(out, m_curCost); // mpe solution cost
     count_t countOR = 0, countAND = 0;
     if (nodestats) {
@@ -963,6 +964,7 @@ void Problem::outputAndSaveSolution(const string& file, const SearchStats* nodes
 
 #ifndef NO_ASSIGNMENT
   if (writeFile) {
+    BINWRITE(out,"MPE");
     BINWRITE(out,assigSize); // no. of variables in opt. assignment
   }
 
@@ -1122,9 +1124,7 @@ void Problem::updateSolution(double cost,
     BOOST_FOREACH( int v, outputAssg ) {
       ss << ' ' << v;
     }
-    /*
     UAI2012::outputSolutionValT(outputAssg);
-    */
     if (!out_bound_file.empty()) {
       vector<count_t> dummy_node_profile;
       vector<count_t> dummy_leaf_profile;
@@ -1176,7 +1176,13 @@ void Problem::updateLowerUpperBound(double cost, double bound,
   double old_cost = m_curCost;
   double old_bound = m_curUpperBound;
   updateUpperBound(bound, nodestats, false);
+#ifdef NO_ASSIGNMENT
   updateSolution(cost, nodestats, false);
+#else
+  vector<val_t> assig;
+  assignmentForOutput(assig);
+  updateSolution(cost, assig, nodestats, false);
+#endif
   bool cost_changed = m_curCost != old_cost;
   bool bound_changed = m_curUpperBound != old_bound;
   if (output) {

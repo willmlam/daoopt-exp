@@ -23,6 +23,7 @@
 
 #include "Main.h"
 #include "ProgramOptions.h"
+#include "UAI2012.h"
 
 #include <gflags/gflags.h>
 
@@ -218,6 +219,7 @@ bool parseOptions(int argc, char** argv, ProgramOptions* opt) {
     opt->maxTime = FLAGS_max_time;
     opt->in_subproblemFile = FLAGS_subproblem_file;
     opt->out_solutionFile = FLAGS_sol_file;
+    UAI2012::filename = opt->out_solutionFile;
     opt->out_boundFile = FLAGS_out_bound_file;
     opt->in_minibucketFile = FLAGS_minibucket_file;
     opt->subprobOrder = FLAGS_suborder;

@@ -49,7 +49,7 @@
 #endif
 
 /* define if data files (solution and subproblem files) should be written in binary */
-#define BINARY_DATAFILES
+//#define BINARY_DATAFILES
 
 /* define if gmp lib should be used for large numbers */
 //#define USE_GMP
@@ -491,9 +491,9 @@ inline bool fpLEq(double A, double B, int64_t maxDist=2) {
 #define BINREAD(S,X) ( S ).read((char*)&( X ), sizeof( X ))
 #define BINSKIP(S,T,N) ( S ).ignore( sizeof( T ) * ( N ) )
 #else
-#define BINWRITE(S,X) ( S ) << ( X ) << '\t'
+#define BINWRITE(S,X) ( S ) << ( X ) << ' '
 #define BINREAD(S,X)  ( S ) >> ( X )
-#define BINSKIP(S,T,N) {T x; for (size_t _i=N, _i, --_i) (S)>>(x); }
+#define BINSKIP(S,T,N) {T x; for (size_t _i=N; _i; --_i) (S)>>(x); }
 #endif
 
 

@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8)
 project(daoopt_solver)
 
 # To enable static linking of the final daoopt binary
-option(DAOOPT_LINK_STATIC "Link binary statically" OFF)
+option(DAOOPT_LINK_STATIC "Link binary statically" ON)
 
 if(WIN32)
   add_definitions(-DWINDOWS)
@@ -48,7 +48,8 @@ endif()
 
 find_package(Threads)
 find_package(Boost)
-find_package(gflags REQUIRED)
+#find_package(gflags REQUIRED)
+find_package(gflags COMPONENTS nothreads_static)
 
 include_directories(${gflags_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})

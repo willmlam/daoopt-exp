@@ -60,7 +60,8 @@ bool Main::parseOptions(int argc, char** argv) {
   m_options.reset(opt);
 
   size_t idx = m_options->in_problemFile.find_last_of("/");
-  UAI2012::filename = m_options->in_problemFile.substr(idx + 1) + ".MPE";
+  // UAI2012::filename = m_options->in_problemFile.substr(idx + 1) + ".MPE";
+  UAI2012::filename = m_options->out_solutionFile;
   out_bound_file = m_options->out_boundFile;
 
   return true;
@@ -109,7 +110,11 @@ bool Main::loadProblem() {
   assert(m_options->in_problemFile != "" || m_options->problemSpec);
   string evid_string;
   if (!m_options->evidSpec) {
-    evid_string = "0\n";
+    if (m_options->in_evidenceFile != "") {
+      evid_string = getFileContents(m_options->in_evidenceFile.c_str());
+    } else {
+      evid_string = "0\n";
+    }
     m_options->evidSpec = &evid_string[0];
     m_options->evidSpec_len = evid_string.size();
   }
@@ -119,8 +124,6 @@ bool Main::loadProblem() {
     m_options->problemSpec = &problem_string[0];
     m_options->problemSpec_len = problem_string.size();
   }
-  //  if (!m_problem->parseUAI(m_options->in_problemFile,
-  // m_options->in_evidenceFile, m_options->collapse))
   if (!m_problem->parseUAI16(m_options->problemSpec, m_options->problemSpec_len,
                            m_options->evidSpec, m_options->evidSpec_len,
                            m_options->collapse))
